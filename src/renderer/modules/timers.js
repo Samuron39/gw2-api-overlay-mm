@@ -142,7 +142,7 @@
       const r = await window.api.invoke('game:paste', b.dataset.link);
       if (r.ok) setStatus(`${b.dataset.link} er limt inn i chatten. Trykk Enter i spillet, så klikk lenken.`);
       else if (r.reason === 'NOGAME') setStatus(`Kopierte ${b.dataset.link}. Spillet kjører ikke, lim inn selv med Ctrl+V.`);
-      else if (r.reason === 'NOPYTHON') setStatus(`Kopierte ${b.dataset.link}. Python mangler, lim inn selv med Ctrl+V.`);
+      else if (r.reason === 'NOHELPER') setStatus(`Kopierte ${b.dataset.link}. Hjelperen mangler, lim inn selv med Ctrl+V.`);
       else setStatus(`Kopierte ${b.dataset.link}, men fikk ikke fokus på spillet (${r.reason}). Lim inn selv med Ctrl+V.`);
     }));
     root.querySelectorAll('.tm-toggle input').forEach((cb) => cb.addEventListener('change', async () => {

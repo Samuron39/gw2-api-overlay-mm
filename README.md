@@ -14,7 +14,7 @@ npm start
 1. Hjulet dukker opp. Dra det i midten, lås plasseringen med hengelåsen. Klikk et segment for å åpne modulen i panelet. Ctrl+Shift+G viser eller skjuler panelet.
 2. Lag en API-nøkkel på <https://account.arena.net/applications> med **alle** tillatelser: account, inventories, characters, wallet, unlocks, progression, tradingpost, builds, guilds. Lim den inn under *Innstillinger*.
 3. Start serveren i LM Studio med en modell lastet med 16k kontekst. Standard i appen er `google/gemma-4-12b-qat`.
-4. Python 3 må finnes på PATH for posisjon fra spillet og for å lime waypoints inn i chatten. Uten Python fungerer alt annet.
+4. Posisjon fra spillet og waypoint-innliming i chatten går via en liten Rust-hjelper (`helper/`). Kjører du fra kildekoden, bygg den én gang med `cargo build --release` i `helper/` (krever Rust). Uten hjelperen fungerer alt annet.
 
 Kjør GW2 i borderless windowed, så ligger hjulet og panelet oppå spillet.
 
@@ -70,7 +70,7 @@ API-nøkkel, LM Studio, inventory-regler, ArcDPS-loggmappe, hvilke moduler som v
 ```
 src/main.js                  Electron: hjul- og panelvindu, konfig, IPC, auto-skjul, hurtigtast
 src/preload.js               allowlist for IPC-kanaler
-src/mumble.js + helpers/     MumbleLink (posisjon, kart, fokus, kamp) og chat-innliming via Python
+src/mumble.js + helper/      MumbleLink (posisjon, kart, fokus, kamp) og chat-innliming via Rust-hjelperen
 src/gw2.js                   GW2 API-klient med item-cache og samlingsindeks
 src/rules.js                 regelmotor for inventory
 src/ai.js                    LM Studio-klient (strømmende, tåler resonneringsmodeller)
@@ -107,7 +107,7 @@ Lager `dist/GW2 Overlay Setup <versjon>.exe` med electron-builder. Installeren i
 
 Etter installasjon ligger appen i Start-menyen og i systemstatusfeltet. Med *Start med Windows* og *Vis overlayen bare når spillet kjører* slått på, starter overlayen i praksis sammen med spillet: hjulet dukker opp når `Gw2-64.exe` starter og forsvinner når spillet avsluttes.
 
-Python 3 må finnes på maskinen for posisjon fra spillet og chat-innliming, alt annet virker uten.
+Hjelperen for posisjon og chat-innliming (`helper/gw2overlay_helper.exe`, bygd fra `helper/` med `cargo build --release`) pakkes med installeren, så ingen ekstra programvare trengs på maskinen.
 
 Ikonene ligger i `assets/`: `icon.png` og `icon.ico` (app, installer og snarvei), `tray.png` (systemstatusfeltet) og `wheel.png` (midten av hjulet). Alle er laget fra samme logo.
 

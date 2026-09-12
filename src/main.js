@@ -253,12 +253,12 @@ handle('clipboard:write', (_e, text) => { clipboard.writeText(String(text)); ret
 handle('game:paste', (_e, text) => new Promise((resolve) => {
   clipboard.writeText(String(text));
   if (!mumble.state?.running) return resolve({ ok: false, reason: 'NOGAME' });
-  const args = [app.isPackaged ? path.join(process.resourcesPath, 'helpers', 'sendchat.py') : path.join(__dirname, 'helpers', 'sendchat.py')];
+  const args = ['paste'];
   if (mumble.state?.ui?.textboxFocus) args.push('--no-enter');
   const { execFile } = require('child_process');
-  execFile(process.platform === 'win32' ? 'python' : 'python3', args, { timeout: 5000, windowsHide: true }, (err, stdout) => {
+  execFile(mumble.helperPath(), args, { timeout: 5000, windowsHide: true }, (err, stdout) => {
     const out = String(stdout || '').trim();
-    if (err && !out) return resolve({ ok: false, reason: 'NOPYTHON' });
+    if (err && !out) return resolve({ ok: false, reason: 'NOHELPER' });
     resolve({ ok: out === 'OK', reason: out || 'UKJENT' });
   });
 }));

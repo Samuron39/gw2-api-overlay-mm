@@ -1,6 +1,7 @@
 node_modules/
 dist/
 bridge/target/
+helper/target/
 *.tmp
 *.log
 .DS_Store
