@@ -64,7 +64,7 @@
     const el = root && $('#lvLive', root);
     if (!el) return;
     if (!snap?.connected) { el.innerHTML = '<span class="down">Ingen kontakt med broen.</span> <span class="muted">Spillet må kjøre med ArcDPS og broen lastet.</span>'; return; }
-    el.innerHTML = `<span class="up">Live-data mottas</span> <span class="muted">(ArcDPS ${esc(snap.arcVersion)})</span> · ${snap.self ? esc(snap.self.name) : 'ukjent karakter'} · ${snap.inCombat ? 'i kamp' : 'utenfor kamp'} · ${snap.buffs.length} buffs · mål: ${snap.target ? esc(snap.target.name) + ' (' + snap.target.buffs.length + ')' : 'ingen'}`;
+    el.innerHTML = `<span class="up">Live-data mottas</span> <span class="muted">(ArcDPS ${esc(snap.arcVersion)})</span> · ${snap.self ? esc(snap.self.name) : 'ukjent karakter'} · ${snap.inCombat ? 'i kamp' : 'utenfor kamp'} · ${snap.buffs.length} buffs · mål: ${snap.target ? esc(snap.target.name) + ' (' + snap.target.buffs.length + ')' : 'ingen'}${snap.stats ? ` · <span class="muted" title="UDP-datagram mottatt, hendelser tolket, og tapte linjer oppdaget ved hopp i broens løpenummer">pakker ${snap.stats.packets} · hendelser ${snap.stats.events} · tap ${snap.stats.dropsDetected}</span>` : ''}`;
   }
 
   function renderWindows() {

@@ -5,6 +5,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
+    "test": "node --test \"test/**/*.test.js\"",
     "dist": "electron-builder --win --dir",
     "dist:installer": "electron-builder --win nsis"
   },
