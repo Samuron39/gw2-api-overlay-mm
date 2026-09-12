@@ -239,6 +239,7 @@ handle('overlays:set', (_e, type, patch) => { const r = overlays.set(type, patch
 handle('skills:get', (_e, opts) => skills.getSkillbar(config, live.snapshot(), mumble.state, opts || {}));
 handle('skills:setRotation', (_e, key, rotation) => { config.rotations = config.rotations || {}; config.rotations[key] = rotation; saveConfig(); overlays.broadcast('skills:changed', { key }); return true; });
 handle('skills:suggest', (_e, key) => skills.suggestRotation(config, key, { onProgress: progress }));
+handle('skills:icons', async (_e, ids) => { const { byId } = await skills.fetchIndex(); const out = {}; for (const id of ids || []) if (byId[id]?.icon) out[id] = byId[id].icon; return out; }); // ikon-URL per skill-id, for effekter uten lokalt ikon
 handle('gw2:detectDir', async () => { const d = await arcdps.detectDir(); if (d && !config.gw2Dir) { config.gw2Dir = d; saveConfig(); } return d; });
 handle('gw2:pickDir', async () => {
   const r = await dialog.showOpenDialog(panelWin, { title: 'Velg mappa der Gw2-64.exe ligger', properties: ['openDirectory'], defaultPath: config.gw2Dir || 'C:\\' });

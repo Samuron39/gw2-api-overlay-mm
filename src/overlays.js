@@ -5,9 +5,9 @@ const { BrowserWindow, screen } = require('electron');
 const path = require('path');
 
 const DEFAULTS = {
-  buffs: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 40, mode: 'both', filter: 'boons', showNames: false, opacity: 1, direction: 'row' },
-  debuffs: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 40, mode: 'both', filter: 'conditions', showNames: false, opacity: 1, direction: 'row' },
-  target: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 36, mode: 'both', filter: 'conditions', showNames: false, opacity: 1, direction: 'row' },
+  buffs: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 40, mode: 'both', filter: 'boons', showNames: false, showIcons: true, opacity: 1, direction: 'row' },
+  debuffs: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 40, mode: 'both', filter: 'conditions', showNames: false, showIcons: true, opacity: 1, direction: 'row' },
+  target: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 36, mode: 'both', filter: 'conditions', showNames: false, showIcons: true, opacity: 1, direction: 'row' },
   skillbar: { enabled: false, x: null, y: null, w: 560, h: 130, locked: false, iconSize: 44, mode: 'both', showNext: true, showCooldown: true, opacity: 1 },
 };
 

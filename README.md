@@ -44,7 +44,7 @@ Live-data krever ArcDPS pluss vår egen ArcDPS-utvidelse, broen. Broen er en lit
 
 Fire små overlay-vinduer, hvert med egen posisjon, størrelse, ikonstørrelse og gjennomsiktighet, og hver kan låses:
 
-- **Buffs på deg** og **Conditions på deg**, eller ett vindu med alt. To utseender: rutenett med forkortelser, eller liste med fullt navn, stacks og sekunder på enden. Gjenværende tid som tall, som skygge (kakediagram i rutenettet, en stolpe som krymper bak navnet i lista), eller begge. Sortering: minst tid først, mest tid først, flest stacks først, eller navn.
+- **Buffs på deg** og **Conditions på deg**, eller ett vindu med alt. To utseender: rutenett med ikoner, eller liste med et lite ikon, fullt navn, stacks og sekunder på enden. Gjenværende tid som tall, som skygge (kakediagram i rutenettet, en stolpe som krymper bak navnet i lista), eller begge. Sortering: minst tid først, mest tid først, flest stacks først, eller navn.
 - **Målet**: conditions og buffs på den du sist traff, for eksempel bossen.
 - **Skill-bar**: legges over spillets skill-bar. Øverst profesjonsmekanikken (F1–F5, elite-spec sine erstatter kjernen), under våpen 1–5, heal, tre utility og elite, alle med ikoner fra API-et for karakteren du spiller akkurat nå. Cooldown vises som nedtelling på hvert ikon, og neste skill i rotasjonen lyser gult.
 
@@ -53,6 +53,8 @@ Fire små overlay-vinduer, hvert med egen posisjon, størrelse, ikonstørrelse o
 **Rotasjon** redigeres steg for steg, eller foreslås av den lokale AI-modellen med tydelig forbehold.
 
 **Hold oppe.** Par av skill og boon, for eksempel elite-skillet og Might. Når boonen mangler på deg og skillet er klart, blinker skillet rødt i skill-baren med boonens forkortelse i hjørnet. «Foreslå fra skillene» fyller lista ut fra hvilke boons hvert skill gir ifølge API-et.
+
+**Ikoner.** Boons og conditions vises med ikonene fra spillet, hentet fra [GW2-wikien](https://wiki.guildwars2.com) (CC BY-SA 3.0, ikonene tilhører ArenaNet) og lagret i `assets/effects/<buff-id>.png` med kildeliste i `ATTRIBUTION.md` der. Andre effekter (skill-buffs) slås opp i skill-indeksen fra API-et og vises med ikonet fra render.guildwars2.com, hentet i batch maks én gang i sekundet. Mangler ikon, står forkortelsen (MGT, QCK, BLD …) som før. «Vis ikoner» per vindu slår det av.
 
 Ulåst vindu har stiplet ramme: dra for å flytte, strekk i kantene. Låst vindu slipper alle klikk gjennom til spillet.
 

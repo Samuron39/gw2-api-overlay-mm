@@ -85,7 +85,8 @@
                     <label class="inline">Sortering <select data-k="sort"><option value="timeAsc" ${c.sort === 'timeAsc' ? 'selected' : ''}>Minst tid først</option><option value="timeDesc" ${c.sort === 'timeDesc' ? 'selected' : ''}>Mest tid først</option><option value="stacks" ${c.sort === 'stacks' ? 'selected' : ''}>Flest stacks først</option><option value="name" ${c.sort === 'name' ? 'selected' : ''}>Navn</option></select></label>
                     <label class="inline">Innhold <select data-k="filter"><option value="boons" ${c.filter === 'boons' ? 'selected' : ''}>Boons</option><option value="conditions" ${c.filter === 'conditions' ? 'selected' : ''}>Conditions</option><option value="other" ${c.filter === 'other' ? 'selected' : ''}>Andre effekter</option><option value="all" ${c.filter === 'all' ? 'selected' : ''}>Alt</option></select></label>
                     <label class="inline">Retning <select data-k="direction"><option value="row" ${c.direction === 'row' ? 'selected' : ''}>Rad</option><option value="col" ${c.direction === 'col' ? 'selected' : ''}>Kolonne</option></select></label>
-                    <label class="inline"><input type="checkbox" data-k="showNames" ${c.showNames ? 'checked' : ''} /> Navn i rutenett</label>`}
+                    <label class="inline"><input type="checkbox" data-k="showNames" ${c.showNames ? 'checked' : ''} /> Navn i rutenett</label>
+                    <label class="inline"><input type="checkbox" data-k="showIcons" ${c.showIcons !== false ? 'checked' : ''} /> Vis ikoner</label>`}
           <label class="inline">Gjennomsiktighet <input type="range" data-k="opacity" min="0.3" max="1" step="0.05" value="${c.opacity}" /></label>
         </div></div>`;
     }).join('');
