@@ -27,8 +27,8 @@
     ],
     "extraResources": [
       {
-        "from": "src/helpers",
-        "to": "helpers"
+        "from": "helper/target/release/gw2overlay_helper.exe",
+        "to": "helper/gw2overlay_helper.exe"
       },
       {
         "from": "bridge/target/release/gw2overlay_bridge.dll",
