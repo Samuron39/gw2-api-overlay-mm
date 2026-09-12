@@ -18,6 +18,7 @@
     .b .st { position: absolute; right: 2px; bottom: 1px; font-size: 32%; font-weight: 700; z-index: 2; text-shadow: 0 1px 2px #000; }
     .b .tm { position: absolute; left: 2px; top: 1px; font-size: 30%; z-index: 2; text-shadow: 0 1px 2px #000; }
     .b .pie { position: absolute; inset: 0; z-index: 0; background: conic-gradient(rgba(0,0,0,0.65) var(--p), transparent 0); }
+    .b img.ic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
     .b .nm { position: absolute; left: 0; right: 0; bottom: 0; font-size: 26%; text-align: center; background: rgba(0,0,0,0.6); z-index: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .b.short { animation: blink .5s steps(2, start) infinite; }
     @keyframes blink { to { border-color: #fff; } }
@@ -27,6 +28,7 @@
     .l.boon { border-left: 4px solid #6fa8ff; } .l.cond { border-left: 4px solid #ff6f6f; } .l.other { border-left: 4px solid #bbb; }
     .l .sh { position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); z-index: 0; background: rgba(91,108,255,0.35); transition: width .1s linear; }
     .l.cond .sh { background: rgba(255,90,90,0.35); }
+    .l img.ic2 { position: relative; z-index: 1; height: calc(var(--rh) - 6px); width: calc(var(--rh) - 6px); border-radius: 3px; flex: 0 0 auto; }
     .l .nm2 { position: relative; z-index: 1; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000; }
     .l .st2 { position: relative; z-index: 1; font-weight: 700; opacity: .9; }
     .l .tm2 { position: relative; z-index: 1; font-weight: 700; min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000; }

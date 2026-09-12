@@ -20,6 +20,32 @@ function classify(skill) { if (BOONS[skill]) return 'boon'; if (CONDS[skill]) re
 function abbr(b) { return BOONS[b.skill] || CONDS[b.skill] || (b.name || '?').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase(); }
 function fmtSec(ms) { const s = ms / 1000; return s >= 10 ? Math.round(s) + '' : s.toFixed(1); }
 
+// Ikoner: boons og conditions ligger lokalt i assets/effects (fra wikien, CC BY-SA). Andre effekter slås opp i
+// skill-indeksen via 'skills:icons' (render.guildwars2.com), samlet i batch og maks én gang per sekund. Uten ikon vises forkortelsen.
+const iconCache = new Map(); // skill-id -> url, eller null når indeksen ikke har noe
+const iconPending = new Set();
+const iconBroken = new Set(); // bilder som ikke lot seg laste
+let iconTimer = null, iconLast = 0;
+function iconFor(b) {
+  if (cfg?.showIcons === false || iconBroken.has(b.skill)) return null;
+  if (BOONS[b.skill] || CONDS[b.skill]) return `../../assets/effects/${b.skill}.png`;
+  if (iconCache.has(b.skill)) return iconCache.get(b.skill);
+  iconPending.add(b.skill);
+  scheduleIcons();
+  return null;
+}
+function scheduleIcons() {
+  if (iconTimer) return;
+  iconTimer = setTimeout(async () => {
+    iconTimer = null; iconLast = Date.now();
+    const ids = [...iconPending]; iconPending.clear();
+    for (const id of ids) iconCache.set(id, null); // ikke spør igjen mens vi venter, eller hvis oppslaget feiler
+    try { const res = await window.api.invoke('skills:icons', ids); for (const id of ids) iconCache.set(id, res[id] || null); render(); }
+    catch { /* ingen API-nøkkel eller indeks ennå: forkortelsen står */ }
+  }, Math.max(0, 1000 - (Date.now() - iconLast)));
+}
+grid.addEventListener('error', (e) => { const id = Number(e.target?.dataset?.skill); if (id) { iconBroken.add(id); render(); } }, true);
+
 function applyConfig(c) {
   cfg = c;
   document.body.classList.toggle('edit', !c.locked);
@@ -69,8 +95,10 @@ function renderBuffs() {
       const k = classify(b.skill);
       const total = b.max || Math.max(b.remainingMs, 10000);
       const w = Math.max(0, Math.min(100, (b.remainingMs / total) * 100));
+      const icon = iconFor(b);
       return `<div class="l ${k} ${b.remainingMs < 2000 ? 'short' : ''}" title="${b.name}">
         ${showShade ? `<div class="sh" style="--w:${w.toFixed(1)}%"></div>` : ''}
+        ${icon ? `<img class="ic2" src="${icon}" data-skill="${b.skill}" alt="" />` : ''}
         <span class="nm2">${b.name}</span>
         ${b.stacks > 1 ? `<span class="st2">×${b.stacks}</span>` : ''}
         ${showNum ? `<span class="tm2">${fmtSec(b.remainingMs)}s</span>` : ''}
@@ -84,9 +112,11 @@ function renderBuffs() {
     const p = Math.max(0, Math.min(1, 1 - b.remainingMs / total));
     const showNum = cfg.mode === 'number' || cfg.mode === 'both';
     const showPie = cfg.mode === 'clock' || cfg.mode === 'both';
+    const icon = iconFor(b);
     return `<div class="b ${k} ${b.remainingMs < 2000 ? 'short' : ''}" style="width:${size}px;height:${size}px;font-size:${size}px" title="${b.name}">
+      ${icon ? `<img class="ic" src="${icon}" data-skill="${b.skill}" alt="" />` : ''}
       ${showPie ? `<div class="pie" style="--p:${Math.round(p * 100)}%"></div>` : ''}
-      <span class="ab">${abbr(b)}</span>
+      ${icon ? '' : `<span class="ab">${abbr(b)}</span>`}
       ${b.stacks > 1 ? `<span class="st">${b.stacks}</span>` : ''}
       ${showNum ? `<span class="tm">${fmtSec(b.remainingMs)}</span>` : ''}
       ${cfg.showNames ? `<span class="nm">${b.name}</span>` : ''}
