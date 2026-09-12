@@ -112,6 +112,15 @@ function register() {
   });
 
   // ---------- Hjul, oppstart, utklippstavle, spillchat, lenker ----------
+  // Manuell flytting av hjul og overlay-vinduer: start husker vindusposisjon og pekerens skjermposisjon, move flytter relativt
+  const drags = new Map();
+  handle('win:drag', (e, d) => {
+    const w = d?.target === 'wheel' ? win.wheelWin : overlays.get(d?.target);
+    if (!w || w.isDestroyed()) return false;
+    if (d.phase === 'start') { const b = w.getBounds(); drags.set(e.sender.id, { x: b.x, y: b.y, px: d.x, py: d.y }); return true; }
+    if (d.phase === 'move') { const s = drags.get(e.sender.id); if (!s) return false; w.setPosition(Math.round(s.x + (d.x - s.px)), Math.round(s.y + (d.y - s.py))); return true; }
+    drags.delete(e.sender.id); w.emit('moved'); return true;
+  });
   handle('wheel:ignoreMouse', (_e, ignore) => { const w = win.wheelWin; if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(!!ignore, { forward: true }); });
   handle('app:setStartup', (_e, on) => { app.setLoginItemSettings({ openAtLogin: !!on, path: process.execPath, args: [path.resolve(__dirname, '..')] }); return app.getLoginItemSettings().openAtLogin; });
 

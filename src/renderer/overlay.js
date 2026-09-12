@@ -242,6 +242,18 @@ function loadSkillbar() {
   return sbLoading;
 }
 
+// Manuell draing i redigeringsmodus (se wheel.js for hvorfor CSS-drag ikke brukes). Strekking i kantene håndteres av Electron.
+let dragging = false;
+document.body.addEventListener('pointerdown', (e) => {
+  if (!document.body.classList.contains('edit') || e.button !== 0) return;
+  dragging = true; document.body.setPointerCapture(e.pointerId);
+  window.api.invoke('win:drag', { target: TYPE, phase: 'start', x: e.screenX, y: e.screenY });
+});
+document.body.addEventListener('pointermove', (e) => { if (dragging) window.api.invoke('win:drag', { target: TYPE, phase: 'move', x: e.screenX, y: e.screenY }); });
+const endDrag = (e) => { if (!dragging) return; dragging = false; try { document.body.releasePointerCapture(e.pointerId); } catch { /* ok */ } window.api.invoke('win:drag', { target: TYPE, phase: 'end' }); };
+document.body.addEventListener('pointerup', endDrag);
+document.body.addEventListener('pointercancel', endDrag);
+
 window.api.on('live:state', (s) => { snap = s; render(); });
 window.api.on('overlays:changed', ({ type, config }) => { if (type === TYPE) applyConfig(config); });
 window.api.on('skills:changed', () => loadSkillbar());

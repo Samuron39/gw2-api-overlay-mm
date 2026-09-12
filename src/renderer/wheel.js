@@ -93,6 +93,19 @@ async function onMumble(s) {
   setLabel(null);
 }
 
+// Manuell draing av hjulet fra midten. CSS-drag (-webkit-app-region) er upålitelig i gjennomsiktige vinduer
+// med klikk-gjennom og DPI-skalering, så vi flytter vinduet selv ut fra skjermkoordinatene til pekeren.
+let dragging = false;
+center.addEventListener('pointerdown', (e) => {
+  if (document.body.classList.contains('locked') || e.button !== 0) return;
+  dragging = true; center.setPointerCapture(e.pointerId);
+  window.api.invoke('win:drag', { target: 'wheel', phase: 'start', x: e.screenX, y: e.screenY });
+});
+center.addEventListener('pointermove', (e) => { if (dragging) window.api.invoke('win:drag', { target: 'wheel', phase: 'move', x: e.screenX, y: e.screenY }); });
+const endDrag = (e) => { if (!dragging) return; dragging = false; try { center.releasePointerCapture(e.pointerId); } catch { /* allerede sluppet */ } window.api.invoke('win:drag', { target: 'wheel', phase: 'end' }); };
+center.addEventListener('pointerup', endDrag);
+center.addEventListener('pointercancel', endDrag);
+
 // Klikk-gjennom: gjennomsiktige områder slipper museklikk videre til spillet
 let ignoring = false;
 document.addEventListener('mousemove', (e) => {

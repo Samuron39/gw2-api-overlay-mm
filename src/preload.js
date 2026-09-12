@@ -7,7 +7,7 @@ const INVOKE = new Set([
   'timers:data', 'gw2:maps', 'mumble:get', 'daily:get',
   'dps:list', 'dps:parse', 'dps:upload',
   'tp:get', 'chars:get', 'chars:review', 'guild:get',
-  'wheel:ignoreMouse', 'app:setStartup',
+  'wheel:ignoreMouse', 'win:drag', 'app:setStartup',
   'arc:status', 'arc:install', 'arc:uninstall', 'arc:installBridge', 'gw2:detectDir', 'gw2:pickDir',
   'live:get', 'overlays:get', 'overlays:set', 'skills:get', 'skills:setRotation', 'skills:suggest', 'skills:icons',
   'clipboard:write', 'game:paste', 'open:wiki', 'open:url',

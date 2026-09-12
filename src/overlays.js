@@ -79,4 +79,4 @@ function ensure(type, patch = {}) {
   return wins.get(type);
 }
 
-module.exports = { init, getAll, set, broadcast, ensure, DEFAULTS };
+module.exports = { init, getAll, set, broadcast, ensure, DEFAULTS, get: (type) => wins.get(type) || null };
