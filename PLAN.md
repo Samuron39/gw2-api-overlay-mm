@@ -113,4 +113,6 @@ Arbeidspakker, kjøres parallelt av underagenter på egne grener, flettes av ark
 
 Deretter: samlet gjennomgang, testkjøring, ny installer, push. Brukeren tester mot ekte konto og i kamp når han er tilbake ved PC-en.
 
+**Status 12. sept 2026, kveld:** alle åtte pakkene er levert av underagenter på egne grener, flettet inn i main og pushet. En uavhengig kodegjennomgang av det flettede resultatet fant 15 punkter (3 høye: API-hamring fra skill-baren, elite-spec-deteksjon for Druid/Daredevil/Berserker, doble buff-hendelser fra broen), alle rettet i en egen runde. 87 automatiske tester er grønne, alle moduler og overlay-vinduer laster i testmodus på norsk og engelsk. Gjenstår: verifisering mot ekte konto og i kamp, korrekturlesing av den engelske ordboka, og første GitHub-utgivelse for auto-oppdatering.
+
 Ikke verifisert mot ekte konto: I dag, Trading Post, Karakterer og Guild er testet syntaktisk og mot API-dokumentasjonen, ikke mot kontoen din, siden API-nøkkelen ikke ligger i konfigfila på disk. Første kjøring kan avdekke feil i feltnavn.
