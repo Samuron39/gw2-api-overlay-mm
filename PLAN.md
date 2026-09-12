@@ -97,4 +97,19 @@ Alle fasene har en første versjon. Gjort:
 - Alle build-faner fra API-et, våpensett A og B fra utstyret, våpenbytte fra broen (statechange 11). Rotasjon og hold-oppe lagres per build og våpenkombinasjon og byttes automatisk. Hold-oppe: skill + boon, skillet blinker når boonen mangler og skillet er klart, forslag fra API-ets boon-fakta per skill.
 - Ikke gjort: ikoner for boons og conditions (vises som forkortelser eller navn), attunement-bytte for Elementalist (viser Fire), våpenbytte til sett B, anbefalte builds fra nettsider (MetaBattle/Snow Crows har ingen stabil API; vurderes som eget steg), verifisering mot ekte kamp (broen er bare testet med syntetiske hendelser).
 
+## Fase 10: Modning (startet 12. sept 2026)
+
+Arbeidspakker, kjøres parallelt av underagenter på egne grener, flettes av arkitekten:
+
+- **A. Bort med Python.** Rust-hjelper (`helper/`) med `mumble`-strøm og `paste`-kommando erstatter `src/helpers/*.py`. Pakkes med installeren.
+- **B. Logg og feilsøking.** Loggfil i brukerprofilen med rotasjon, alle API- og bro-feil, «Kopier feilrapport» og «Åpne loggmappe» under Innstillinger.
+- **C. Bro-optimalisering.** Batching av hendelser, filtrering i broen, robust mot pakketap.
+- **D. Ikoner.** Boons, conditions og andre effekter med ikoner fra wikien (CC BY-SA) og API-et, i overlay-vinduene.
+- **E. Automatisk oppdatering.** electron-updater mot GitHub Releases, sjekk ved oppstart og knapp under Innstillinger, utgivelsesrutine.
+- **F. Skill-bar for alle profesjoner.** Elementalist-attunements live, Engineer-kits, Revenant-legends, Necromancer-shroud, ammo-skills og trait-cooldowns der API-et gir det.
+- **G. Automatiske tester.** `npm test` med node:test for regelmotor, EVTC, live-tilstand, tidsplan, daglig og skills.
+- **H. Flerspråk.** Alle tekster i språkfiler (norsk og engelsk), språkvalg under Innstillinger, lett å legge til flere. Kjøres sist. Deling av `main.js` i mindre filer i samme runde.
+
+Deretter: samlet gjennomgang, testkjøring, ny installer, push. Brukeren tester mot ekte konto og i kamp når han er tilbake ved PC-en.
+
 Ikke verifisert mot ekte konto: I dag, Trading Post, Karakterer og Guild er testet syntaktisk og mot API-dokumentasjonen, ikke mot kontoen din, siden API-nøkkelen ikke ligger i konfigfila på disk. Første kjøring kan avdekke feil i feltnavn.
