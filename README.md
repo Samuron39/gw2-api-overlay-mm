@@ -50,6 +50,15 @@ Fire små overlay-vinduer, hvert med egen posisjon, størrelse, ikonstørrelse o
 
 **Builds og våpensett.** API-et gir alle lagrede build-faner per karakter (krever *builds*) og våpnene i sett A og B fra utstyret. Skill-baren følger den aktive fanen, kontrollert mot elite-spec fra spillet, og bytter til sett B når ArcDPS melder våpenbytte. I Live-modulen velger du build og våpensett du redigerer. Rotasjon og hold-oppe lagres per build og våpenkombinasjon, så en build med sverd og skjold i A og langbue i B får to rotasjoner som byttes automatisk.
 
+**Profesjonsvarianter.** Alt hentes fra API-et, og hva som er aktivt akkurat nå leses fra buffene på deg og aktiveringene broen sender (`renderer/skillbar-logic.js`):
+
+- *Elementalist*: våpenskills for alle fire attunements, byttet etter attunement-buffen («Fire Attunement») eller sist aktiverte attunement. Weaver: hovedhåndens attunement gir 1–2, offhåndens 4–5, og dual-skillet i 3 velges fra API-ets `dual_attunement` («Fire Water Attunement»-buffen gir begge). Trykker du samme attunement to ganger (dual, f.eks. «Dual Fire Attunement») ser vi det bare via buffen, ikke via aktiveringer.
+- *Engineer*: F1–F5 er toolbelt-skillene til heal, utility og elite. Kits og andre bundles (fra `bundle_skills`, også conjures og Charrzooka) erstatter våpen 1–5 mens buffen med kitets navn («Grenade Kit», «Elixir Gun») ligger på deg, ellers ut fra sist aktiverte kit- eller stow-skill. Photon Forge sine skills finnes ikke i API-et som lenke fra Engage Photon Forge og vises ikke.
+- *Revenant*: begge legendene fra builden med skills fra `/v2/legends`. Bytter på «Legendary … Stance»-buffen eller aktivering av stance-skillet; F1 viser den inaktive legendens stance.
+- *Necromancer* og andre transformasjoner: Death/Reaper's/Harbinger/Ritualist's Shroud sine skills 1–5 fra `transform_skills` (Ritualist får også Innervate-F2–F4), byttet når shroud-buffen ligger på deg. Berserk viser primal burst i F1 mens «Berserk»-buffen er aktiv. Elite-transformasjoner (Tornado, Lich Form, Rampage, Elixir X) på samme måte. Specter sitt Shadow Shroud og Druid sin Celestial Avatar-modus kobler API-et ikke til skills (Celestial Avatar har `transform_skills` og kobles når spec-en er aktiv).
+- *Ladninger*: skills med «Maximum Count» viser antall ladninger i hjørnet, teller ned per aktivering og lader opp per «Count Recharge» (25 % raskere med alacrity). Trait-avhengig «Count Recharge» brukes når builden har traiten. API-et har ingen trait-avhengige *Recharge*-fakta på skills, så vanlige «20 % kortere cooldown»-traits vises ikke.
+- Kjent svakhet: Thief F2 (stjålet skill) og Ranger pet-skills F1–F2 avhenger av mål og pet, som API-et ikke gir per karakter; de viser en vilkårlig variant.
+
 **Rotasjon** redigeres steg for steg, eller foreslås av den lokale AI-modellen med tydelig forbehold.
 
 **Hold oppe.** Par av skill og boon, for eksempel elite-skillet og Might. Når boonen mangler på deg og skillet er klart, blinker skillet rødt i skill-baren med boonens forkortelse i hjørnet. «Foreslå fra skillene» fyller lista ut fra hvilke boons hvert skill gir ifølge API-et.

@@ -45,6 +45,8 @@
     @keyframes alarm { to { border-color: #ff5a5a; box-shadow: 0 0 12px #ff5a5a; } }
     .s .uk { position: absolute; right: 2px; top: 1px; font-size: 30%; font-weight: 700; color: #ff8a8a; text-shadow: 0 1px 2px #000; background: rgba(0,0,0,0.6); border-radius: 3px; padding: 0 2px; }
     .s.empty { opacity: .3; }
+    .s .am { position: absolute; right: 2px; bottom: 1px; font-size: 34%; font-weight: 700; color: #fff; text-shadow: 0 1px 2px #000; background: rgba(0,0,0,0.6); border-radius: 3px; padding: 0 2px; }
+    .s .am.none { color: #ff8a8a; }
     .gap { width: calc(var(--is) * 0.35); flex: 0 0 auto; }
     #sbStatus { position: absolute; right: 4px; top: 2px; font-size: 11px; color: #cfd3ff; background: rgba(18,20,23,0.75); padding: 1px 6px; border-radius: 6px; pointer-events: none; }
   </style>
@@ -54,6 +56,7 @@
   <div id="grid"></div>
   <div id="sb" hidden></div>
   <div id="sbStatus" hidden></div>
+  <script src="skillbar-logic.js"></script>
   <script src="overlay.js"></script>
 </body>
 </html>
