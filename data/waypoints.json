@@ -1,0 +1,582 @@
+{
+"611": {
+"name": "Havfrue Basin Waypoint",
+"map": "Dredgehaunt Cliffs",
+"mapId": 26,
+"coord": [
+53272,
+31898.2
+],
+"continent": 1
+},
+"409": {
+"name": "Mistriven Waypoint",
+"map": "Lornar's Pass",
+"mapId": 27,
+"coord": [
+51209.3,
+30480.4
+],
+"continent": 1
+},
+"381": {
+"name": "Twinspur Haven Waypoint",
+"map": "Wayfarer Foothills",
+"mapId": 28,
+"coord": [
+55447.5,
+29750.6
+],
+"continent": 1
+},
+"962": {
+"name": "Krennak's Homestead Waypoint",
+"map": "Wayfarer Foothills",
+"mapId": 28,
+"coord": [
+55803.7,
+29098
+],
+"continent": 1
+},
+"588": {
+"name": "Valance Tutory Waypoint",
+"map": "Timberline Falls",
+"mapId": 29,
+"coord": [
+52162.3,
+35949.1
+],
+"continent": 1
+},
+"634": {
+"name": "Earthshake Waypoint",
+"map": "Frostgorge Sound",
+"mapId": 30,
+"coord": [
+56297.6,
+25884.3
+],
+"continent": 1
+},
+"180": {
+"name": "Lornar's Waypoint",
+"map": "Snowden Drifts",
+"mapId": 31,
+"coord": [
+51814.5,
+29365.7
+],
+"continent": 1
+},
+"190": {
+"name": "Soderhem Steading Waypoint",
+"map": "Snowden Drifts",
+"mapId": 31,
+"coord": [
+53004.5,
+28147.1
+],
+"continent": 1
+},
+"2982": {
+"name": "Revolution's Heart Waypoint",
+"map": "Thunderhead Peaks",
+"mapId": 1310,
+"coord": [
+56733,
+37407.9
+],
+"continent": 1
+},
+"3003": {
+"name": "History's End Waypoint",
+"map": "Thunderhead Peaks",
+"mapId": 1310,
+"coord": [
+58328.5,
+35778.5
+],
+"continent": 1
+},
+"3111": {
+"name": "Jora's Keep Waypoint",
+"map": "Bjora Marches",
+"mapId": 1343,
+"coord": [
+58936.7,
+18318.8
+],
+"continent": 1
+},
+"3129": {
+"name": "Still Waters Speaking Waypoint",
+"map": "Bjora Marches",
+"mapId": 1343,
+"coord": [
+56616.3,
+17814.7
+],
+"continent": 1
+},
+"3081": {
+"name": "Eye of the North Waypoint",
+"map": "Eye of the North",
+"mapId": 1370,
+"coord": [
+57864.6,
+21794.7
+],
+"continent": 1
+},
+"846": {
+"name": "Lowland Burns Waypoint",
+"map": "Blazeridge Steppes",
+"mapId": 20,
+"coord": [
+62591.4,
+29268.2
+],
+"continent": 1
+},
+"487": {
+"name": "Village of Scalecatch Waypoint",
+"map": "Iron Marches",
+"mapId": 25,
+"coord": [
+60585.8,
+28536.8
+],
+"continent": 1
+},
+"221": {
+"name": "Nageling Waypoint",
+"map": "Diessa Plateau",
+"mapId": 32,
+"coord": [
+57747.5,
+29572.9
+],
+"continent": 1
+},
+"3064": {
+"name": "Wardowns Waypoint",
+"map": "Grothmar Valley",
+"mapId": 1330,
+"coord": [
+61288.2,
+19612.2
+],
+"continent": 1
+},
+"3086": {
+"name": "Dalada Forest Waypoint",
+"map": "Grothmar Valley",
+"mapId": 1330,
+"coord": [
+61726.3,
+18513.4
+],
+"continent": 1
+},
+"247": {
+"name": "Swamplost Haven Waypoint",
+"map": "Queensdale",
+"mapId": 15,
+"coord": [
+44959.4,
+30336.3
+],
+"continent": 1
+},
+"176": {
+"name": "Junction Camp Waypoint",
+"map": "Harathi Hinterlands",
+"mapId": 17,
+"coord": [
+48031.8,
+26413.9
+],
+"continent": 1
+},
+"18": {
+"name": "Cereboth Waypoint",
+"map": "Kessex Hills",
+"mapId": 23,
+"coord": [
+45528.3,
+31950.6
+],
+"continent": 1
+},
+"228": {
+"name": "Provern Shore Waypoint",
+"map": "Gendarran Fields",
+"mapId": 24,
+"coord": [
+48551.5,
+28867.2
+],
+"continent": 1
+},
+"1040": {
+"name": "Trader's Forum Waypoint",
+"map": "Lion's Arch",
+"mapId": 50,
+"coord": [
+49063.6,
+30911
+],
+"continent": 1
+},
+"424": {
+"name": "Laughing Gull Waypoint",
+"map": "Bloodtide Coast",
+"mapId": 73,
+"coord": [
+48915.9,
+33772.2
+],
+"continent": 1
+},
+"426": {
+"name": "Firthside Vigil Waypoint",
+"map": "Bloodtide Coast",
+"mapId": 73,
+"coord": [
+49401.4,
+34071.5
+],
+"continent": 1
+},
+"1749": {
+"name": "Pearl Islet Waypoint",
+"map": "Southsun Cove",
+"mapId": 873,
+"coord": [
+46589.2,
+36791.8
+],
+"continent": 1
+},
+"2477": {
+"name": "Doric's Landing Waypoint",
+"map": "Lake Doric",
+"mapId": 1185,
+"coord": [
+45004.7,
+27001.9
+],
+"continent": 1
+},
+"2479": {
+"name": "Red Leaf Retreat Waypoint",
+"map": "Lake Doric",
+"mapId": 1185,
+"coord": [
+45006,
+25823.3
+],
+"continent": 1
+},
+"2484": {
+"name": "Lakeside Bazaar Waypoint",
+"map": "Lake Doric",
+"mapId": 1185,
+"coord": [
+46062.5,
+27237.5
+],
+"continent": 1
+},
+"1345": {
+"name": "Twilight Arbor Waypoint",
+"map": "Caledon Forest",
+"mapId": 34,
+"coord": [
+42351.3,
+32964.6
+],
+"continent": 1
+},
+"71": {
+"name": "Muridian Waypoint",
+"map": "Metrica Province",
+"mapId": 35,
+"coord": [
+40840.7,
+33722.1
+],
+"continent": 1
+},
+"117": {
+"name": "Mrot Boru Waypoint",
+"map": "Brisban Wildlands",
+"mapId": 54,
+"coord": [
+40733.6,
+33298.8
+],
+"continent": 1
+},
+"717": {
+"name": "Maelstrom's Waypoint",
+"map": "Mount Maelstrom",
+"mapId": 39,
+"coord": [
+51987.3,
+39515.1
+],
+"continent": 1
+},
+"724": {
+"name": "Old Sledge Site Waypoint",
+"map": "Mount Maelstrom",
+"mapId": 39,
+"coord": [
+53917.5,
+39300.4
+],
+"continent": 1
+},
+"464": {
+"name": "Splintered Coast Waypoint",
+"map": "Sparkfly Fen",
+"mapId": 53,
+"coord": [
+48647.6,
+38360.6
+],
+"continent": 1
+},
+"1820": {
+"name": "Bazaar Docks Waypoint",
+"map": "Labyrinthine Cliffs",
+"mapId": 922,
+"coord": [
+55717.5,
+39109.2
+],
+"continent": 1
+},
+"2064": {
+"name": "Pact Base Camp Waypoint",
+"map": "Dragon's Stand",
+"mapId": 1041,
+"coord": [
+36648.9,
+36231.5
+],
+"continent": 1
+},
+"2013": {
+"name": "Northwatch Waypoint",
+"map": "Auric Basin",
+"mapId": 1043,
+"coord": [
+34402.5,
+33143.6
+],
+"continent": 1
+},
+"2050": {
+"name": "Southwatch Waypoint",
+"map": "Auric Basin",
+"mapId": 1043,
+"coord": [
+34227.8,
+34590.9
+],
+"continent": 1
+},
+"2156": {
+"name": "Eastwatch Waypoint",
+"map": "Auric Basin",
+"mapId": 1043,
+"coord": [
+35047.7,
+33802.8
+],
+"continent": 1
+},
+"2037": {
+"name": "Ley-Line Confluence Waypoint",
+"map": "Tangled Depths",
+"mapId": 1045,
+"coord": [
+37246.5,
+35515.6
+],
+"continent": 1
+},
+"2056": {
+"name": "Pact Encampment Waypoint",
+"map": "Verdant Brink",
+"mapId": 1052,
+"coord": [
+35165.7,
+31785.4
+],
+"continent": 1
+},
+"1920": {
+"name": "Dry Top Entry Waypoint",
+"map": "Dry Top",
+"mapId": 988,
+"coord": [
+38299.1,
+33089
+],
+"continent": 1
+},
+"2825": {
+"name": "Chalon Docks Waypoint",
+"map": "Domain of Istan",
+"mapId": 1263,
+"coord": [
+57792.9,
+61028.3
+],
+"continent": 1
+},
+"3758": {
+"name": "Harvest Den Waypoint",
+"map": "Lowland Shore",
+"mapId": 1550,
+"coord": [
+42924.4,
+22729.7
+],
+"continent": 1
+},
+"3882": {
+"name": "Stricken Plains Waypoint",
+"map": "Janthir Syntri",
+"mapId": 1554,
+"coord": [
+40127.6,
+14659.2
+],
+"continent": 1
+},
+"3937": {
+"name": "Mantle's Arrival Waypoint",
+"map": "Bava Nisos",
+"mapId": 1574,
+"coord": [
+36051.3,
+11654.2
+],
+"continent": 1
+},
+"3234": {
+"name": "Jade Quarry Waypoint",
+"map": "Dragon's End",
+"mapId": 1422,
+"coord": [
+33825.5,
+102383
+],
+"continent": 1
+},
+"3353": {
+"name": "Ministry Ward Waypoint",
+"map": "New Kaineng City",
+"mapId": 1438,
+"coord": [
+26674.2,
+99438.3
+],
+"continent": 1
+},
+"3429": {
+"name": "Daigo Ward Waypoint",
+"map": "Seitung Province",
+"mapId": 1442,
+"coord": [
+23191.2,
+101452
+],
+"continent": 1
+},
+"3276": {
+"name": "Kropa Waypoint",
+"map": "The Echovald Wilds",
+"mapId": 1452,
+"coord": [
+30311.7,
+102714
+],
+"continent": 1
+},
+"3321": {
+"name": "Jade Gate Waypoint",
+"map": "The Echovald Wilds",
+"mapId": 1452,
+"coord": [
+32767.6,
+102107
+],
+"continent": 1
+},
+"3615": {
+"name": "Tower Courtyard Waypoint",
+"map": "The Wizard's Tower",
+"mapId": 1509,
+"coord": [
+24102.9,
+22231.4
+],
+"continent": 1
+},
+"3518": {
+"name": "Droknar's Light Waypoint",
+"map": "Skywatch Archipelago",
+"mapId": 1510,
+"coord": [
+24327.1,
+23532.9
+],
+"continent": 1
+},
+"3636": {
+"name": "Bastion of the Natural Waypoint",
+"map": "Amnytas",
+"mapId": 1517,
+"coord": [
+23898.1,
+21158.7
+],
+"continent": 1
+},
+"3998": {
+"name": "Priory Expedition Waypoint",
+"map": "Starlit Weald",
+"mapId": 1593,
+"coord": [
+7618.46,
+58835.9
+],
+"continent": 1
+},
+"3985": {
+"name": "Pub Canach Waypoint",
+"map": "Shipwreck Strand",
+"mapId": 1595,
+"coord": [
+11173,
+59803.2
+],
+"continent": 1
+},
+"4092": {
+"name": "Pilgrim's Rest Waypoint",
+"map": "Eternity's Garden",
+"mapId": 1622,
+"coord": [
+5162.33,
+62438.5
+],
+"continent": 1
+}
+}

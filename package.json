@@ -1,0 +1,54 @@
+{
+  "name": "gw2-inventory-overlay",
+  "version": "0.2.0",
+  "description": "Modulær Guild Wars 2-overlay: inventory-rådgiver med lokal AI, tidsplan, dagens gjøremål, Trading Post, DPS fra ArcDPS-logger, karakterer og guild",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --dir",
+    "dist:installer": "electron-builder --win nsis"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "latest",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "no.magna.gw2overlay",
+    "productName": "GW2 Overlay",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "data/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "src/helpers",
+        "to": "helpers"
+      },
+      {
+        "from": "bridge/target/release/gw2overlay_bridge.dll",
+        "to": "bridge/gw2overlay_bridge.dll"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "dir"
+      ],
+      "icon": "assets/icon.ico",
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "shortcutName": "GW2 Overlay"
+    }
+  }
+}

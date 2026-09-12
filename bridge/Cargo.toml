@@ -1,0 +1,17 @@
+[package]
+name = "gw2overlay_bridge"
+version = "0.1.0"
+edition = "2021"
+description = "ArcDPS-utvidelse som strømmer kamphendelser til GW2 Overlay over UDP (127.0.0.1:47500)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+arcdps = { version = "0.11.2", default-features = false }
+
+[profile.release]
+opt-level = 2
+lto = true
+codegen-units = 1
+strip = true

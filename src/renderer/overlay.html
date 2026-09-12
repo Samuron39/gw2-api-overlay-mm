@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https://render.guildwars2.com data:; style-src 'self' 'unsafe-inline'" />
+  <title>GW2 Overlay</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font: 12px system-ui, "Segoe UI", sans-serif; color: #fff; user-select: none; }
+    body.edit { -webkit-app-region: drag; outline: 2px dashed rgba(91,108,255,0.9); outline-offset: -2px; background: rgba(18,20,23,0.35); }
+    #hint { display: none; position: absolute; left: 4px; top: 2px; font-size: 11px; color: #cfd3ff; background: rgba(18,20,23,0.85); padding: 1px 6px; border-radius: 6px; pointer-events: none; }
+    body.edit #hint { display: block; }
+    #grid { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; align-content: flex-start; height: 100%; }
+    #grid.col { flex-direction: column; flex-wrap: nowrap; }
+    .b { position: relative; border-radius: 6px; background: rgba(18,20,23,0.85); border: 1px solid rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .b.boon { border-color: #6fa8ff; } .b.cond { border-color: #ff6f6f; } .b.other { border-color: #bbb; }
+    .b .ab { font-weight: 700; font-size: 38%; letter-spacing: .5px; z-index: 1; text-shadow: 0 1px 2px #000; }
+    .b .st { position: absolute; right: 2px; bottom: 1px; font-size: 32%; font-weight: 700; z-index: 2; text-shadow: 0 1px 2px #000; }
+    .b .tm { position: absolute; left: 2px; top: 1px; font-size: 30%; z-index: 2; text-shadow: 0 1px 2px #000; }
+    .b .pie { position: absolute; inset: 0; z-index: 0; background: conic-gradient(rgba(0,0,0,0.65) var(--p), transparent 0); }
+    .b .nm { position: absolute; left: 0; right: 0; bottom: 0; font-size: 26%; text-align: center; background: rgba(0,0,0,0.6); z-index: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .b.short { animation: blink .5s steps(2, start) infinite; }
+    @keyframes blink { to { border-color: #fff; } }
+    /* listevisning */
+    #grid.list { flex-direction: column; flex-wrap: nowrap; gap: 2px; }
+    .l { position: relative; height: var(--rh); border-radius: 4px; background: rgba(18,20,23,0.8); border: 1px solid rgba(255,255,255,0.2); overflow: hidden; display: flex; align-items: center; padding: 0 6px; gap: 6px; font-size: calc(var(--rh) * 0.55); }
+    .l.boon { border-left: 4px solid #6fa8ff; } .l.cond { border-left: 4px solid #ff6f6f; } .l.other { border-left: 4px solid #bbb; }
+    .l .sh { position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); z-index: 0; background: rgba(91,108,255,0.35); transition: width .1s linear; }
+    .l.cond .sh { background: rgba(255,90,90,0.35); }
+    .l .nm2 { position: relative; z-index: 1; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000; }
+    .l .st2 { position: relative; z-index: 1; font-weight: 700; opacity: .9; }
+    .l .tm2 { position: relative; z-index: 1; font-weight: 700; min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000; }
+    .l.short { animation: blink .5s steps(2, start) infinite; }
+    /* skill-bar */
+    #sb { display: flex; flex-direction: column; gap: 4px; padding: 4px; height: 100%; }
+    .row { display: flex; gap: 4px; justify-content: center; }
+    .row.prof .s { width: var(--ps); height: var(--ps); }
+    .s { position: relative; width: var(--is); height: var(--is); border-radius: 6px; background: rgba(18,20,23,0.85); border: 1px solid rgba(255,255,255,0.25); overflow: hidden; flex: 0 0 auto; }
+    .s img { width: 100%; height: 100%; display: block; object-fit: cover; }
+    .s .cd { position: absolute; inset: 0; background: conic-gradient(transparent var(--p), rgba(0,0,0,0.75) 0); }
+    .s .cdt { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; font-size: 36%; font-weight: 700; text-shadow: 0 1px 2px #000; }
+    .s .rn { position: absolute; left: 2px; top: 1px; font-size: 34%; font-weight: 700; color: #ffd166; text-shadow: 0 1px 2px #000; }
+    .s.next { border: 2px solid #ffd166; box-shadow: 0 0 10px #ffd166; }
+    .s.upkeep { animation: alarm .4s steps(2, start) infinite; }
+    @keyframes alarm { to { border-color: #ff5a5a; box-shadow: 0 0 12px #ff5a5a; } }
+    .s .uk { position: absolute; right: 2px; top: 1px; font-size: 30%; font-weight: 700; color: #ff8a8a; text-shadow: 0 1px 2px #000; background: rgba(0,0,0,0.6); border-radius: 3px; padding: 0 2px; }
+    .s.empty { opacity: .3; }
+    .gap { width: calc(var(--is) * 0.35); flex: 0 0 auto; }
+    #sbStatus { position: absolute; right: 4px; top: 2px; font-size: 11px; color: #cfd3ff; background: rgba(18,20,23,0.75); padding: 1px 6px; border-radius: 6px; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="hint"></div>
+  <div id="grid"></div>
+  <div id="sb" hidden></div>
+  <div id="sbStatus" hidden></div>
+  <script src="overlay.js"></script>
+</body>
+</html>
