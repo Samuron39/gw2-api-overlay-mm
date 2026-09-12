@@ -10,6 +10,9 @@ let rotationPos = 0;
 let lastFiredId = 0;
 let lastSet = 'A';
 const seenActivations = new Set();
+const ammoState = new Map(); // skill -> { charges, nextAt } (ladninger, telles ned per aktivering)
+const lastFiredBySkill = new Map(); // skill -> castStart for siste aktivering vi har telt
+const L = window.SkillbarLogic;
 
 const grid = document.getElementById('grid');
 const sb = document.getElementById('sb');
@@ -149,12 +152,57 @@ function renderSkillbar() {
     }
   }
   const nextSkill = rot.length ? rot[rotationPos % rot.length]?.skill : null;
+  // Hva som er aktivt nå: attunement (Elementalist), kit (Engineer), legend (Revenant), transformasjon (shroud, Berserk, elite)
+  const alac = L.hasAlacrity(snap);
+  const traits = skillbar.traits || [];
+  const nowMs = Date.now();
+  let weapons = set.skills || skillbar.weapon;
+  let profession = skillbar.profession.slice();
+  let heal = skillbar.heal, utilities = skillbar.utilities, elite = skillbar.elite;
+  const modes = [];
+  if (set.attunements) {
+    const a = L.pickAttunement(snap, skillbar.attunementIds);
+    weapons = L.attunementWeapon(set, a.main, a.off);
+    modes.push(a.main + (set.dual && a.off && a.off !== a.main ? '/' + a.off : ''));
+  }
+  const kitId = L.pickKit(snap, skillbar.kits);
+  if (kitId) { weapons = skillbar.kits[kitId].skills; modes.push(skillbar.kits[kitId].name); }
+  const legendKey = L.pickLegend(snap, skillbar.legends, skillbar.legendOrder);
+  if (legendKey) {
+    const lg = skillbar.legends[legendKey];
+    heal = lg.heal; utilities = lg.utilities; elite = lg.elite;
+    const other = (skillbar.legendOrder || []).map((k) => skillbar.legends[k]).find((l) => l && l.key !== legendKey);
+    if (other?.swapSkill) { const i = profession.findIndex((s) => s.slot === 'Profession_1'); if (i >= 0) profession[i] = other.swapSkill; else profession.unshift(other.swapSkill); }
+    modes.push(lg.name.replace(/^Legendary | Stance$/g, ''));
+  }
+  const formKey = L.pickForm(snap, skillbar.forms);
+  if (formKey) {
+    const f = skillbar.forms[formKey];
+    if (f.weapon) weapons = f.weapon;
+    if (f.profession) profession = profession.map((s) => f.profession.find((p) => p.slot === s.slot) || s);
+    modes.push(formKey);
+  }
+  // Ladninger: tell ned én per ny aktivering, lad opp per Count Recharge
+  for (const c of snap?.cooldowns || []) {
+    if (!c.fired || lastFiredBySkill.get(c.skill) === c.castStart) continue;
+    lastFiredBySkill.set(c.skill, c.castStart);
+    const s = skillbar.all.find((x) => x.id === c.skill);
+    const am = s && L.ammoFor(s, traits, alac);
+    if (am) ammoState.set(c.skill, L.ammoUse(ammoState.get(c.skill), am.count, am.recharge * 1000, nowMs - c.sinceMs));
+  }
   const cell = (s) => {
     if (!s) return '<div class="s empty"></div>';
     const cd = cds.get(s.id);
     let cdHtml = '';
-    if (cfg.showCooldown && cd && s.recharge) {
-      const rechargeMs = s.recharge * 1000 * (snap?.buffs?.some((b) => b.skill === 30328) ? 0.75 : 1);
+    let ammoHtml = '';
+    const am = L.ammoFor(s, traits, alac);
+    if (am) {
+      const st = L.ammoTick(ammoState.get(s.id), am.count, am.recharge * 1000, nowMs);
+      ammoState.set(s.id, st);
+      ammoHtml = `<span class="am ${st.charges ? '' : 'none'}">${st.charges}</span>`;
+      if (cfg.showCooldown && !st.charges && st.nextAt > nowMs) { const rechargeMs = am.recharge * 1000; const remain = st.nextAt - nowMs; cdHtml = `<div class="cd" style="--p:${Math.round((1 - remain / rechargeMs) * 100)}%"></div><span class="cdt">${fmtSec(remain)}</span>`; }
+    } else if (cfg.showCooldown && cd && s.recharge) {
+      const rechargeMs = L.cooldownSeconds(s, traits, alac) * 1000;
       const remain = rechargeMs - cd.sinceMs;
       if (remain > 0) cdHtml = `<div class="cd" style="--p:${Math.round((1 - remain / rechargeMs) * 100)}%"></div><span class="cdt">${fmtSec(remain)}</span>`;
     }
@@ -163,14 +211,15 @@ function renderSkillbar() {
     const missing = snap?.connected ? missingFor(s.id) : [];
     const ready = !cdHtml;
     const alarm = missing.length && ready;
-    return `<div class="s ${isNext ? 'next' : ''} ${alarm ? 'upkeep' : ''}" title="${s.name}${s.recharge ? ' · ' + s.recharge + 's' : ''}${missing.length ? ' · mangler ' + missing.join(', ') : ''}"><img src="${s.icon}" alt="" />${cdHtml}${idx.length ? `<span class="rn">${idx.join(',')}</span>` : ''}${alarm ? `<span class="uk">${missing[0].slice(0, 3).toUpperCase()}</span>` : ''}</div>`;
+    return `<div class="s ${isNext ? 'next' : ''} ${alarm ? 'upkeep' : ''}" title="${s.name}${s.recharge ? ' · ' + s.recharge + 's' : ''}${am ? ' · ' + am.count + ' ladninger' : ''}${missing.length ? ' · mangler ' + missing.join(', ') : ''}"><img src="${s.icon}" alt="" />${cdHtml}${idx.length ? `<span class="rn">${idx.join(',')}</span>` : ''}${ammoHtml}${alarm ? `<span class="uk">${missing[0].slice(0, 3).toUpperCase()}</span>` : ''}</div>`;
   };
-  const prof = skillbar.profession.map(cell).join('');
-  const weapons = (set.skills || skillbar.weapon).map(cell).join('');
-  const utils = [skillbar.heal, ...skillbar.utilities, skillbar.elite].map(cell).join('');
-  sb.innerHTML = `<div class="row prof">${prof}</div><div class="row">${weapons}<div class="gap"></div>${utils}</div>`;
+  const profHtml = profession.map(cell).join('');
+  const weaponsHtml = weapons.map(cell).join('');
+  const utilsHtml = [heal, ...utilities, elite].map(cell).join('');
+  sb.innerHTML = `<div class="row prof">${profHtml}</div><div class="row">${weaponsHtml}<div class="gap"></div>${utilsHtml}</div>`;
   const setTxt = skillbar.sets?.B ? ` · sett ${setId} (${(set.types || []).join('+')})` : '';
-  sbStatus.textContent = `${skillbar.character} · ${skillbar.specName || skillbar.professionName}${setTxt}${rot.length ? ` · rotasjon ${rotationPos + 1}/${rot.length}` : ' · ingen rotasjon'}${snap?.connected ? '' : ' · ingen live-data'}`;
+  const modeTxt = modes.length ? ' · ' + modes.join(' · ') : '';
+  sbStatus.textContent = `${skillbar.character} · ${skillbar.specName || skillbar.professionName}${setTxt}${modeTxt}${rot.length ? ` · rotasjon ${rotationPos + 1}/${rot.length}` : ' · ingen rotasjon'}${snap?.connected ? '' : ' · ingen live-data'}`;
 }
 
 function render() { if (TYPE === 'skillbar') renderSkillbar(); else renderBuffs(); }
