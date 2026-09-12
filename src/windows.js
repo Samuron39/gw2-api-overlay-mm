@@ -43,6 +43,7 @@ function createWheel() {
   };
   if (config.wheel.x != null && config.wheel.y != null) Object.assign(opts, clampToScreen(config.wheel.x, config.wheel.y, opts.width, opts.height));
   wheelWin = new BrowserWindow(opts);
+  wheelWin.setMinimumSize(opts.width, opts.height); wheelWin.setMaximumSize(opts.width, opts.height); // fast størrelse uansett DPI-avrunding
   wheelWin.setAlwaysOnTop(true, 'screen-saver');
   wheelWin.setMenuBarVisibility(false);
   wheelWin.loadFile(path.join(__dirname, 'renderer', 'wheel.html'));

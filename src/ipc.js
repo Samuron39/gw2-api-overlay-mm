@@ -117,8 +117,9 @@ function register() {
   handle('win:drag', (e, d) => {
     const w = d?.target === 'wheel' ? win.wheelWin : overlays.get(d?.target);
     if (!w || w.isDestroyed()) return false;
-    if (d.phase === 'start') { const b = w.getBounds(); drags.set(e.sender.id, { x: b.x, y: b.y, px: d.x, py: d.y }); return true; }
-    if (d.phase === 'move') { const s = drags.get(e.sender.id); if (!s) return false; w.setPosition(Math.round(s.x + (d.x - s.px)), Math.round(s.y + (d.y - s.py))); return true; }
+    if (d.phase === 'start') { const b = w.getBounds(); drags.set(e.sender.id, { x: b.x, y: b.y, w: b.width, h: b.height, px: d.x, py: d.y }); return true; }
+    // Posisjon og størrelse settes sammen: setPosition alene lar Windows med DPI-skalering avrunde størrelsen opp for hver flytting
+    if (d.phase === 'move') { const s = drags.get(e.sender.id); if (!s) return false; w.setBounds({ x: Math.round(s.x + (d.x - s.px)), y: Math.round(s.y + (d.y - s.py)), width: s.w, height: s.h }); return true; }
     drags.delete(e.sender.id); w.emit('moved'); return true;
   });
   handle('wheel:ignoreMouse', (_e, ignore) => { const w = win.wheelWin; if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(!!ignore, { forward: true }); });
