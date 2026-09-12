@@ -111,6 +111,27 @@ Python 3 må finnes på maskinen for posisjon fra spillet og chat-innliming, alt
 
 Ikonene ligger i `assets/`: `icon.png` og `icon.ico` (app, installer og snarvei), `tray.png` (systemstatusfeltet) og `wheel.png` (midten av hjulet). Alle er laget fra samme logo.
 
+## Utgivelse
+
+Appen oppdaterer seg selv fra GitHub Releases (electron-updater). Slik lager du en ny utgivelse:
+
+1. Bump `version` i `package.json` (for eksempel 0.2.0 til 0.2.1). electron-updater sammenligner semver, så nummeret må være høyere enn det brukerne har.
+2. Sett et GitHub-token med repo-tilgang i miljøet. Er `gh` innlogget holder det med:
+
+   ```bat
+   for /f %t in ('gh auth token') do set GH_TOKEN=%t
+   ```
+
+   eller `set GH_TOKEN=<token>` direkte.
+3. Kjør `npm run release`. Det bygger NSIS-installeren og laster opp `GW2 Overlay Setup <versjon>.exe`, `.blockmap` og `latest.yml` til en GitHub Release merket `v<versjon>` (opprettes som utkast første gang; publiser den på GitHub). `latest.yml` er fila appene hos brukerne leser for å finne ny versjon.
+
+Installerte apper sjekker ved oppstart (10 s etter start) og hver 6. time, laster ned i bakgrunnen og installerer når overlayen avsluttes. Under *Innstillinger → Oppdatering* kan brukeren sjekke manuelt, se fremdrift og trykke «Installer og start på nytt», eller slå av den automatiske sjekken. I utvikling (`npm start`) gjøres aldri nettverkskall for oppdatering.
+
+To ting å vite:
+
+- electron-builder laster ned `winCodeSign` til cachen (`%LOCALAPPDATA%\electron-builder\Cache\winCodeSign`) og feiler på symlinker i arkivet uten utviklermodus. Pakk 7z-arkivet ut manuelt til mappa `winCodeSign-<versjon>` ved siden av det én gang, så bygger det.
+- Installeren er ikke kodesignert. Det er greit for electron-updater på Windows: oppdateringer aksepteres så lenge utgiveren (publisher) i den nye installeren er den samme som i den installerte. Bytter du signering eller publisher senere, må brukerne installere manuelt én gang.
+
 ## Testing uten API-nøkkel
 
 ```bash
