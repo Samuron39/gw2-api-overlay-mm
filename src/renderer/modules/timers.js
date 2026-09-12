@@ -66,7 +66,7 @@
   function wpInfo(seg) {
     if (!seg?.chatlink) return null;
     try {
-      const raw = atob(seg.chatlink.slice(2, -1));
+      const raw = atob(seg.chatlink.trim().slice(2, -1));
       if (raw.charCodeAt(0) !== 4) return null;
       const id = raw.charCodeAt(1) | (raw.charCodeAt(2) << 8) | (raw.charCodeAt(3) << 16);
       return data.waypoints[String(id)] || null;

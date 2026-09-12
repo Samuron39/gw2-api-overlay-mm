@@ -146,6 +146,25 @@ GW2_DEMO=1 npm start
 
 Appen skriver en loggfil, `logs\app.log`, i brukerprofilen (`%APPDATA%\gw2-inventory-overlay\logs`). Den roteres ved 2 MB, de to forrige beholdes som `app.log.1` og `app.log.2`. Loggen har oppstartsinformasjon, feil fra GW2 API-et (også 429-retry), når ArcDPS-broen kobler til og fra, feil i MumbleLink-hjelperen, parse-feil i DPS-logger, IPC-feil og feil fra vinduene. Under *Innstillinger → Feilsøking* åpner «Åpne loggmappe» mappa, og «Kopier feilrapport» legger en tekst på utklippstavla med app-, Electron- og OS-versjon, innstillingene uten API-nøkkel, hvilke moduler som er på, om ArcDPS og broen er installert, live-tilstand og de siste 200 logglinjene. Lim den inn når du melder en feil. Testkjøringer (`GW2_SHOT`) logger til sin egen mappe (`%TEMP%\gw2-overlay-test\logs`).
 
+## Tester
+
+```bash
+npm test
+```
+
+Kjører alt i `test/` med Node sin innebygde test-runner (`node:test` og `node:assert`), uten nettverk, uten Electron og uten ekstra avhengigheter. Hver fil tester én ren modul:
+
+| Fil | Tester |
+|---|---|
+| `test/rules.test.js` | Regelmotoren: deposit før behold-liste, Legendary og Ascended, samlinger, låste skinn, duplikat-opplåsninger, uidentifisert gear, TP-terskel per stack, vendor mot salvage mot TP, binding og listed-flagg |
+| `test/evtc.test.js` | EVTC-parseren med en syntetisk logg bygd byte for byte: direkte skade, condition, kjæledyr til eier, blokkert og vennlig treff, boss-utfall, boon-uptime, `.zevtc` med deflate og lagret |
+| `test/live.test.js` | Live-tilstanden over UDP på testport 47599: hello, self, kamp, buffs med stacks, target, cooldowns, våpenbytte |
+| `test/timers.test.js` | Tidsplan-dataene: world bosses har 10 segmenter, sekvensene fyller døgnet, `waypoints.json` dekker chat-lenkene |
+| `test/daily.test.js` | Boss-navn til API-id og daglig/ukentlig reset, også med frosset klokke |
+| `test/skills.test.js` | `skills.js` lastes uten Electron, `normalizeRotation()` tåler gamle lagringer |
+
+`main.js`, `overlays.js` og `mumble.js` krever Electron og dekkes ikke. Testene rører aldri konfigmappa di.
+
 ## Begrensninger
 
 - GW2 API-et er kun lesing. Appen kan ikke selge, flytte eller bruke noe for deg.
