@@ -17,6 +17,19 @@ const skills = require('./modules/skills');
 const { dialog, Tray, Menu, nativeImage } = require('electron');
 const mumble = require('./mumble');
 const ai = require('./ai');
+const log = require('./log');
+
+// Feil i hovedprosessen logges i stedet for å ta ned appen
+process.on('uncaughtException', (e) => log.error('main', 'uncaughtException', e));
+process.on('unhandledRejection', (e) => log.error('main', 'unhandledRejection', e));
+
+// IPC-handler med logging: feil logges med kanalnavn og kastes videre til renderer
+function handle(channel, fn) {
+  ipcMain.handle(channel, async (e, ...args) => {
+    try { return await fn(e, ...args); }
+    catch (err) { log.error('ipc', channel + ': ' + (err?.message || err)); throw err; }
+  });
+}
 
 const DEFAULT_CONFIG = {
   apiKey: '',
@@ -43,6 +56,7 @@ const DEFAULT_CONFIG = {
   rotations: {}, // anbefalt rotasjon per karakter/spec: { "<nøkkel>": [{ skill, note }] }
 };
 
+const APP_VERSION = require('../package.json').version;
 const DEMO = !!process.env.GW2_DEMO;
 const TEST_MODE = !!process.env.GW2_SHOT;
 app.setName('gw2-inventory-overlay'); // fast navn så konfig-mappa er den samme i utvikling og pakket versjon
@@ -80,7 +94,7 @@ function saveConfig() {
     lastSaveError = '';
   } catch (e) {
     lastSaveError = e.message;
-    console.error('Kunne ikke lagre konfig:', configPath, e.message);
+    log.error('config', 'Kunne ikke lagre konfig: ' + configPath, e.message);
   }
 }
 function saveSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(saveConfig, 400); }
@@ -175,8 +189,8 @@ function startDpsWatch() {
 }
 
 // ---------- IPC ----------
-ipcMain.handle('config:get', () => publicConfig());
-ipcMain.handle('config:set', (_e, patch) => {
+handle('config:get', () => publicConfig());
+handle('config:set', (_e, patch) => {
   const prev = JSON.parse(JSON.stringify(config));
   const { wheel, panel, ...rest } = patch || {};
   Object.assign(config, rest);
@@ -187,56 +201,56 @@ ipcMain.handle('config:set', (_e, patch) => {
   return publicConfig();
 });
 
-ipcMain.handle('inv:refresh', () => inventory.refresh(config, DEMO));
+handle('inv:refresh', () => inventory.refresh(config, DEMO));
 const progress = (p) => broadcast('ai:progress', p);
-ipcMain.handle('ai:models', () => ai.listModels(config));
-ipcMain.handle('ai:prioritize', () => inventory.prioritize(config, { onProgress: progress }));
-ipcMain.handle('ai:chat', (_e, history) => inventory.chat(config, history, { onProgress: progress }));
+handle('ai:models', () => ai.listModels(config));
+handle('ai:prioritize', () => inventory.prioritize(config, { onProgress: progress }));
+handle('ai:chat', (_e, history) => inventory.chat(config, history, { onProgress: progress }));
 
-ipcMain.handle('timers:data', () => timers.getData());
-ipcMain.handle('daily:get', (_e, force) => { if (force) daily.invalidate(); return daily.fetchDaily(config.apiKey); });
-ipcMain.handle('gw2:maps', (_e, ids) => gw2.fetchMaps(ids));
-ipcMain.handle('mumble:get', () => mumble.state);
+handle('timers:data', () => timers.getData());
+handle('daily:get', (_e, force) => { if (force) daily.invalidate(); return daily.fetchDaily(config.apiKey); });
+handle('gw2:maps', (_e, ids) => gw2.fetchMaps(ids));
+handle('mumble:get', () => mumble.state);
 
-ipcMain.handle('dps:list', () => ({ dir: config.dpsLogDir || dps.DEFAULT_DIR, exists: fs.existsSync(config.dpsLogDir || dps.DEFAULT_DIR), logs: dps.listLogs(config.dpsLogDir || dps.DEFAULT_DIR) }));
-ipcMain.handle('dps:parse', (_e, file) => dps.parseLog(file));
-ipcMain.handle('dps:upload', (_e, file) => dps.upload(file));
-ipcMain.handle('tp:get', (_e, force) => { if (force) tp.invalidate(); return tp.fetchTp(config.apiKey); });
-ipcMain.handle('chars:get', (_e, force) => { if (force) characters.invalidate(); return characters.fetchCharacters(config.apiKey); });
-ipcMain.handle('chars:review', (_e, name) => characters.review(config, name, dps, config.dpsLogDir || dps.DEFAULT_DIR));
-ipcMain.handle('guild:get', (_e, force) => { if (force) guild.invalidate(); return guild.fetchGuilds(config.apiKey); });
-ipcMain.handle('arc:status', () => arcdps.status(config.gw2Dir));
-ipcMain.handle('arc:install', async () => {
+handle('dps:list', () => ({ dir: config.dpsLogDir || dps.DEFAULT_DIR, exists: fs.existsSync(config.dpsLogDir || dps.DEFAULT_DIR), logs: dps.listLogs(config.dpsLogDir || dps.DEFAULT_DIR) }));
+handle('dps:parse', (_e, file) => dps.parseLog(file));
+handle('dps:upload', (_e, file) => dps.upload(file));
+handle('tp:get', (_e, force) => { if (force) tp.invalidate(); return tp.fetchTp(config.apiKey); });
+handle('chars:get', (_e, force) => { if (force) characters.invalidate(); return characters.fetchCharacters(config.apiKey); });
+handle('chars:review', (_e, name) => characters.review(config, name, dps, config.dpsLogDir || dps.DEFAULT_DIR));
+handle('guild:get', (_e, force) => { if (force) guild.invalidate(); return guild.fetchGuilds(config.apiKey); });
+handle('arc:status', () => arcdps.status(config.gw2Dir));
+handle('arc:install', async () => {
   const dir = arcdps.isGameDir(config.gw2Dir) ? config.gw2Dir : await arcdps.detectDir();
   if (!dir) throw new Error('Velg spillmappa under Innstillinger først.');
   return arcdps.install(dir);
 });
-ipcMain.handle('arc:uninstall', () => arcdps.uninstall(config.gw2Dir));
-ipcMain.handle('arc:installBridge', async () => {
+handle('arc:uninstall', () => arcdps.uninstall(config.gw2Dir));
+handle('arc:installBridge', async () => {
   const dir = arcdps.isGameDir(config.gw2Dir) ? config.gw2Dir : await arcdps.detectDir();
   if (!dir) throw new Error('Velg spillmappa under Innstillinger først.');
   return arcdps.installBridge(dir);
 });
-ipcMain.handle('live:get', () => live.snapshot());
-ipcMain.handle('overlays:get', () => overlays.getAll());
-ipcMain.handle('overlays:set', (_e, type, patch) => { const r = overlays.set(type, patch); saveConfig(); return r; });
-ipcMain.handle('skills:get', (_e, opts) => skills.getSkillbar(config, live.snapshot(), mumble.state, opts || {}));
-ipcMain.handle('skills:setRotation', (_e, key, rotation) => { config.rotations = config.rotations || {}; config.rotations[key] = rotation; saveConfig(); overlays.broadcast('skills:changed', { key }); return true; });
-ipcMain.handle('skills:suggest', (_e, key) => skills.suggestRotation(config, key, { onProgress: progress }));
-ipcMain.handle('gw2:detectDir', async () => { const d = await arcdps.detectDir(); if (d && !config.gw2Dir) { config.gw2Dir = d; saveConfig(); } return d; });
-ipcMain.handle('gw2:pickDir', async () => {
+handle('live:get', () => live.snapshot());
+handle('overlays:get', () => overlays.getAll());
+handle('overlays:set', (_e, type, patch) => { const r = overlays.set(type, patch); saveConfig(); return r; });
+handle('skills:get', (_e, opts) => skills.getSkillbar(config, live.snapshot(), mumble.state, opts || {}));
+handle('skills:setRotation', (_e, key, rotation) => { config.rotations = config.rotations || {}; config.rotations[key] = rotation; saveConfig(); overlays.broadcast('skills:changed', { key }); return true; });
+handle('skills:suggest', (_e, key) => skills.suggestRotation(config, key, { onProgress: progress }));
+handle('gw2:detectDir', async () => { const d = await arcdps.detectDir(); if (d && !config.gw2Dir) { config.gw2Dir = d; saveConfig(); } return d; });
+handle('gw2:pickDir', async () => {
   const r = await dialog.showOpenDialog(panelWin, { title: 'Velg mappa der Gw2-64.exe ligger', properties: ['openDirectory'], defaultPath: config.gw2Dir || 'C:\\' });
   if (r.canceled || !r.filePaths[0]) return null;
   const dir = r.filePaths[0];
   if (!arcdps.isGameDir(dir)) throw new Error('Fant ikke Gw2-64.exe i den mappa.');
   return dir;
 });
-ipcMain.handle('wheel:ignoreMouse', (_e, ignore) => { if (wheelWin && !wheelWin.isDestroyed()) wheelWin.setIgnoreMouseEvents(!!ignore, { forward: true }); });
-ipcMain.handle('app:setStartup', (_e, on) => { app.setLoginItemSettings({ openAtLogin: !!on, path: process.execPath, args: [path.resolve(__dirname, '..')] }); return app.getLoginItemSettings().openAtLogin; });
+handle('wheel:ignoreMouse', (_e, ignore) => { if (wheelWin && !wheelWin.isDestroyed()) wheelWin.setIgnoreMouseEvents(!!ignore, { forward: true }); });
+handle('app:setStartup', (_e, on) => { app.setLoginItemSettings({ openAtLogin: !!on, path: process.execPath, args: [path.resolve(__dirname, '..')] }); return app.getLoginItemSettings().openAtLogin; });
 
-ipcMain.handle('clipboard:write', (_e, text) => { clipboard.writeText(String(text)); return true; });
+handle('clipboard:write', (_e, text) => { clipboard.writeText(String(text)); return true; });
 // Lim inn tekst i spillets chat: kopier, gi GW2 fokus, Enter (hvis chatten ikke allerede er åpen), Ctrl+V.
-ipcMain.handle('game:paste', (_e, text) => new Promise((resolve) => {
+handle('game:paste', (_e, text) => new Promise((resolve) => {
   clipboard.writeText(String(text));
   if (!mumble.state?.running) return resolve({ ok: false, reason: 'NOGAME' });
   const args = [app.isPackaged ? path.join(process.resourcesPath, 'helpers', 'sendchat.py') : path.join(__dirname, 'helpers', 'sendchat.py')];
@@ -248,19 +262,60 @@ ipcMain.handle('game:paste', (_e, text) => new Promise((resolve) => {
     resolve({ ok: out === 'OK', reason: out || 'UKJENT' });
   });
 }));
-ipcMain.handle('open:wiki', (_e, name) => shell.openExternal('https://wiki.guildwars2.com/wiki/Special:Search?search=' + encodeURIComponent(name)));
-ipcMain.handle('open:url', (_e, url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); });
+handle('open:wiki', (_e, name) => shell.openExternal('https://wiki.guildwars2.com/wiki/Special:Search?search=' + encodeURIComponent(name)));
+handle('open:url', (_e, url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); });
 
-ipcMain.handle('panel:open', (_e, id) => openModule(id));
-ipcMain.handle('panel:show', (_e, id) => openModule(id, { toggle: false }));
-ipcMain.handle('panel:close', () => { if (panelWin) { panelWin.hide(); broadcast('panel:visible', { visible: false, module: currentModule }); } });
-ipcMain.handle('panel:state', () => ({ visible: !!panelWin?.isVisible(), module: currentModule }));
-ipcMain.handle('wheel:setLocked', (_e, locked) => { const prev = JSON.parse(JSON.stringify(config)); config.wheel.locked = !!locked; saveConfig(); applyConfig(prev); return config.wheel.locked; });
-ipcMain.handle('app:quit', () => { quitting = true; app.quit(); });
+handle('panel:open', (_e, id) => openModule(id));
+handle('panel:show', (_e, id) => openModule(id, { toggle: false }));
+handle('panel:close', () => { if (panelWin) { panelWin.hide(); broadcast('panel:visible', { visible: false, module: currentModule }); } });
+handle('panel:state', () => ({ visible: !!panelWin?.isVisible(), module: currentModule }));
+handle('wheel:setLocked', (_e, locked) => { const prev = JSON.parse(JSON.stringify(config)); config.wheel.locked = !!locked; saveConfig(); applyConfig(prev); return config.wheel.locked; });
+handle('app:quit', () => { quitting = true; app.quit(); });
+
+// Feilsøking: loggmappe og feilrapport (uten hemmeligheter) til utklippstavla
+handle('log:open', async () => { const r = await shell.openPath(log.path()); if (r) throw new Error(r); return log.path(); });
+handle('log:report', () => {
+  const os = require('os');
+  const SECRET = /key|token|secret|passw/i; // nøkler i konfigen som aldri skal med i rapporten
+  const safe = JSON.parse(JSON.stringify(config, (k, v) => (k && SECRET.test(k) ? undefined : v)));
+  const gw2Dir = config.gw2Dir || '';
+  const arcInstalled = !!gw2Dir && fs.existsSync(path.join(gw2Dir, 'd3d11.dll'));
+  let bridge = null;
+  try { bridge = arcdps.bridgeStatus(gw2Dir); } catch (e) { bridge = { error: e.message }; }
+  const snap = live.snapshot();
+  const lines = [
+    'GW2 Overlay feilrapport',
+    'Tid: ' + new Date().toISOString(),
+    'App-versjon: ' + APP_VERSION + (app.isPackaged ? ' (pakket)' : ' (utvikling)'),
+    'Electron: ' + process.versions.electron + ', Chrome: ' + process.versions.chrome + ', Node: ' + process.versions.node,
+    'OS: ' + os.type() + ' ' + os.release() + ' (' + process.getSystemVersion() + ') ' + process.arch,
+    'Konfigsti: ' + configPath,
+    'Loggmappe: ' + log.path(),
+    'Demo: ' + DEMO + ', testmodus: ' + TEST_MODE,
+    'API-nøkkel: ' + (config.apiKey ? 'satt' : 'ikke satt'),
+    'Moduler på hjulet: ' + (config.wheelModules ? config.wheelModules.join(', ') : 'alle'),
+    'Spillmappe: ' + (gw2Dir || '(ikke satt)') + (gw2Dir ? (arcdps.isGameDir(gw2Dir) ? ' (Gw2-64.exe funnet)' : ' (Gw2-64.exe ikke funnet)') : ''),
+    'ArcDPS installert: ' + (arcInstalled ? 'ja' : 'nei'),
+    'Bro: ' + JSON.stringify(bridge),
+    'Live: connected=' + snap.connected + ', arcVersion=' + (snap.arcVersion || '-') + ', inCombat=' + snap.inCombat,
+    'MumbleLink: running=' + !!mumble.state?.running + (mumble.state?.error ? ', feil=' + mumble.state.error : ''),
+    '',
+    '--- Konfig (uten hemmeligheter) ---',
+    JSON.stringify(safe, null, 2),
+    '',
+    '--- Siste 200 logglinjer ---',
+    ...log.tail(200),
+  ];
+  const text = lines.join('\n');
+  clipboard.writeText(text);
+  return text;
+});
 
 // ---------- Oppstart ----------
 app.whenReady().then(async () => {
   configPath = path.join(app.getPath('userData'), 'config.json');
+  log.init(app);
+  log.info('app', 'Start', { version: APP_VERSION, electron: process.versions.electron, node: process.versions.node, platform: process.platform + ' ' + process.arch, os: process.getSystemVersion(), configPath, packaged: app.isPackaged, demo: DEMO, testMode: TEST_MODE });
   loadConfig();
   gw2.init(app.getPath('userData'));
   createWheel();
@@ -351,5 +406,16 @@ app.whenReady().then(async () => {
   }
 });
 
-app.on('before-quit', () => { quitting = true; mumble.stop(); });
+app.on('before-quit', () => { quitting = true; mumble.stop(); log.info('app', 'Avslutter'); });
+
+// Renderer-feil fra alle vinduer (hjul, panel, overlay-vinduer) i loggen
+app.on('web-contents-created', (_e, wc) => {
+  wc.on('console-message', (ev, level, message, line, sourceId) => {
+    const lvl = ev?.level ?? level;
+    if (lvl !== 3 && lvl !== 'error') return;
+    const src = ev?.sourceId ?? sourceId, ln = ev?.lineNumber ?? line;
+    log.error('renderer', String(ev?.message ?? message), src ? path.basename(String(src)) + ':' + ln : undefined);
+  });
+  wc.on('render-process-gone', (_ev, details) => log.error('renderer', 'Renderer-prosess borte', details));
+});
 app.on('window-all-closed', () => app.quit());

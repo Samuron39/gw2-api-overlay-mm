@@ -12,6 +12,7 @@ const INVOKE = new Set([
   'live:get', 'overlays:get', 'overlays:set', 'skills:get', 'skills:setRotation', 'skills:suggest',
   'clipboard:write', 'game:paste', 'open:wiki', 'open:url',
   'panel:open', 'panel:show', 'panel:close', 'panel:state', 'wheel:setLocked', 'app:quit',
+  'log:open', 'log:report',
 ]);
 const EVENTS = new Set(['ai:progress', 'mumble:state', 'dps:new', 'panel:module', 'panel:visible', 'wheel:locked', 'config:changed', 'live:state', 'skills:changed', 'overlays:changed']);
 

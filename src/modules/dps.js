@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const evtc = require('../evtc');
+const log = require('../log');
 
 const DEFAULT_DIR = path.join(os.homedir(), 'Documents', 'Guild Wars 2', 'addons', 'arcdps', 'arcdps.cbtlogs');
 const cache = new Map();
@@ -35,7 +36,8 @@ function parseLog(file) {
   const st = fs.statSync(file);
   const key = file + ':' + st.mtimeMs + ':' + st.size;
   if (cache.has(key)) return cache.get(key);
-  const r = evtc.parse(file);
+  let r;
+  try { r = evtc.parse(file); } catch (e) { log.warn('dps', 'Parse-feil i ' + file, e.message); throw e; }
   if (cache.size > 60) cache.delete(cache.keys().next().value);
   cache.set(key, r);
   return r;
@@ -54,11 +56,11 @@ function watch(dir, cb) {
       clearTimeout(pendingTimers.get(full));
       pendingTimers.set(full, setTimeout(() => {
         pendingTimers.delete(full);
-        try { onNew?.(parseLog(full)); } catch { /* halvskrevet fil eller ukjent format */ }
+        try { onNew?.(parseLog(full)); } catch (e) { log.warn('dps', 'Kunne ikke parse ny logg ' + full, e.message); }
       }, 2500));
     });
     return true;
-  } catch { return false; }
+  } catch (e) { log.warn('dps', 'Kunne ikke overvåke loggmappa ' + dir, e.message); return false; }
 }
 
 // Last opp en logg til dps.report (kun når brukeren ber om det). Returnerer permalink.

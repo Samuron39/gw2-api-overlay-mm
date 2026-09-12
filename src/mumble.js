@@ -3,6 +3,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const { EventEmitter } = require('events');
+const log = require('./log');
 
 class Mumble extends EventEmitter {
   constructor() { super(); this.state = { running: false }; this.proc = null; }
@@ -14,11 +15,12 @@ class Mumble extends EventEmitter {
     const script = app?.isPackaged ? path.join(process.resourcesPath, 'helpers', 'mumble.py') : path.join(__dirname, 'helpers', 'mumble.py');
     const candidates = process.platform === 'win32' ? ['python', 'py'] : ['python3', 'python'];
     const tryNext = (i) => {
-      if (i >= candidates.length) { this.state = { running: false, error: 'Fant ikke Python. Installer Python 3 for posisjon fra spillet.' }; this.emit('state', this.state); return; }
+      if (i >= candidates.length) { log.error('mumble', 'Fant ikke Python (' + candidates.join(', ') + '), ingen posisjon fra spillet'); this.state = { running: false, error: 'Fant ikke Python. Installer Python 3 for posisjon fra spillet.' }; this.emit('state', this.state); return; }
+      log.info('mumble', 'Starter hjelper', { cmd: candidates[i], script });
       const p = spawn(candidates[i], [script], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
       let buf = '';
       let failed = false;
-      p.on('error', () => { failed = true; tryNext(i + 1); });
+      p.on('error', (e) => { failed = true; log.warn('mumble', candidates[i] + ' kunne ikke startes', e.message); tryNext(i + 1); });
       p.stdout.on('data', (chunk) => {
         buf += chunk.toString();
         let nl;
@@ -28,8 +30,8 @@ class Mumble extends EventEmitter {
           try { this.state = JSON.parse(line); this.emit('state', this.state); } catch { /* ignorer */ }
         }
       });
-      p.stderr.on('data', (d) => { const s = d.toString(); if (s.includes('Traceback')) this.emit('error', s); });
-      p.on('exit', (code) => { this.proc = null; if (!failed && code !== 0 && code !== null) setTimeout(() => this.start(), 5000); });
+      p.stderr.on('data', (d) => { const s = d.toString(); if (s.includes('Traceback')) { log.error('mumble', 'Feil i hjelperen', s); this.emit('error', s); } });
+      p.on('exit', (code) => { this.proc = null; if (!failed && code !== 0 && code !== null) { log.warn('mumble', 'Hjelperen avsluttet med kode ' + code + ', starter på nytt om 5 s'); setTimeout(() => this.start(), 5000); } });
       this.proc = p;
     };
     tryNext(0);

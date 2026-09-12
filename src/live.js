@@ -2,6 +2,7 @@
 // Live-tilstand fra ArcDPS-broen (UDP 127.0.0.1:47500): buffs på deg, conditions på målet, cooldowns.
 const dgram = require('dgram');
 const { EventEmitter } = require('events');
+const log = require('./log');
 
 const PORT = 47500;
 const NPC_ELITE = 0xffffffff;
@@ -24,6 +25,7 @@ class Live extends EventEmitter {
     this.weaponSet = 'A'; // A/B på land, W1/W2 i vann. Fra ArcDPS statechange 11 (dstAgent = 4/5 land, 0/1 vann)
     this.timer = null;
     this.dirty = false;
+    this.lastJsonWarn = 0; // maks én JSON-advarsel per 10 s
   }
 
   start(port = PORT) {
@@ -32,13 +34,14 @@ class Live extends EventEmitter {
     this.socket.on('message', (buf) => {
       for (const line of buf.toString('utf8').split('\n')) {
         if (!line.trim()) continue;
-        try { this.handle(JSON.parse(line)); } catch { /* ufullstendig linje */ }
+        try { this.handle(JSON.parse(line)); }
+        catch (e) { if (Date.now() - this.lastJsonWarn > 10000) { this.lastJsonWarn = Date.now(); log.warn('live', 'Ugyldig JSON fra broen: ' + e.message, line.slice(0, 200)); } }
       }
     });
-    this.socket.on('error', () => { /* port opptatt: en annen instans lytter */ });
+    this.socket.on('error', (e) => log.warn('live', 'UDP-feil (port opptatt? en annen instans lytter)', e.message));
     this.socket.bind(port, '127.0.0.1');
     this.timer = setInterval(() => {
-      if (this.connected && Date.now() - this.lastHello > 6000) { this.connected = false; this.dirty = true; }
+      if (this.connected && Date.now() - this.lastHello > 6000) { this.connected = false; this.dirty = true; log.info('live', 'Broen koblet fra (ingen hello på 6 s)'); }
       if (this.dirty) { this.dirty = false; this.emit('update', this.snapshot()); }
     }, 100);
   }
@@ -49,7 +52,7 @@ class Live extends EventEmitter {
 
   handle(m) {
     if (m.t === 'hello') {
-      if (!this.connected) { this.connected = true; this.dirty = true; }
+      if (!this.connected) { this.connected = true; this.dirty = true; log.info('live', 'Broen koblet til', { arc: m.arc || '' }); }
       this.arcVersion = m.arc || ''; this.lastHello = Date.now();
       return;
     }

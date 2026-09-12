@@ -119,6 +119,10 @@ GW2_DEMO=1 npm start
 
 `GW2_SHOT=<fil.png> GW2_SHOT_MODULE=<modul>` tar et skjermbilde og avslutter. Testkjøringer bruker egen konfig-mappe og rører aldri din.
 
+## Feilsøking
+
+Appen skriver en loggfil, `logs\app.log`, i brukerprofilen (`%APPDATA%\gw2-inventory-overlay\logs`). Den roteres ved 2 MB, de to forrige beholdes som `app.log.1` og `app.log.2`. Loggen har oppstartsinformasjon, feil fra GW2 API-et (også 429-retry), når ArcDPS-broen kobler til og fra, feil i MumbleLink-hjelperen, parse-feil i DPS-logger, IPC-feil og feil fra vinduene. Under *Innstillinger → Feilsøking* åpner «Åpne loggmappe» mappa, og «Kopier feilrapport» legger en tekst på utklippstavla med app-, Electron- og OS-versjon, innstillingene uten API-nøkkel, hvilke moduler som er på, om ArcDPS og broen er installert, live-tilstand og de siste 200 logglinjene. Lim den inn når du melder en feil. Testkjøringer (`GW2_SHOT`) logger til sin egen mappe (`%TEMP%\gw2-overlay-test\logs`).
+
 ## Begrensninger
 
 - GW2 API-et er kun lesing. Appen kan ikke selge, flytte eller bruke noe for deg.

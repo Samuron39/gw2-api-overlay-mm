@@ -3,6 +3,7 @@
 // delte plasser, materiallager og lommebok, og slår opp item-data og TP-priser.
 const fs = require('fs');
 const path = require('path');
+const log = require('./log');
 
 const BASE = 'https://api.guildwars2.com/v2';
 const CHUNK = 200;        // maks ids per bulk-kall
@@ -36,9 +37,12 @@ async function get(endpoint, { key, params = {}, bulk = false, retries = 3, with
   const headers = { Accept: 'application/json', 'Accept-Language': 'en' };
   if (key) headers.Authorization = 'Bearer ' + key;
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(url, { headers });
+    let res;
+    try { res = await fetch(url, { headers }); }
+    catch (e) { log.error('gw2', `Nettverksfeil på ${endpoint}`, e.message); throw e; }
     if (res.status === 429 || res.status >= 500) {
-      if (attempt >= retries) throw new Error(`GW2 API ${res.status} på ${endpoint}`);
+      if (attempt >= retries) { log.error('gw2', `HTTP ${res.status} på ${endpoint}, gir opp etter ${attempt + 1} forsøk`); throw new Error(`GW2 API ${res.status} på ${endpoint}`); }
+      log.warn('gw2', `HTTP ${res.status} på ${endpoint}, prøver igjen om ${attempt + 1} s (${attempt + 1}/${retries})`);
       await sleep(1000 * (attempt + 1));
       continue;
     }
@@ -46,6 +50,7 @@ async function get(endpoint, { key, params = {}, bulk = false, retries = 3, with
     if (!res.ok) {
       let msg = '';
       try { msg = (await res.json()).text || ''; } catch { /* tom */ }
+      log.error('gw2', `HTTP ${res.status} på ${endpoint}`, msg);
       throw new Error(`GW2 API ${res.status} på ${endpoint}${msg ? ': ' + msg : ''}`);
     }
     if (withHeaders) return { body: await res.json(), headers: Object.fromEntries(res.headers) };

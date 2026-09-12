@@ -44,6 +44,13 @@
         <button id="quitBtn">Avslutt overlay</button>
       </div>
       <p class="muted small">Konfig lagres i <span id="cfgPath"></span>. <span id="cfgErr" class="status error"></span></p>
+
+      <h3>Feilsøking</h3>
+      <div class="row">
+        <button id="logOpenBtn" type="button">Åpne loggmappe</button>
+        <button id="logReportBtn" type="button">Kopier feilrapport</button>
+      </div>
+      <p class="muted small">Loggfila app.log ligger i loggmappa (roteres ved 2 MB). Feilrapporten inneholder versjoner, innstillinger uten API-nøkkel, status for ArcDPS og broen, og de siste 200 logglinjene. Lim den inn når du melder en feil.</p>
     </div>`;
 
   function fillModels(list, selected) {
@@ -116,6 +123,14 @@
       }
     });
     $('#quitBtn', el).addEventListener('click', () => window.api.invoke('app:quit'));
+    $('#logOpenBtn', el).addEventListener('click', async () => {
+      try { const p = await window.api.invoke('log:open'); setStatus('Åpnet ' + p); }
+      catch (e) { setStatus('Kunne ikke åpne loggmappa: ' + e.message, true); }
+    });
+    $('#logReportBtn', el).addEventListener('click', async () => {
+      try { await window.api.invoke('log:report'); setStatus('Feilrapport kopiert til utklippstavla.'); }
+      catch (e) { setStatus('Kunne ikke lage feilrapport: ' + e.message, true); }
+    });
     $('#gw2Detect', el).addEventListener('click', async () => {
       const d = await window.api.invoke('gw2:detectDir');
       if (d) { $('#gw2Dir', root).value = d; setStatus(`Fant spillet i ${d}. Trykk Lagre.`); } else setStatus('Fant ikke Gw2-64.exe automatisk. Bruk «Velg mappe».', true);
