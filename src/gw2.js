@@ -136,9 +136,16 @@ async function fetchAccountAchievements(key, perms) {
 }
 
 // Indeks over hvilke achievements (samlinger) et item, skin eller mini inngår i. Caches en uke.
+// Én nedlasting om gangen: spør flere samtidig, deler de samme promise (bare den første får fremdrift). Feiler den, prøves det på nytt.
 let achIndex = null;
-async function fetchAchievementIndex(onProgress) {
-  if (achIndex) return achIndex;
+let achPromise = null;
+function fetchAchievementIndex(onProgress) {
+  if (achIndex) return Promise.resolve(achIndex);
+  achPromise ??= loadAchievementIndex(onProgress).finally(() => { achPromise = null; });
+  return achPromise;
+}
+
+async function loadAchievementIndex(onProgress) {
   const file = cacheDir ? path.join(cacheDir, 'achievements-index.json') : null;
   try {
     const raw = JSON.parse(fs.readFileSync(file, 'utf8'));

@@ -21,18 +21,19 @@
 //! tapte datagram. "id" er ArcDPS sin hendelses-id og får hull fordi broen filtrerer.
 //!
 //! Filtrering før sending:
-//! - area  (combat):       bare statechange-hendelser, og buff-påføring/-fjerning der src eller dst er NPC
-//!                         eller deg selv. Buffs mellom andre spillere droppes, det samme gjør skadetreff.
+//! - area  (combat):       alt der du selv er src eller dst droppes (local dekker det, ellers kom det dobbelt).
+//!                         Ellers bare statechange-hendelser, og buff-påføring (buff == 1 uten buff_dmg) eller
+//!                         buff-fjerning der src eller dst er NPC. Buffs mellom andre spillere, condition-ticks
+//!                         og skadetreff droppes.
 //! - local (combat_local): alt, unntatt rene skadetreff (ikke statechange/aktivering/buff) fra andre enn deg.
 
 use arcdps::{Agent, CombatEvent};
 use std::ffi::c_void;
 use std::net::UdpSocket;
 use std::ptr::NonNull;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{channel, RecvTimeoutError, Sender};
 use std::sync::Mutex;
-use std::thread;
+use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 const PORT: u16 = 47500;
@@ -44,8 +45,14 @@ const BATCH_LINES: usize = 50;
 const BATCH_WAIT: Duration = Duration::from_millis(30);
 const HELLO_EVERY: Duration = Duration::from_secs(2);
 
-static TX: Mutex<Option<Sender<String>>> = Mutex::new(None);
-static SEQ: AtomicU64 = AtomicU64::new(0);
+/// Køen til sendertråden pluss løpenummeret "n". Begge bak samme lås, så rekkefølgen i køen alltid følger n.
+struct Queue {
+    tx: Sender<String>,
+    seq: u64,
+}
+
+static TX: Mutex<Option<Queue>> = Mutex::new(None);
+static SENDER: Mutex<Option<JoinHandle<()>>> = Mutex::new(None);
 
 arcdps::arcdps_export! {
     name: "GW2 Overlay Bridge",
@@ -58,8 +65,8 @@ arcdps::arcdps_export! {
 
 fn init(_swapchain: Option<NonNull<c_void>>) -> Result<(), Box<dyn std::error::Error>> {
     let (tx, rx) = channel::<String>();
-    *TX.lock().unwrap() = Some(tx);
-    thread::spawn(move || {
+    *TX.lock().unwrap() = Some(Queue { tx, seq: 0 });
+    let handle = thread::spawn(move || {
         let socket = match UdpSocket::bind("127.0.0.1:0") {
             Ok(s) => s,
             Err(_) => return,
@@ -96,6 +103,7 @@ fn init(_swapchain: Option<NonNull<c_void>>) -> Result<(), Box<dyn std::error::E
                     }
                 }
                 Err(RecvTimeoutError::Disconnected) => {
+                    // Senderen er droppet (release): send det som ligger igjen og avslutt
                     if lines > 0 {
                         flush(&socket, &mut batch, &mut lines);
                     }
@@ -104,6 +112,7 @@ fn init(_swapchain: Option<NonNull<c_void>>) -> Result<(), Box<dyn std::error::E
             }
         }
     });
+    *SENDER.lock().unwrap() = Some(handle);
     Ok(())
 }
 
@@ -116,21 +125,26 @@ fn flush(socket: &UdpSocket, batch: &mut String, lines: &mut usize) {
     *lines = 0;
 }
 
+/// Avslutning: dropp senderen så tråden får Disconnected etter at køen er tømt, og vent på at den har sendt siste batch.
+/// Låsen på TX holdes ikke under join, så en sen combat-callback fra ArcDPS bare mister linja si.
 fn release() {
-    *TX.lock().unwrap() = None;
-}
-
-/// Legger linja i køen til sendertråden.
-fn send(line: String) {
-    if let Ok(guard) = TX.lock() {
-        if let Some(tx) = guard.as_ref() {
-            let _ = tx.send(line);
-        }
+    if let Ok(mut guard) = TX.lock() {
+        *guard = None;
+    }
+    let handle = SENDER.lock().ok().and_then(|mut g| g.take());
+    if let Some(h) = handle {
+        let _ = h.join();
     }
 }
 
-fn next_seq() -> u64 {
-    SEQ.fetch_add(1, Ordering::Relaxed) + 1
+/// Legger linja i køen til sendertråden. Løpenummeret tas inne i låsen, så rekkefølgen i køen alltid følger "n".
+fn send(build: impl FnOnce(u64) -> String) {
+    if let Ok(mut guard) = TX.lock() {
+        if let Some(q) = guard.as_mut() {
+            q.seq += 1;
+            let _ = q.tx.send(build(q.seq));
+        }
+    }
 }
 
 fn esc(s: &str) -> String {
@@ -183,12 +197,17 @@ fn combat_local(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>
 }
 
 /// Områdehendelser: brukes til target-tilstand (buffs/conditions på fiender fra hvem som helst) og kampstart/-slutt.
-/// Bare statechange, og buff-hendelser der NPC eller du selv er part. Buffs mellom andre spillere og skadetreff droppes.
+/// Alt der du selv er part droppes: combat_local leverer de samme hendelsene, og to leveringer ga doble stacks.
+/// Ellers bare statechange, og buff-påføring (buff == 1 uten buff_dmg) eller buff-fjerning der en NPC er part.
+/// Condition-ticks (buff_dmg != 0), buffs mellom andre spillere og skadetreff droppes.
 fn combat_area(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>, skill_name: Option<&'static str>, id: u64, _revision: u64) {
     if let Some(e) = ev {
+        if is_self(&src) || is_self(&dst) {
+            return;
+        }
         if e.is_statechange == 0 {
-            let buff_event = e.buff == 1 || e.is_buff_remove != 0;
-            let relevant = is_npc(&src) || is_npc(&dst) || is_self(&src) || is_self(&dst);
+            let buff_event = (e.buff == 1 && e.buff_dmg == 0) || e.is_buff_remove != 0;
+            let relevant = is_npc(&src) || is_npc(&dst);
             if !buff_event || !relevant {
                 return;
             }
@@ -198,11 +217,10 @@ fn combat_area(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>,
 }
 
 fn forward(scope: &str, ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>, skill_name: Option<&'static str>, id: u64) {
-    // Løpenummeret tas her, før køen, i samme tråd som ArcDPS kaller oss fra: rekkefølgen i køen følger "n".
-    let n = next_seq();
+    // Løpenummeret "n" deles ut av send() inne i kølåsen, så rekkefølgen i køen alltid følger n.
     match ev {
-        Some(e) => {
-            let line = format!(
+        Some(e) => send(|n| {
+            format!(
                 "{{\"t\":\"ev\",\"s\":\"{scope}\",\"n\":{n},\"id\":{id},\"time\":{},\"srcAgent\":{},\"dstAgent\":{},\"skill\":{},\"name\":\"{}\",\"value\":{},\"buffDmg\":{},\"overstack\":{},\"iff\":{},\"buff\":{},\"result\":{},\"act\":{},\"rem\":{},\"sc\":{},\"srcInst\":{},\"dstInst\":{},\"srcMaster\":{},\"dstMaster\":{},\"src\":{},\"dst\":{}}}\n",
                 e.time,
                 e.src_agent,
@@ -224,18 +242,17 @@ fn forward(scope: &str, ev: Option<&CombatEvent>, src: Option<Agent>, dst: Optio
                 e.dst_master_instance_id,
                 agent_json(&src),
                 agent_json(&dst),
-            );
-            send(line);
-        }
-        None => {
-            // ev == None: agent-registrering (src = agent, dst.self_ = 1 hvis det er deg) eller target-endring
-            let line = format!(
+            )
+        }),
+        None => send(|n| {
+            // ev == None: agent-registrering (src = agent, dst har prof/elite/self, dst.self_ = 1 hvis det er deg)
+            // eller target-endring (src.elite = 0xffffffff, src.id = nytt mål, dst = None)
+            format!(
                 "{{\"t\":\"agent\",\"s\":\"{scope}\",\"n\":{n},\"id\":{id},\"src\":{},\"dst\":{},\"name\":\"{}\"}}\n",
                 agent_json(&src),
                 agent_json(&dst),
                 esc(skill_name.unwrap_or(""))
-            );
-            send(line);
-        }
+            )
+        }),
     }
 }

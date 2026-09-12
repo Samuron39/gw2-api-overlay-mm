@@ -60,6 +60,7 @@ function write(level, scope, msg, extra) {
 const info = (scope, msg, extra) => write('INFO', scope, msg, extra);
 const warn = (scope, msg, extra) => write('WARN', scope, msg, extra);
 const error = (scope, msg, extra) => write('ERROR', scope, msg, extra);
+const debug = (scope, msg, extra) => write('DEBUG', scope, msg, extra); // brukes av electron-updater sin logger
 
 // Siste n linjer, fra app.log og app.log.1 om nødvendig
 function tail(n = 200) {
@@ -77,4 +78,4 @@ function tail(n = 200) {
 
 function logPath() { return dir; }
 
-module.exports = { init, info, warn, error, tail, path: logPath, file: () => file };
+module.exports = { init, info, warn, error, debug, tail, path: logPath, file: () => file };

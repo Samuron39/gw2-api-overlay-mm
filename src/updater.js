@@ -14,7 +14,7 @@ let state = { status: 'idle', version: null, percent: 0, error: '', appVersion: 
 
 function set(patch) {
   state = { ...state, ...patch };
-  try { opts?.onStatus?.(state); } catch (e) { opts?.log?.error?.('update: onStatus feilet: ' + e.message); }
+  try { opts?.onStatus?.(state); } catch (e) { opts?.log?.error?.('onStatus feilet: ' + e.message); }
   return state;
 }
 

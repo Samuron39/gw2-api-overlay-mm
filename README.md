@@ -126,7 +126,7 @@ lms load google/gemma-4-12b-qat --context-length 16384 --gpu max -y
 npm run dist:installer
 ```
 
-Lager `dist/GW2 Overlay Setup <versjon>.exe` med electron-builder. Installeren inneholder bare koden og datafilene. API-nøkkel og alle innstillinger ligger i brukerprofilen (`%APPDATA%\gw2-inventory-overlay`) og følger aldri med. Den som installerer får Innstillinger opp første gang, med spillmappa funnet automatisk, og legger inn sin egen nøkkel.
+Lager `dist/GW2 Overlay Setup <versjon>.exe` med electron-builder. Før `dist`, `dist:installer` og `release` kjører `scripts/check-native.js` og stopper med beskjed hvis hjelperen (`helper/target/release/gw2overlay_helper.exe`) eller broen (`bridge/target/release/gw2overlay_bridge.dll`) ikke er bygd, så en pakke aldri lages uten dem. Installeren inneholder bare koden og datafilene. API-nøkkel og alle innstillinger ligger i brukerprofilen (`%APPDATA%\gw2-inventory-overlay`) og følger aldri med. Den som installerer får Innstillinger opp første gang, med spillmappa funnet automatisk, og legger inn sin egen nøkkel.
 
 Etter installasjon ligger appen i Start-menyen og i systemstatusfeltet. Med *Start med Windows* og *Vis overlayen bare når spillet kjører* slått på, starter overlayen i praksis sammen med spillet: hjulet dukker opp når `Gw2-64.exe` starter og forsvinner når spillet avsluttes.
 
@@ -179,10 +179,11 @@ Kjører alt i `test/` med Node sin innebygde test-runner (`node:test` og `node:a
 |---|---|
 | `test/rules.test.js` | Regelmotoren: deposit før behold-liste, Legendary og Ascended, samlinger, låste skinn, duplikat-opplåsninger, uidentifisert gear, TP-terskel per stack, vendor mot salvage mot TP, binding og listed-flagg |
 | `test/evtc.test.js` | EVTC-parseren med en syntetisk logg bygd byte for byte: direkte skade, condition, kjæledyr til eier, blokkert og vennlig treff, boss-utfall, boon-uptime, `.zevtc` med deflate og lagret |
-| `test/live.test.js` | Live-tilstanden over UDP på testport 47599: hello, self, kamp, buffs med stacks, target, cooldowns, våpenbytte |
+| `test/live.test.js` | Live-tilstanden over UDP på testport 47599: hello, self (prof/elite fra dst), kamp, buffs med stacks, target, cooldowns, våpenbytte, dedupe av dobbeltleverte hendelser, buffs som allerede ligger på deg (sc 18) med `max`, målbytte med `dst = null` |
+| `test/live-batch.test.js` | Flere JSON-linjer per datagram, tellere og tapsdeteksjon på løpenummeret, `buffList()` med utløp og `max` |
 | `test/timers.test.js` | Tidsplan-dataene: world bosses har 10 segmenter, sekvensene fyller døgnet, `waypoints.json` dekker chat-lenkene |
 | `test/daily.test.js` | Boss-navn til API-id og daglig/ukentlig reset, også med frosset klokke |
-| `test/skills.test.js` | `skills.js` lastes uten Electron, `normalizeRotation()` tåler gamle lagringer |
+| `test/skills.test.js` | `skills.js` lastes uten Electron, `normalizeRotation()` tåler gamle lagringer, `slim()` og hjelperne tåler skills uten navn |
 | `test/i18n.test.js` | Språkfilene har samme nøkler og ingen tomme tekster, `t()`/`tn()` med plassholdere og flertall, fallback til nb og til nøkkelen, regelmotoren følger språket |
 
 `main.js`, `windows.js`, `ipc.js`, `overlays.js` og `mumble.js` krever Electron og dekkes ikke. Testene rører aldri konfigmappa di.

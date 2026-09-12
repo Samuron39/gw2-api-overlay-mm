@@ -39,3 +39,25 @@ test('normalizeRotation: ny form beholder steps og upkeep, og fyller inn det som
   const r = normalizeRotation({ steps, upkeep, annet: 1 });
   assert.deepEqual(Object.keys(r).sort(), ['steps', 'upkeep']);
 });
+
+test('slim: skill uten navn får tom streng, og hjelperne som ser på navnet tåler det', () => {
+  const skills = require('../src/modules/skills');
+  const mech = skills.slim({ id: 1, slot: 'Profession_1', type: 'Profession', professions: ['Necromancer'] });
+  assert.equal(mech.name, '');
+  assert.equal(mech.icon, '');
+  assert.equal(skills.slim({ id: 9, name: 'Navn', professions: [] }).name, 'Navn');
+  const kit = skills.slim({ id: 2, slot: 'Utility', type: 'Utility', professions: ['Engineer'], bundle_skills: [3] });
+  const idx = { byId: { 1: mech, 2: kit, 3: skills.slim({ id: 3, slot: 'Weapon_1', type: 'Bundle', professions: ['Engineer'] }) } };
+  // attunementIdsFor kjører regex på navnet
+  assert.deepEqual(skills.attunementIdsFor(idx, 'Necromancer'), {});
+  // kitsFor slår opp alias på navn: tomt navn gir ingen alias, men kitet finnes
+  const kits = skills.kitsFor([2], idx);
+  assert.deepEqual(Object.keys(kits), ['2']);
+  assert.deepEqual(kits[2].ids, [2]);
+  assert.equal(kits[2].skills[0].id, 3);
+  // mechanicsFor sammenligner navn mot elite-spec-navn (toLowerCase) og leter etter "Shroud"
+  const prof = { skills: [{ id: 1, slot: 'Profession_1' }], training: [{ category: 'EliteSpecializations', name: 'Reaper' }] };
+  const { profession, forms } = skills.mechanicsFor({ prof, profName: 'Necromancer', specId: 0, specName: '', idx, mainType: '', offType: '', elite: null, toolbelt: null });
+  assert.deepEqual(profession.map((p) => p.id), [1]);
+  assert.deepEqual(forms, {});
+});

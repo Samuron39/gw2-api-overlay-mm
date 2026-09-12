@@ -224,16 +224,40 @@ function renderSkillbar() {
 
 function render() { if (TYPE === 'skillbar') renderSkillbar(); else renderBuffs(); }
 
-async function loadSkillbar() {
-  try { skillbar = await window.api.invoke('skills:get'); rotationPos = 0; }
-  catch (e) { skillbar = { ok: false, error: e.message }; }
-  render();
+// Skill-bar hentes fra API-et via skills:get. Én lasting om gangen (sbLoading), og MumbleLink-tilstanden som kommer
+// hvert 500 ms utløser bare ny lasting når karakter eller spec faktisk har endret seg (sbTrigger). Feilet lasting
+// (ingen karakter, ingen nøkkel, API nede) prøves ikke oftere enn hvert 30. sekund.
+let sbLoading = null;
+let sbTrigger = '';
+let sbFailedAt = 0;
+const SB_RETRY_MS = 30000;
+function loadSkillbar() {
+  if (sbLoading) return sbLoading;
+  sbLoading = (async () => {
+    try { skillbar = await window.api.invoke('skills:get'); rotationPos = 0; }
+    catch (e) { skillbar = { ok: false, error: e.message }; }
+    sbFailedAt = skillbar?.ok ? 0 : Date.now();
+    render();
+  })().finally(() => { sbLoading = null; });
+  return sbLoading;
 }
 
 window.api.on('live:state', (s) => { snap = s; render(); });
 window.api.on('overlays:changed', ({ type, config }) => { if (type === TYPE) applyConfig(config); });
 window.api.on('skills:changed', () => loadSkillbar());
-window.api.on('mumble:state', (m) => { if (TYPE === 'skillbar' && m.identity && skillbar && (m.identity.name !== skillbar.character || m.identity.spec !== skillbar.specId)) loadSkillbar(); });
+window.api.on('mumble:state', (m) => {
+  if (TYPE !== 'skillbar' || !m.identity?.name) return;
+  const trigger = `${m.identity.name}|${m.identity.spec || 0}`;
+  if (trigger === sbTrigger) {
+    // Samme karakter og spec som sist: bare et nytt forsøk etter feil, og ikke oftere enn hvert 30. sekund
+    if (!sbFailedAt || Date.now() - sbFailedAt < SB_RETRY_MS) return;
+  } else if (skillbar?.ok && skillbar.character === m.identity.name && skillbar.specId === m.identity.spec) {
+    sbTrigger = trigger; // allerede lastet for denne kombinasjonen (oppstart)
+    return;
+  }
+  sbTrigger = trigger;
+  loadSkillbar();
+});
 // Språkbytte: ny ordbok, så hint og statuslinje tegnes på nytt (feilmeldingen fra skills:get hentes på nytt)
 window.api.on('config:changed', async (c) => { if (await T.sync(c) && cfg) { applyConfig(cfg); if (TYPE === 'skillbar' && !skillbar?.ok) loadSkillbar(); } });
 T.load().then(() => {

@@ -113,13 +113,17 @@ test('batch med flere linjer per datagram tolkes fullt ut', async () => {
   }
 });
 
-test('buffs uten hendelser på 5 minutter fjernes', () => {
+test('buffList: utløp styres bare av expiries (ingen opprydding etter stillhet), max er varigheten fra siste påføring', () => {
   live.buffs.clear();
   live.offset = 0;
   const now = live.now();
-  live.buffs.set(1, { name: 'Gammel', expiries: [now + 60e3], src: '', seen: now - 6 * 60e3 });
-  live.buffs.set(2, { name: 'Fersk', expiries: [now + 60e3], src: '', seen: now - 10e3 });
+  // Permanent buff (attunement) påført for lenge siden uten hendelser etterpå skal bli liggende
+  live.buffs.set(1, { name: 'Fire Attunement', expiries: [now + 3600e3], src: '', dur: 7200e3 });
+  live.buffs.set(2, { name: 'Utløpt', expiries: [now - 1], src: '', dur: 5000 });
+  live.buffs.set(3, { name: 'Might', expiries: [now - 1, now + 4000, now + 9000], src: 'Beta', dur: 10000 });
   const list = live.buffList(live.buffs);
-  assert.deepEqual(list.map((b) => b.name), ['Fersk']);
-  assert.equal(live.buffs.size, 1);
+  assert.deepEqual(list.map((b) => [b.name, b.stacks, b.max]), [['Fire Attunement', 1, 7200e3], ['Might', 2, 10000]]);
+  assert.equal(live.buffs.size, 2, 'den utløpte fjernes');
+  assert.deepEqual(live.buffs.get(3).expiries, [now + 4000, now + 9000], 'utløpte stacks filtreres bort');
+  assert.ok(list[1].remainingMs > 8900 && list[1].remainingMs <= 9000);
 });

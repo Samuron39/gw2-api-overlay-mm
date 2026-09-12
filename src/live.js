@@ -6,8 +6,9 @@ const log = require('./log');
 
 const PORT = 47500;
 const NPC_ELITE = 0xffffffff;
-const BUFF_STALE_MS = 5 * 60e3; // buff uten hendelser så lenge regnes som tapt (pakketap) og fjernes
 const MAX_TARGETS = 40;
+const DEDUPE_KEEP = 512; // hvor mange (scope, arcdps-id) vi husker for å avvise dobbeltleverte hendelser
+const MAX_STACKS = 25;
 
 class Live extends EventEmitter {
   constructor() {
@@ -20,7 +21,7 @@ class Live extends EventEmitter {
     this.inCombat = false;
     this.self = null; // { id, name, prof, elite }
     this.agents = new Map(); // id -> { name, prof, elite, self }
-    this.buffs = new Map(); // skill -> { name, expiries: number[], src }
+    this.buffs = new Map(); // skill -> { name, expiries: number[], src, dur } (dur = varighet ms fra siste påføring)
     this.targetId = null;
     this.targets = new Map(); // agentId -> Map(skill -> { name, expiries })
     this.cooldowns = new Map(); // skill -> { name, castStart, castDur, fired, firedAt }
@@ -31,6 +32,9 @@ class Live extends EventEmitter {
     // Tellere for statuslinja. Tap oppdages ved hopp i broens løpenummer "n" (fallback: arcdps-id for lokale hendelser)
     this.stats = { packets: 0, events: 0, dropsDetected: 0 };
     this.lastSeq = null;
+    // Sikkerhetsnett mot dobbeltlevering: samme arcdps-id i samme scope ("local"/"area") behandles bare én gang
+    this.seenIds = new Set();
+    this.seenOrder = [];
   }
 
   start(port = PORT) {
@@ -75,19 +79,25 @@ class Live extends EventEmitter {
     this.stats.events++;
     this.trackSeq(m);
     if (m.t === 'agent') {
+      // Målbytte: src.elite = 0xffffffff og src.id = det nye målet. ArcDPS sender dst = null her (eldre bro: dst.self = 1).
+      if (m.src && m.src.elite === NPC_ELITE && m.src.id > 0 && (m.dst == null || m.dst.self === 1)) {
+        if (!this.agents.has(m.src.id)) this.agents.set(m.src.id, { id: m.src.id, name: m.src.name || '', prof: m.src.prof, elite: m.src.elite, self: 0 });
+        if (this.targetId !== m.src.id) { this.targetId = m.src.id; this.dirty = true; }
+        return;
+      }
+      // Agent-registrering: src har id og navn, dst har prof, elite, self og kontonavn
       if (m.src && m.dst && m.dst.self === 1 && m.src.name) {
-        this.self = { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite, account: m.dst.name };
+        this.self = { id: m.src.id, name: m.src.name, prof: m.dst.prof, elite: m.dst.elite, account: m.dst.name };
         this.agents.set(m.src.id, { ...this.self, self: 1 });
         this.dirty = true;
       } else if (m.src && m.src.name && m.dst) {
-        this.agents.set(m.src.id, { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite, self: m.dst.self });
+        this.agents.set(m.src.id, { id: m.src.id, name: m.src.name, prof: m.dst.prof, elite: m.dst.elite, self: m.dst.self });
       }
-      if (m.src && m.src.elite === NPC_ELITE && m.dst && m.dst.self === 1) { this.targetId = m.src.id; this.dirty = true; }
       return;
     }
-    if (m.t !== 'ev') return;
+    if (m.t !== 'ev' || this.isDuplicate(m)) return;
     this.offset = Date.now() - m.time;
-    const srcSelf = m.src?.self === 1, dstSelf = m.dst?.self === 1;
+    const srcSelf = m.src?.self === 1;
     if (m.src?.name) this.agents.set(m.src.id, { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite, self: m.src.self });
     if (m.dst?.name) this.agents.set(m.dst.id, { id: m.dst.id, name: m.dst.name, prof: m.dst.prof, elite: m.dst.elite, self: m.dst.self });
     if (srcSelf && !this.self) this.self = { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite };
@@ -95,6 +105,8 @@ class Live extends EventEmitter {
     if (m.sc === 1 && srcSelf) { this.inCombat = true; this.dirty = true; return; }
     if (m.sc === 2 && srcSelf) { this.inCombat = false; this.targetId = null; this.dirty = true; return; }
     if (m.sc === 11 && srcSelf) { const v = Number(m.dstAgent); this.weaponSet = v === 5 ? 'B' : v === 4 ? 'A' : v === 1 ? 'W2' : v === 0 ? 'W1' : this.weaponSet; this.dirty = true; return; }
+    // sc 18 (CBTS_BUFFINITIAL): buffs som allerede ligger på agenten ved oppstart eller kartbytte. Samme felt som en påføring.
+    if (m.sc === 18) { this.applyBuff(m, false); return; }
     if (m.sc !== 0) return;
 
     // Aktivering av skill (bare egne)
@@ -117,7 +129,6 @@ class Live extends EventEmitter {
       // rem === 1: alle stacks fjernet. Nullstiller uansett hva vi tror vi har, så en tapt påføring ikke henger igjen.
       if (m.rem === 1) { if (b) { map.delete(m.skill); this.dirty = true; } return; }
       if (!b) return;
-      b.seen = m.time;
       // fjern den stacken som utløper først
       let i = 0;
       for (let k = 1; k < b.expiries.length; k++) if (b.expiries[k] < b.expiries[i]) i = k;
@@ -128,29 +139,42 @@ class Live extends EventEmitter {
     }
 
     // Buff påført: dst får buffen, value = varighet ms
-    if (m.buff === 1 && m.value > 0) {
-      const dst = m.dst;
-      if (!dst) return;
-      let map;
-      if (dstSelf) map = this.buffs;
-      else {
-        map = this.targets.get(dst.id);
-        if (!map) { this.pruneTargets(); map = new Map(); this.targets.set(dst.id, map); }
-        if (srcSelf && m.iff === 1) this.targetId = dst.id; // det vi sist traff med noe
-      }
-      let b = map.get(m.skill);
-      if (!b) { b = { name: m.name, expiries: [], src: m.src?.name || '', seen: m.time }; map.set(m.skill, b); }
-      b.seen = m.time;
-      b.expiries.push(m.time + m.value);
-      if (b.expiries.length > 25) b.expiries.shift();
-      this.dirty = true;
-      return;
-    }
+    if (m.buff === 1 && m.value > 0) { this.applyBuff(m, true); return; }
 
     // Skade fra oss mot fiende: husk målet
     if (srcSelf && m.iff === 1 && m.dst && (m.value > 0 || m.buffDmg > 0)) {
       if (this.targetId !== m.dst.id) { this.targetId = m.dst.id; this.dirty = true; }
     }
+  }
+
+  // Samme arcdps-id i samme scope to ganger = samme hendelse levert to ganger. Husker de siste DEDUPE_KEEP.
+  isDuplicate(m) {
+    if (typeof m.id !== 'number' || m.id <= 0) return false;
+    const key = `${m.s}|${m.id}`;
+    if (this.seenIds.has(key)) return true;
+    this.seenIds.add(key);
+    this.seenOrder.push(key);
+    if (this.seenOrder.length > DEDUPE_KEEP) this.seenIds.delete(this.seenOrder.shift());
+    return false;
+  }
+
+  // Legger en stack på dst. value = varighet ms. setTarget: om et treff fra oss på en fiende skal flytte målet (ikke ved sc 18).
+  applyBuff(m, setTarget) {
+    const dst = m.dst;
+    if (!dst || !(m.value > 0)) return;
+    let map;
+    if (dst.self === 1) map = this.buffs;
+    else {
+      map = this.targets.get(dst.id);
+      if (!map) { this.pruneTargets(); map = new Map(); this.targets.set(dst.id, map); }
+      if (setTarget && m.src?.self === 1 && m.iff === 1) this.targetId = dst.id; // det vi sist traff med noe
+    }
+    let b = map.get(m.skill);
+    if (!b) { b = { name: m.name, expiries: [], src: m.src?.name || '', dur: 0 }; map.set(m.skill, b); }
+    b.dur = m.value;
+    b.expiries.push(m.time + m.value);
+    if (b.expiries.length > MAX_STACKS) b.expiries.shift();
+    this.dirty = true;
   }
 
   // Rydd gamle mål når det blir mange. Kalles bare når et nytt mål legges til, ikke per snapshot. Gjeldende mål beholdes.
@@ -165,17 +189,18 @@ class Live extends EventEmitter {
   }
 
   // Liste i innsettingsrekkefølge (overlay-vinduet sorterer selv etter brukerens valg). Kalles opptil 10 ganger i sekundet:
-  // én gjennomgang per buff, ny expiries-liste bare når noe faktisk har utløpt.
+  // én gjennomgang per buff, ny expiries-liste bare når noe faktisk har utløpt. Utløp styres bare av expiries: permanente
+  // buffs (attunement, kit, legend-stance) har lang varighet og skal ikke ryddes fordi det er stille rundt dem.
+  // max = varigheten fra siste påføring, så kakediagrammet i overlayen får riktig total.
   buffList(map) {
     const now = this.now();
     const out = [];
     for (const [skill, b] of map) {
-      if (b.seen != null && now - b.seen > BUFF_STALE_MS) { map.delete(skill); continue; } // ingen hendelser på 5 min: fjerning gikk tapt
-      let alive = 0, max = 0;
-      for (const e of b.expiries) if (e > now) { alive++; if (e > max) max = e; }
+      let alive = 0, last = 0;
+      for (const e of b.expiries) if (e > now) { alive++; if (e > last) last = e; }
       if (!alive) { map.delete(skill); continue; }
       if (alive !== b.expiries.length) b.expiries = b.expiries.filter((e) => e > now);
-      out.push({ skill, name: b.name, stacks: alive, remainingMs: max - now, src: b.src });
+      out.push({ skill, name: b.name, stacks: alive, remainingMs: last - now, max: b.dur || 0, src: b.src });
     }
     return out;
   }

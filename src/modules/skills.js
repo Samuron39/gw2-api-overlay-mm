@@ -18,6 +18,7 @@ const WEAPON_SLOTS = ['Weapon_1', 'Weapon_2', 'Weapon_3', 'Weapon_4', 'Weapon_5'
 // Skills 1–5 i en transformasjon: API-et legger shroud-skills 1–4 i Downed_1–4 og 5 i Weapon_5, bundles i Weapon_1–5
 const FORM_SLOT_INDEX = { Downed_1: 0, Downed_2: 1, Downed_3: 2, Downed_4: 3, Weapon_1: 0, Weapon_2: 1, Weapon_3: 2, Weapon_4: 3, Weapon_5: 4 };
 let index = null;
+let indexPromise = null; // pågående nedlasting, delt mellom alle som spør samtidig
 let legendsData = null;
 const profCache = new Map();
 const specCache = new Map();
@@ -37,7 +38,7 @@ function slim(s) {
     .map((f) => ({ type: f.type, text: f.text, value: f.value, duration: f.duration, requires_trait: f.requires_trait }));
   const weaponType = s.weapon_type && s.weapon_type !== 'None' ? s.weapon_type : '';
   return {
-    id: s.id, name: s.name, icon: s.icon, slot: s.slot || '', type: s.type || '', weapon_type: weaponType, professions: s.professions || [], specialization: s.specialization || 0,
+    id: s.id, name: s.name || '', icon: s.icon || '', slot: s.slot || '', type: s.type || '', weapon_type: weaponType, professions: s.professions || [], specialization: s.specialization || 0,
     recharge, buffs, description: (s.description || '').replace(/<[^>]+>/g, '').slice(0, 220), attunement: s.attunement || '', dual_attunement: s.dual_attunement || '', dual_wield: s.dual_wield || '',
     flags: s.flags || [], categories: s.categories || [], chat_link: s.chat_link,
     flip_skill: s.flip_skill || 0, toolbelt_skill: s.toolbelt_skill || 0, bundle_skills: s.bundle_skills || null, transform_skills: s.transform_skills || null,
@@ -45,8 +46,14 @@ function slim(s) {
   };
 }
 
-async function fetchIndex() {
-  if (index) return index;
+// Én nedlasting om gangen: flere overlay-vinduer som spør samtidig deler samme promise. Feiler den, prøves det på nytt neste gang.
+function fetchIndex() {
+  if (index) return Promise.resolve(index);
+  indexPromise ??= loadIndex().finally(() => { indexPromise = null; });
+  return indexPromise;
+}
+
+async function loadIndex() {
   const file = cacheFile();
   try { const raw = JSON.parse(fs.readFileSync(file, 'utf8')); if (Date.now() - raw.fetchedAt < 14 * 864e5) { index = raw; return raw; } } catch { /* ingen cache */ }
   const first = await gw2.get('/skills', { params: { page: 0, page_size: 200 }, withHeaders: true });
@@ -115,7 +122,7 @@ function attunementIdsFor(idx, profName) {
   const out = {};
   for (const s of Object.values(idx.byId)) {
     if (!s.professions.includes(profName) || !s.slot.startsWith('Profession_')) continue;
-    const m = /^(Fire|Water|Air|Earth) Attunement$/.exec(s.name);
+    const m = /^(Fire|Water|Air|Earth) Attunement$/.exec(s.name || '');
     if (m) out[s.id] = m[1];
   }
   return out;
@@ -148,7 +155,7 @@ function kitsFor(skillIds, idx) {
     const skills = slotSkills(s.bundle_skills, idx, (b) => WEAPON_SLOTS.includes(b.slot));
     if (!skills.some(Boolean)) continue;
     // Samme kit finnes med flere id-er i API-et (5805 og 6020 er begge Grenade Kit); alle starter det
-    const aliases = Object.values(idx.byId).filter((o) => o.name === s.name && o.bundle_skills && o.professions.join() === s.professions.join());
+    const aliases = s.name ? Object.values(idx.byId).filter((o) => o.name === s.name && o.bundle_skills && o.professions.join() === s.professions.join()) : [];
     const ids = [...new Set([id, ...aliases.map((o) => o.id)])];
     const stow = [...new Set(aliases.map((o) => o.flip_skill).concat(s.flip_skill).filter(Boolean))];
     kits[id] = { id, name: s.name, ids, stow, skills };
@@ -187,7 +194,7 @@ function mechanicsFor({ prof, profName, specId, specName, idx, mainType, offType
   const fitsWeapon = (s) => !s.weapon_type || s.weapon_type === mainType || s.weapon_type === offType;
   const eliteNames = (prof.training || []).filter((t) => t.category === 'EliteSpecializations').map((t) => String(t.name).toLowerCase());
   const specLower = String(specName || '').toLowerCase();
-  const namedFor = (s, n) => !!n && s.name.toLowerCase().includes(n);
+  const namedFor = (s, n) => !!n && String(s.name || '').toLowerCase().includes(n);
   // Flere varianter i samme slot: hopp over flip-mål (Exit/Stow/Deactivate-skills og senere kjedeledd) og foretrekk inngangsskillet som har flip_skill
   const entries = (list) => { const targets = new Set(list.map((s) => s.flip_skill).filter(Boolean)); return list.filter((s) => !targets.has(s.id)).sort((a, b) => (a.flip_skill ? 0 : 1) - (b.flip_skill ? 0 : 1)); };
   const core = entries((prof.skills || []).filter(isProfSlot).map((s) => idx.byId[s.id]).filter(Boolean)
@@ -207,7 +214,7 @@ function mechanicsFor({ prof, profName, specId, specName, idx, mainType, offType
   const forms = {};
   if (primal.length && rage) forms[rage.name] = { profession: [...bySlotPreferLand(primal).values()] };
   const pools = (prof.skills || []).filter(isProfSlot).map((s) => idx.byId[s.id]).filter((s) => s?.transform_skills?.length);
-  const mechForm = profession.find((s) => s.transform_skills?.length) || profession.find((s) => /Shroud/.test(s.name));
+  const mechForm = profession.find((s) => s.transform_skills?.length) || profession.find((s) => /Shroud/.test(s.name || ''));
   if (mechForm && pools.length) {
     const poolAll = [...new Set(pools.flatMap((p) => p.transform_skills))].map((id) => idx.byId[id]).filter((s) => s && s.type === 'Profession');
     const specific = poolAll.filter((s) => specId && s.specialization === specId);
@@ -251,8 +258,13 @@ async function getSkillbar(config, snap, mumble, opts = {}) {
   ]);
   if (!buildTabs.length) return { ok: false, error: t('skills.noBuilds') };
 
+  // Elite-spec per fane: den av fanens tre specs som API-et merker elite: true (Druid=5, Daredevil=7 og Berserker=18 har lave id-er,
+  // så en id-grense holder ikke). /v2/specializations caches per id, så dette koster bare første gang.
+  const specIds = [...new Set(buildTabs.flatMap((b) => (b.build?.specializations || []).map((s) => s?.id)).filter(Boolean))];
+  await Promise.all(specIds.map(specialization));
+  const eliteOf = (t) => (t.build?.specializations || []).map((s) => s?.id).find((id) => id && specCache.get(id)?.elite) || 0;
+
   // Velg build-fane: ønsket fane, ellers den aktive hvis spec stemmer med spillet, ellers første fane med samme elite-spec
-  const eliteOf = (t) => (t.build?.specializations || []).map((s) => s?.id).find((id) => id && id >= 27 && id !== 0) || 0;
   let tab = opts.tab != null ? buildTabs.find((t) => t.tab === Number(opts.tab)) : null;
   if (!tab) {
     const active = buildTabs.find((t) => t.is_active);

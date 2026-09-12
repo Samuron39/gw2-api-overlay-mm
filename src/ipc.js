@@ -119,6 +119,7 @@ function register() {
   // Lim inn tekst i spillets chat: kopier, gi GW2 fokus, Enter (hvis chatten ikke allerede er åpen), Ctrl+V.
   handle('game:paste', (_e, text) => new Promise((resolve) => {
     clipboard.writeText(String(text));
+    if (mumble.state?.error) return resolve({ ok: false, reason: 'NOHELPER' }); // hjelperen kunne ikke startes: si det, ikke "spillet kjører ikke"
     if (!mumble.state?.running) return resolve({ ok: false, reason: 'NOGAME' });
     const args = ['paste'];
     if (mumble.state?.ui?.textboxFocus) args.push('--no-enter');

@@ -60,8 +60,9 @@ app.whenReady().then(async () => {
   // Hurtigtast: vis/skjul panelet med siste modul
   globalShortcut.register('CommandOrControl+Shift+G', () => win.openModule(win.currentModule || 'inventory'));
 
-  // Automatisk oppdatering fra GitHub Releases (bare pakket app, aldri i testmodus)
-  updater.init({ app, config, testMode: TEST_MODE, onStatus: (s) => win.broadcast('update:status', s) });
+  // Automatisk oppdatering fra GitHub Releases (bare pakket app, aldri i testmodus). electron-updater logger til app.log med scope "update".
+  const updLog = Object.fromEntries(['info', 'warn', 'error', 'debug'].map((lvl) => [lvl, (msg, ...extra) => log[lvl]('update', msg, extra.length > 1 ? extra : extra[0])]));
+  updater.init({ app, config, testMode: TEST_MODE, log: updLog, onStatus: (s) => win.broadcast('update:status', s) });
 
   win.createTray();
   await win.startFollowGame();

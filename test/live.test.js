@@ -66,14 +66,19 @@ test('før hello: ikke tilkoblet, ingen self', () => {
 });
 
 test('hello og agent-registrering av self i samme datagram, ugyldig linje ignoreres', async () => {
+  // ArcDPS legger id og navn i src (src.prof != 0 betyr "lagt til"), og prof, elite, self og kontonavn i dst
   await send(
     { t: 'hello', arc: '20260901.1' },
     'dette er ikke json',
-    { t: 'agent', src: { id: 100, name: 'Alfa', prof: 1, elite: 62 }, dst: { self: 1, name: 'Alfa.1234' } },
+    { t: 'agent', src: { id: 100, name: 'Alfa', prof: 1, elite: 0 }, dst: { self: 1, name: 'Alfa.1234', prof: 1, elite: 62 } },
   );
   const s = await until((x) => x.connected && x.self, 'hello + agent');
   assert.equal(s.arcVersion, '20260901.1');
   assert.deepEqual(s.self, { id: 100, name: 'Alfa', prof: 1, elite: 62, account: 'Alfa.1234' });
+  // andre spillere: også prof og elite fra dst
+  await send({ t: 'agent', src: { id: 101, name: 'Beta', prof: 1, elite: 0 }, dst: { self: 0, name: 'Beta.5678', prof: 4, elite: 55 } });
+  await until(() => live.agents.get(101)?.elite === 55, 'Beta registrert');
+  assert.deepEqual(live.agents.get(101), { id: 101, name: 'Beta', prof: 4, elite: 55, self: 0 });
 });
 
 test('statechange 1 og 2: inn og ut av kamp', async () => {
@@ -184,4 +189,66 @@ test('våpenbytte: statechange 11 med dstAgent 5 gir sett B, 4 gir A, 0/1 gir va
   await send(ev({ sc: 11, dstAgent: 4, src: OTHER }));
   await new Promise((r) => setTimeout(r, 50));
   assert.equal(live.snapshot().weaponSet, 'B');
+});
+
+test('dedupe: samme arcdps-id i samme scope to ganger gir én stack, annet scope eller id 0 dedupliseres ikke', async () => {
+  const swift = (over) => ev({ buff: 1, value: 5000, skill: 719, name: 'Swiftness', dst: SELF, iff: 0, ...over });
+  const m = swift();
+  await send(m, m);
+  let s = await until((x) => buff(x, 'Swiftness'), 'Swiftness påført');
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(buff(live.snapshot(), 'Swiftness').stacks, 1, 'dobbeltlevert hendelse telles én gang');
+  // samme id fra det andre scopet er en annen hendelse
+  await send({ ...m, s: 'area' });
+  s = await until((x) => buff(x, 'Swiftness')?.stacks === 2, 'annet scope');
+  // id 0 (eldre bro uten id) dedupliseres aldri
+  await send(swift({ id: 0 }), swift({ id: 0 }));
+  s = await until((x) => buff(x, 'Swiftness')?.stacks === 4, 'id 0');
+  assert.equal(s.buffs.length, 1);
+  await send(ev({ rem: 1, skill: 719, name: 'Swiftness', buff: 1 }));
+  await until((x) => !buff(x, 'Swiftness'), 'ryddet');
+});
+
+test('sc 18 (buff initial): buffen legges på den som har den, max er varigheten, målet endres ikke', async () => {
+  const targetBefore = live.snapshot().target?.id ?? null;
+  await send(ev({ sc: 18, buff: 1, value: 20000, skill: 5492, name: 'Fire Attunement', src: SELF, dst: SELF, iff: 0 }));
+  let s = await until((x) => buff(x, 'Fire Attunement'), 'attunement fra sc 18');
+  let b = buff(s, 'Fire Attunement');
+  assert.equal(b.stacks, 1);
+  assert.equal(b.max, 20000);
+  assert.ok(b.remainingMs > 19000 && b.remainingMs <= 20000, `gjenværende ~20 s, fikk ${b.remainingMs}`);
+  // sc 18 på en fiende (fra oss) legges i målets liste, men flytter ikke målet
+  await send(ev({ sc: 18, buff: 1, value: 9000, skill: 738, name: 'Vulnerability', src: SELF, dst: TRASH, iff: 1 }));
+  await until(() => live.targets.get(TRASH.id)?.has(738), 'sc 18 på fiende');
+  assert.equal(live.snapshot().target?.id ?? null, targetBefore, 'sc 18 endrer ikke målet');
+  // ny påføring med annen varighet: én stack til, max følger siste påføring
+  await send(ev({ buff: 1, value: 30000, skill: 5492, name: 'Fire Attunement', dst: SELF, iff: 0 }));
+  s = await until((x) => buff(x, 'Fire Attunement')?.stacks === 2, 'to stacks');
+  assert.equal(buff(s, 'Fire Attunement').max, 30000);
+  // sc 18 uten varighet ignoreres
+  await send(ev({ sc: 18, buff: 1, value: 0, skill: 5493, name: 'Water Attunement', src: SELF, dst: SELF, iff: 0 }));
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(buff(live.snapshot(), 'Water Attunement'), undefined);
+  await send(ev({ rem: 1, skill: 5492, name: 'Fire Attunement', buff: 1 }));
+  await until((x) => !buff(x, 'Fire Attunement'), 'ryddet');
+});
+
+test('målbytte: agent-melding med src.elite 0xffffffff og dst null setter target, id 0 ignoreres', async () => {
+  // ArcDPS sender dst = null og bare id i src; navnet kommer med første hendelse som treffer agenten
+  await send({ t: 'agent', s: 'local', src: { id: 300, name: '', prof: 0, elite: 0xffffffff, self: 0, team: 0 }, dst: null, name: '' });
+  let s = await until((x) => x.target?.id === 300, 'target fra målbytte');
+  assert.equal(s.target.name, '');
+  assert.deepEqual(s.target.buffs, []);
+  await send(ev({ dst: { id: 300, name: 'Sjef', prof: 1, elite: 0xffffffff, self: 0, team: 2 }, iff: 1, value: 10, skill: 100 }));
+  s = await until((x) => x.target?.name === 'Sjef', 'navn fra hendelse');
+  // id 0 = ingen target valgt: ignoreres
+  await send({ t: 'agent', s: 'local', src: { id: 0, name: '', prof: 0, elite: 0xffffffff, self: 0, team: 0 }, dst: null, name: '' });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(live.snapshot().target?.id, 300);
+  // eldre bro: dst.self = 1 i stedet for null. Skal ikke tolkes som registrering av deg selv.
+  await send({ t: 'agent', s: 'local', src: { id: 200, name: 'Golem', prof: 0, elite: 0xffffffff, self: 0, team: 2 }, dst: { self: 1 }, name: '' });
+  s = await until((x) => x.target?.id === 200, 'target fra eldre bro');
+  assert.equal(s.self.id, 100, 'self er urørt');
+  await send(ev({ sc: 2 }));
+  await until((x) => x.target === null, 'sc 2 nullstiller');
 });

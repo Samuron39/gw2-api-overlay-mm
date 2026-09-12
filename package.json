@@ -6,8 +6,11 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test \"test/**/*.test.js\"",
+    "predist": "node scripts/check-native.js",
     "dist": "electron-builder --win --dir",
+    "predist:installer": "node scripts/check-native.js",
     "dist:installer": "electron-builder --win nsis",
+    "prerelease": "node scripts/check-native.js",
     "release": "electron-builder --win nsis --publish always"
   },
   "license": "MIT",
