@@ -1,5 +1,5 @@
 'use strict';
-// Panel-ramme: modulregister, faner, felles hjelpefunksjoner.
+// Panel-ramme: modulregister, faner, felles hjelpefunksjoner. Tekster via T (i18n.js), lastet før noe vises.
 const Panel = (() => {
   const modules = {};
   const order = [];
@@ -28,13 +28,15 @@ const Panel = (() => {
     el.classList.toggle('error', !!isError);
   }
 
+  // title kan være en funksjon (() => T.t('module.x')), så fanen følger språket
   function register(mod) { modules[mod.id] = mod; order.push(mod.id); }
+  function titleOf(mod) { return typeof mod.title === 'function' ? mod.title() : mod.title; }
 
   function renderTabs() {
     const nav = $('#tabs');
     const enabled = config?.wheelModules;
     const visible = order.filter((id) => id === 'settings' || id === current || !enabled || enabled.includes(id));
-    nav.innerHTML = visible.map((id) => `<button class="tab ${id === current ? 'active' : ''}" data-id="${id}" title="${esc(modules[id].title)}">${esc(modules[id].icon)} <span class="tab-label">${esc(modules[id].title)}</span></button>`).join('');
+    nav.innerHTML = visible.map((id) => `<button class="tab ${id === current ? 'active' : ''}" data-id="${id}" title="${esc(titleOf(modules[id]))}">${esc(modules[id].icon)} <span class="tab-label">${esc(titleOf(modules[id]))}</span></button>`).join('');
     nav.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => window.api.invoke('panel:show', b.dataset.id)));
   }
 
@@ -55,9 +57,28 @@ const Panel = (() => {
     renderTabs();
   }
 
+  // Statiske tekster i panel.html
+  function applyStatic() {
+    document.title = T.t('panel.title');
+    $('#grip').title = T.t('panel.dragToMove');
+    $('#pinnedLbl').textContent = T.t('panel.pinned');
+    $('#pinnedWrap').title = T.t('panel.pinnedTitle');
+    $('#opacityWrap').title = T.t('panel.opacity');
+    $('#closeBtn').title = T.t('panel.close');
+  }
+
+  // Språkbytte: ny ordbok, statiske tekster, og gjeldende modul monteres på nytt så alt tegnes på nytt språk
+  async function onLanguageChanged() {
+    applyStatic();
+    if (current) { const id = current; modules[id].unmount?.(); current = null; show(id); }
+    else renderTabs();
+  }
+
   function onConfig(cb) { listeners.config.push(cb); }
 
   async function init() {
+    await T.load();
+    applyStatic();
     config = await window.api.invoke('config:get');
     $('#pinned').checked = !!config.panel?.pinned;
     $('#opacity').value = config.panel?.opacity ?? 0.95;
@@ -65,7 +86,11 @@ const Panel = (() => {
     $('#opacity').addEventListener('input', (e) => window.api.invoke('config:set', { panel: { opacity: Number(e.target.value) } }));
     $('#closeBtn').addEventListener('click', () => window.api.invoke('panel:close'));
     window.api.on('panel:module', ({ id }) => show(id));
-    window.api.on('config:changed', (c) => { config = c; $('#pinned').checked = !!c.panel?.pinned; renderTabs(); listeners.config.forEach((cb) => cb(c)); });
+    window.api.on('config:changed', async (c) => {
+      config = c; $('#pinned').checked = !!c.panel?.pinned;
+      if (await T.sync(c)) await onLanguageChanged();
+      renderTabs(); listeners.config.forEach((cb) => cb(c));
+    });
     renderTabs();
     const st = await window.api.invoke('panel:state');
     if (st.module) show(st.module);

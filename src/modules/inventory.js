@@ -3,13 +3,14 @@
 const gw2 = require('../gw2');
 const rules = require('../rules');
 const ai = require('../ai');
+const { t } = require('../i18n');
 
 const SALVAGE_MATERIAL_IDS = [19721, 19718, 19739, 19741, 19743, 19748, 19745, 19719, 19728, 19730, 19731, 19729, 19732, 19697, 19699, 19702, 19700, 19701, 19723, 19726, 19727, 19724, 19722, 19725];
 
 let lastData = null;
 
 async function refresh(config, demo) {
-  if (!config.apiKey && !demo) throw new Error('Ingen API-nøkkel. Legg den inn under Innstillinger.');
+  if (!config.apiKey && !demo) throw new Error(t('inventory.noApiKey'));
   const acc = demo ? gw2.demoAccountData() : await gw2.fetchAccountData(config.apiKey);
   const ids = [...new Set(acc.instances.map((i) => i.itemId))];
   const [items, materialCats] = await Promise.all([gw2.fetchItems(ids), gw2.fetchMaterialCategories()]);
@@ -31,7 +32,7 @@ async function refresh(config, demo) {
   let achIndex = null;
   if (acc.accountAchievements) {
     try { achIndex = await gw2.fetchAchievementIndex(); }
-    catch (e) { acc.errors.push('Samlingsindeks: ' + e.message); }
+    catch (e) { acc.errors.push(t('inventory.collectionIndex', { message: e.message })); }
   }
   // Items du allerede har ute for salg (krever tradingpost-tillatelse)
   let listed = new Set();
@@ -58,7 +59,7 @@ async function refresh(config, demo) {
   return lastData;
 }
 
-function requireData() { if (!lastData) throw new Error('Hent inventory først.'); return lastData; }
+function requireData() { if (!lastData) throw new Error(t('inventory.fetchFirst')); return lastData; }
 
 module.exports = {
   refresh,

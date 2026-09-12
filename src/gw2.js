@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const log = require('./log');
+const { t } = require('./i18n');
 
 const BASE = 'https://api.guildwars2.com/v2';
 const CHUNK = 200;        // maks ids per bulk-kall
@@ -41,7 +42,7 @@ async function get(endpoint, { key, params = {}, bulk = false, retries = 3, with
     try { res = await fetch(url, { headers }); }
     catch (e) { log.error('gw2', `Nettverksfeil på ${endpoint}`, e.message); throw e; }
     if (res.status === 429 || res.status >= 500) {
-      if (attempt >= retries) { log.error('gw2', `HTTP ${res.status} på ${endpoint}, gir opp etter ${attempt + 1} forsøk`); throw new Error(`GW2 API ${res.status} på ${endpoint}`); }
+      if (attempt >= retries) { log.error('gw2', `HTTP ${res.status} på ${endpoint}, gir opp etter ${attempt + 1} forsøk`); throw new Error(t('gw2.httpError', { status: res.status, endpoint })); }
       log.warn('gw2', `HTTP ${res.status} på ${endpoint}, prøver igjen om ${attempt + 1} s (${attempt + 1}/${retries})`);
       await sleep(1000 * (attempt + 1));
       continue;
@@ -51,7 +52,7 @@ async function get(endpoint, { key, params = {}, bulk = false, retries = 3, with
       let msg = '';
       try { msg = (await res.json()).text || ''; } catch { /* tom */ }
       log.error('gw2', `HTTP ${res.status} på ${endpoint}`, msg);
-      throw new Error(`GW2 API ${res.status} på ${endpoint}${msg ? ': ' + msg : ''}`);
+      throw new Error(t('gw2.httpError', { status: res.status, endpoint }) + (msg ? ': ' + msg : ''));
     }
     if (withHeaders) return { body: await res.json(), headers: Object.fromEntries(res.headers) };
     return res.json();
@@ -172,7 +173,7 @@ async function fetchAccountData(key) {
   const perms = new Set(token.permissions || []);
   const need = ['account', 'inventories', 'characters', 'wallet'];
   const missing = need.filter((p) => !perms.has(p));
-  if (missing.length) errors.push('API-nøkkelen mangler tillatelser: ' + missing.join(', '));
+  if (missing.length) errors.push(t('gw2.missingPerms', { list: missing.join(', ') }));
 
   const account = await get('/account', { key });
 
@@ -187,7 +188,7 @@ async function fetchAccountData(key) {
   tasks.unlocks = fetchUnlocks(key, perms);
   tasks.achievements = fetchAccountAchievements(key, perms);
   const soft = ['unlocks', 'progression'].filter((p) => !perms.has(p));
-  if (soft.length) errors.push(`Nøkkelen mangler ${soft.join(' og ')}: samlinger og skinn sjekkes ikke`);
+  if (soft.length) errors.push(t('gw2.softPerms', { list: soft.join(' ' + t('common.and') + ' ') }));
 
   const keys = Object.keys(tasks);
   const settled = await Promise.allSettled(Object.values(tasks));
@@ -216,26 +217,26 @@ async function fetchAccountData(key) {
   for (const slot of data.bank || []) {
     freeSlots.bank.total++;
     if (!slot) { freeSlots.bank.free++; continue; }
-    instances.push({ itemId: slot.id, count: slot.count, binding: slot.binding || null, boundTo: null, source: 'Bank', sourceType: 'bank' });
+    instances.push({ itemId: slot.id, count: slot.count, binding: slot.binding || null, boundTo: null, source: t('gw2.source.bank'), sourceType: 'bank' });
   }
 
   for (const slot of data.shared || []) {
     freeSlots.shared.total++;
     if (!slot) { freeSlots.shared.free++; continue; }
-    instances.push({ itemId: slot.id, count: slot.count, binding: slot.binding || null, boundTo: null, source: 'Delte plasser', sourceType: 'shared' });
+    instances.push({ itemId: slot.id, count: slot.count, binding: slot.binding || null, boundTo: null, source: t('gw2.source.shared'), sourceType: 'shared' });
   }
 
   const materialCounts = new Map();
   for (const m of data.materials || []) {
     materialCounts.set(m.id, m.count);
-    if (m.count > 0) instances.push({ itemId: m.id, count: m.count, binding: m.binding || null, boundTo: null, source: 'Materiallager', sourceType: 'materials' });
+    if (m.count > 0) instances.push({ itemId: m.id, count: m.count, binding: m.binding || null, boundTo: null, source: t('gw2.source.materials'), sourceType: 'materials' });
   }
 
   let wallet = [];
   if (data.wallet) {
     const cur = await fetchCurrencies().catch(() => []);
     const names = new Map(cur.map((c) => [c.id, c.name]));
-    wallet = data.wallet.map((w) => ({ id: w.id, name: names.get(w.id) || `Valuta ${w.id}`, value: w.value }));
+    wallet = data.wallet.map((w) => ({ id: w.id, name: names.get(w.id) || t('gw2.currency', { id: w.id }), value: w.value }));
   }
 
   return { account, wallet, instances, freeSlots, materialCounts, errors, perms: [...perms], unlocks: data.unlocks || { available: false }, accountAchievements: data.achievements || null };
@@ -251,8 +252,8 @@ function demoAccountData() {
     mk(44941, 60, 'Demo Warrior'), mk(1041, 1, 'Demo Warrior'), mk(1074, 1, 'Demo Warrior', 'character', 'Character'),
     mk(3903, 1, 'Demo Warrior'), mk(1128, 1, 'Demo Warrior'), mk(13, 1, 'Demo Warrior'),
     mk(83008, 40, 'Demo Ranger'), mk(84731, 3, 'Demo Ranger'), mk(19748, 120, 'Demo Ranger'),
-    mk(19700, 250, 'Bank', 'bank'), mk(19976, 30, 'Bank', 'bank'), mk(8932, 4, 'Bank', 'bank'),
-    mk(19721, 250, 'Materiallager', 'materials'), mk(19700, 250, 'Materiallager', 'materials'),
+    mk(19700, 250, t('gw2.source.bank'), 'bank'), mk(19976, 30, t('gw2.source.bank'), 'bank'), mk(8932, 4, t('gw2.source.bank'), 'bank'),
+    mk(19721, 250, t('gw2.source.materials'), 'materials'), mk(19700, 250, t('gw2.source.materials'), 'materials'),
   ];
   const materialCounts = new Map([[19721, 250], [19700, 250]]);
   return {

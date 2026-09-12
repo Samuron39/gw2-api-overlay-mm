@@ -74,12 +74,24 @@ Utstyr per karakter med stat-kombinasjon, runer, sigiller og infusions. Automati
 MOTD, logg, lager og treasury med hva som mangler til pågående oppgraderinger, for hver guild kontoen er med i. Krever guilds-tillatelse og at rangen din har innsyn i guilden.
 
 ### Innstillinger
-API-nøkkel, LM Studio, inventory-regler, ArcDPS-loggmappe, hvilke moduler som vises på hjulet og som faner, hjulstørrelse, auto-skjul ved alt-tab, start med Windows. Viser hvor konfigfila ligger og om siste lagring feilet.
+Språk, API-nøkkel, LM Studio, inventory-regler, ArcDPS-loggmappe, hvilke moduler som vises på hjulet og som faner, hjulstørrelse, auto-skjul ved alt-tab, start med Windows. Viser hvor konfigfila ligger og om siste lagring feilet.
+
+## Språk
+
+Alle tekster i appen ligger i én JSON-fil per språk i `src/i18n/`: `nb.json` (norsk bokmål, standard) og `en.json` (engelsk). Språket velges øverst under *Innstillinger* og byttes med en gang, uten omstart. Valget lagres som `language` i konfigfila. Feilmeldinger fra hovedprosessen, regelmotorens anbefalinger og fanetekstene følger språket, og AI-rådgiveren bes svare på det valgte språket. Datoer og tall bruker språkets locale (`lang.locale`, f.eks. `nb-NO` og `en-GB`).
+
+Nøklene er i punktnotasjon per modul (`inventory.refresh`, `settings.save`). Plassholdere skrives `{name}` og fylles inn av `t(key, vars)`. Flertall er egne nøkler med `.one` og `.other` (`dps.players.one`, `dps.players.other`), valgt av `tn(key, n)`. Noen få tekster inneholder enkel HTML (`<b>`, `<code>`), for eksempel `dps.intro`. Mangler en nøkkel i et språk, brukes nb-teksten, og mangler den der også, vises nøkkelen selv.
+
+Nytt språk: kopier `src/i18n/nb.json` til for eksempel `src/i18n/de.json`, oversett tekstene og sett `lang.name` (navnet i språkvelgeren) og `lang.locale`. Fila plukkes opp automatisk, ingen kode må endres. `npm test` sjekker at alle språkfiler har de samme nøklene som `nb.json`.
 
 ## Arkitektur
 
 ```
-src/main.js                  Electron: hjul- og panelvindu, konfig, IPC, auto-skjul, hurtigtast
+src/main.js                  Electron: app-navn, testmodus, én instans, oppstart
+src/config.js                konfig: standardverdier, lasting og lagring, DEMO/TEST_MODE
+src/windows.js               hjul- og panelvindu, systemstatusfelt, auto-skjul, følg spillet
+src/ipc.js                   alle IPC-handlere, gruppert per modul
+src/i18n.js + src/i18n/      språk: t(key, vars), én JSON-fil per språk
 src/preload.js               allowlist for IPC-kanaler
 src/mumble.js + helper/      MumbleLink (posisjon, kart, fokus, kamp) og chat-innliming via Rust-hjelperen
 src/gw2.js                   GW2 API-klient med item-cache og samlingsindeks
@@ -93,7 +105,7 @@ src/renderer/modules/*.js    modul-UI
 data/                        tidsplaner og waypoints fra wikien (CC BY-SA)
 ```
 
-En ny modul er to filer: `src/modules/<navn>.js` med IPC-handlere registrert i main.js og kanalen i preload.js, og `src/renderer/modules/<navn>.js` som kaller `Panel.register({ id, title, icon, mount, unmount })`. Legg id-en til i `MODULES` i `wheel.js` og skriptet i `panel.html`.
+En ny modul er to filer: `src/modules/<navn>.js` med IPC-handlere registrert i ipc.js og kanalen i preload.js, og `src/renderer/modules/<navn>.js` som kaller `Panel.register({ id, title: () => T.t('module.<navn>'), icon, mount, unmount })`. Legg id-en til i `MODULES` i `wheel.js` og skriptet i `panel.html`, og tekstene i `src/i18n/*.json`.
 
 ## Minne og modellvalg mens du spiller
 
@@ -171,8 +183,9 @@ Kjører alt i `test/` med Node sin innebygde test-runner (`node:test` og `node:a
 | `test/timers.test.js` | Tidsplan-dataene: world bosses har 10 segmenter, sekvensene fyller døgnet, `waypoints.json` dekker chat-lenkene |
 | `test/daily.test.js` | Boss-navn til API-id og daglig/ukentlig reset, også med frosset klokke |
 | `test/skills.test.js` | `skills.js` lastes uten Electron, `normalizeRotation()` tåler gamle lagringer |
+| `test/i18n.test.js` | Språkfilene har samme nøkler og ingen tomme tekster, `t()`/`tn()` med plassholdere og flertall, fallback til nb og til nøkkelen, regelmotoren følger språket |
 
-`main.js`, `overlays.js` og `mumble.js` krever Electron og dekkes ikke. Testene rører aldri konfigmappa di.
+`main.js`, `windows.js`, `ipc.js`, `overlays.js` og `mumble.js` krever Electron og dekkes ikke. Testene rører aldri konfigmappa di.
 
 ## Begrensninger
 

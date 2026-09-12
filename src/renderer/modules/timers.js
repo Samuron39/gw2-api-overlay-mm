@@ -2,6 +2,7 @@
 // Tidsplan-modul (renderer): hva skjer nå, hva er neste, hvor er det. Data fra GW2-wikien (CC BY-SA).
 (() => {
   const { $, esc, setStatus } = Panel;
+  const t = (k, v) => T.t(k, v);
   let root = null;
   let data = null;
   let mumble = { running: false };
@@ -25,12 +26,12 @@
   function timeline(e) {
     if (timelines.has(e)) return timelines.get(e);
     const segs = [];
-    let t = 0;
-    for (const s of e.sequences?.partial || []) { segs.push({ r: s.r, start: t, end: t + s.d }); t += s.d; }
+    let tm = 0;
+    for (const s of e.sequences?.partial || []) { segs.push({ r: s.r, start: tm, end: tm + s.d }); tm += s.d; }
     const pat = e.sequences?.pattern || [];
     let guard = 0;
-    while (pat.length && t < 1440 && guard++ < 3000) {
-      for (const s of pat) { segs.push({ r: s.r, start: t, end: t + s.d }); t += s.d; if (t >= 1440) break; }
+    while (pat.length && tm < 1440 && guard++ < 3000) {
+      for (const s of pat) { segs.push({ r: s.r, start: tm, end: tm + s.d }); tm += s.d; if (tm >= 1440) break; }
     }
     timelines.set(e, segs);
     return segs;
@@ -60,7 +61,7 @@
   function fmt(sec) {
     sec = Math.max(0, Math.round(sec));
     const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
-    return h ? `${h}t ${String(m).padStart(2, '0')}m` : `${m}m ${String(s).padStart(2, '0')}s`;
+    return h ? t('common.time.hm', { h, m: String(m).padStart(2, '0') }) : t('common.time.ms', { m, s: String(s).padStart(2, '0') });
   }
 
   function wpInfo(seg) {
@@ -78,10 +79,10 @@
     return c ? `rgba(${c[0]},${c[1]},${c[2]},0.35)` : 'var(--line)';
   }
 
-  const TEMPLATE = `
+  const template = () => `
     <div class="toolbar">
-      <select id="tmCategory"><option value="">Alle utvidelser</option></select>
-      <label class="inline"><input type="checkbox" id="tmEdit" /> Velg hva som vises</label>
+      <select id="tmCategory"><option value="">${esc(t('timers.allExpansions'))}</option></select>
+      <label class="inline"><input type="checkbox" id="tmEdit" /> ${esc(t('timers.edit'))}</label>
       <div class="spacer"></div>
       <span id="tmHere" class="muted"></span>
     </div>
@@ -89,14 +90,14 @@
 
   async function mount(el) {
     root = el;
-    el.innerHTML = TEMPLATE;
+    el.innerHTML = template();
     hidden = new Set(Panel.config?.timersHidden || []);
     if (!data) {
       try { data = await window.api.invoke('timers:data'); }
-      catch (e) { setStatus('Kunne ikke laste tidsplaner: ' + e.message, true); return; }
+      catch (e) { setStatus(t('timers.loadFailed', { message: e.message }), true); return; }
     }
     const cats = [...new Set(Object.values(data.events).map((e) => e.category).filter(Boolean))];
-    $('#tmCategory', el).innerHTML = '<option value="">Alle utvidelser</option>' + cats.map((c) => `<option value="${esc(c)}" ${c === category ? 'selected' : ''}>${esc(c)}</option>`).join('');
+    $('#tmCategory', el).innerHTML = `<option value="">${esc(t('timers.allExpansions'))}</option>` + cats.map((c) => `<option value="${esc(c)}" ${c === category ? 'selected' : ''}>${esc(c)}</option>`).join('');
     $('#tmCategory', el).addEventListener('change', (e) => { category = e.target.value; render(); });
     $('#tmEdit', el).addEventListener('change', (e) => { editMode = e.target.checked; render(); });
     mumble = await window.api.invoke('mumble:get').catch(() => mumble);
@@ -108,12 +109,12 @@
   }
 
   function unmount() { clearInterval(tick); tick = null; clearInterval(doneTimer); doneTimer = null; offMumble?.(); offMumble = null; root = null; }
-  const killed = (seg) => doneBosses.size && seg?.name && doneBosses.has(bossId(seg.name)) ? ' <span class="badge done" title="Drept i dag, gir ikke loot igjen før reset">✓ i dag</span>' : '';
+  const killed = (seg) => doneBosses.size && seg?.name && doneBosses.has(bossId(seg.name)) ? ` <span class="badge done" title="${esc(t('timers.killedTitle'))}">${esc(t('timers.killed'))}</span>` : '';
 
   function render() {
     if (!root || !data) return;
     const here = mumble.running && mumble.mapId ? mumble.mapId : null;
-    $('#tmHere', root).textContent = here ? 'Rader merket «her» er på kartet du står i' : 'Ingen posisjon fra spillet';
+    $('#tmHere', root).textContent = here ? t('timers.hereHint') : t('timers.noPosition');
     const rows = [];
     for (const [key, e] of Object.entries(data.events)) {
       if (category && e.category !== category) continue;
@@ -126,24 +127,26 @@
       const curWp = wpInfo(r.cur), nextWp = wpInfo(r.next);
       const hereNow = here && (curWp?.mapId === here || nextWp?.mapId === here);
       const place = (wp, seg) => wp ? `${esc(wp.map)} · ${esc(wp.name)}` : esc(seg?.link || r.e.name);
+      const countdown = r.curFiller ? t('timers.nextIn', { t: fmt(r.nextIn != null ? r.nextIn : r.remaining) }) : t('timers.endsIn', { t: fmt(r.remaining) });
       return `<div class="tm-row ${hereNow ? 'here' : ''} ${hidden.has(r.key) ? 'hidden-row' : ''}">
         ${editMode ? `<label class="inline tm-toggle"><input type="checkbox" data-key="${esc(r.key)}" ${hidden.has(r.key) ? '' : 'checked'} /></label>` : ''}
-        <div class="tm-head"><b>${esc(r.e.name)}</b><span class="muted"> ${esc(r.e.category)}</span>${hereNow ? '<span class="badge here">her</span>' : ''}</div>
+        <div class="tm-head"><b>${esc(r.e.name)}</b><span class="muted"> ${esc(r.e.category)}</span>${hereNow ? `<span class="badge here">${esc(t('timers.here'))}</span>` : ''}</div>
         <div class="tm-now" style="background:${bg(r.cur)}">
           <div class="tm-bar" style="width:${Math.round(r.progress * 100)}%"></div>
-          <span class="tm-txt">${r.curFiller ? '<span class="muted">Ingenting nå</span>' : `Nå: <b>${esc(r.cur?.name)}</b>${killed(r.cur)}`} · ${r.curFiller ? 'neste' : 'slutter'} om ${fmt(r.curFiller && r.nextIn != null ? r.nextIn : r.remaining)}</span>
-          ${!r.curFiller && r.cur?.chatlink ? `<button class="wp" data-link="${esc(r.cur.chatlink)}" title="Lim waypointen inn i chatten i spillet">${place(curWp, r.cur)} ⧉</button>` : ''}
+          <span class="tm-txt">${r.curFiller ? `<span class="muted">${esc(t('timers.nothingNow'))}</span>` : `${esc(t('timers.now'))} <b>${esc(r.cur?.name)}</b>${killed(r.cur)}`} · ${esc(countdown)}</span>
+          ${!r.curFiller && r.cur?.chatlink ? `<button class="wp" data-link="${esc(r.cur.chatlink)}" title="${esc(t('timers.pasteWp'))}">${place(curWp, r.cur)} ⧉</button>` : ''}
         </div>
-        ${r.next ? `<div class="tm-next">Neste: <b>${esc(r.next.name)}</b>${killed(r.next)} om ${fmt(r.nextIn)}
-          ${r.next.chatlink ? `<button class="wp" data-link="${esc(r.next.chatlink)}" title="Lim waypointen inn i chatten i spillet">${place(nextWp, r.next)} ⧉</button>` : ''}</div>` : ''}
+        ${r.next ? `<div class="tm-next">${esc(t('timers.next'))} <b>${esc(r.next.name)}</b>${killed(r.next)} ${esc(t('timers.inTime', { t: fmt(r.nextIn) }))}
+          ${r.next.chatlink ? `<button class="wp" data-link="${esc(r.next.chatlink)}" title="${esc(t('timers.pasteWp'))}">${place(nextWp, r.next)} ⧉</button>` : ''}</div>` : ''}
       </div>`;
-    }).join('') || '<div class="empty">Ingen tidsplaner å vise.</div>';
+    }).join('') || `<div class="empty">${esc(t('timers.empty'))}</div>`;
     root.querySelectorAll('button.wp').forEach((b) => b.addEventListener('click', async () => {
       const r = await window.api.invoke('game:paste', b.dataset.link);
-      if (r.ok) setStatus(`${b.dataset.link} er limt inn i chatten. Trykk Enter i spillet, så klikk lenken.`);
-      else if (r.reason === 'NOGAME') setStatus(`Kopierte ${b.dataset.link}. Spillet kjører ikke, lim inn selv med Ctrl+V.`);
-      else if (r.reason === 'NOHELPER') setStatus(`Kopierte ${b.dataset.link}. Hjelperen mangler, lim inn selv med Ctrl+V.`);
-      else setStatus(`Kopierte ${b.dataset.link}, men fikk ikke fokus på spillet (${r.reason}). Lim inn selv med Ctrl+V.`);
+      const link = b.dataset.link;
+      if (r.ok) setStatus(t('timers.pasted', { link }));
+      else if (r.reason === 'NOGAME') setStatus(t('timers.noGame', { link }));
+      else if (r.reason === 'NOHELPER') setStatus(t('timers.noHelper', { link }));
+      else setStatus(t('timers.noFocus', { link, reason: r.reason }));
     }));
     root.querySelectorAll('.tm-toggle input').forEach((cb) => cb.addEventListener('change', async () => {
       if (cb.checked) hidden.delete(cb.dataset.key); else hidden.add(cb.dataset.key);
@@ -151,5 +154,5 @@
     }));
   }
 
-  Panel.register({ id: 'timers', title: 'Tidsplan', icon: '⏱️', mount, unmount });
+  Panel.register({ id: 'timers', title: () => T.t('module.timers'), icon: '⏱️', mount, unmount });
 })();

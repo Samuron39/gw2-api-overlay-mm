@@ -1,13 +1,14 @@
 'use strict';
 // Trading Post-modul (hovedprosess): egne ordrer, historikk, leveringsboks og reprisingsforslag.
 const gw2 = require('../gw2');
+const { t } = require('../i18n');
 
 const FEE = 0.85;
 let cache = { at: 0, key: '', data: null };
 const settle = (p) => p.then((v) => ({ ok: true, v })).catch((e) => ({ ok: false, e: e.message }));
 
 async function fetchTp(key) {
-  if (!key) throw new Error('Ingen API-nøkkel.');
+  if (!key) throw new Error(t('common.noApiKeyShort'));
   if (cache.data && cache.key === key && Date.now() - cache.at < 60e3) return cache.data;
   const g = (ep) => gw2.get(ep, { key });
   const [curBuys, curSells, histBuys, histSells, delivery] = await Promise.all([
@@ -17,33 +18,35 @@ async function fetchTp(key) {
   ]);
   const errors = [];
   const take = (r, what) => { if (!r.ok) errors.push(`${what}: ${r.e}`); return r.ok ? r.v : []; };
-  const buys = take(curBuys, 'Kjøpsordrer'), sells = take(curSells, 'Salgsordrer');
-  const hBuys = take(histBuys, 'Kjøpshistorikk'), hSells = take(histSells, 'Salgshistorikk');
+  const buys = take(curBuys, t('tp.src.buys')), sells = take(curSells, t('tp.src.sells'));
+  const hBuys = take(histBuys, t('tp.src.buyHistory')), hSells = take(histSells, t('tp.src.sellHistory'));
   const del = delivery.ok ? delivery.v : { coins: 0, items: [] };
-  if (!delivery.ok) errors.push('Leveringsboks: ' + delivery.e);
+  if (!delivery.ok) errors.push(t('tp.src.delivery') + ': ' + delivery.e);
 
   const ids = [...new Set([...buys, ...sells, ...hBuys, ...hSells, ...(del.items || [])].map((t) => t.item_id || t.id))];
   const [items, prices] = await Promise.all([gw2.fetchItems(ids), gw2.fetchPrices([...new Set([...buys, ...sells].map((t) => t.item_id))])]);
-  const name = (id) => items.get(id)?.name || `Item ${id}`;
+  const name = (id) => items.get(id)?.name || t('common.itemId', { id });
   const icon = (id) => items.get(id)?.icon || '';
 
-  const sellRows = sells.map((t) => {
-    const p = prices.get(t.item_id);
+  const sellRows = sells.map((tr) => {
+    const p = prices.get(tr.item_id);
     const lowest = p?.sells?.unit_price || 0;
     const highestBuy = p?.buys?.unit_price || 0;
     let advice = '';
-    if (lowest && t.price > lowest) advice = `Underbudt: laveste er ${lowest}c, du ligger ${t.price - lowest}c over`;
-    else if (lowest && t.price === lowest) advice = 'Du er laveste pris';
-    return { ...t, name: name(t.item_id), icon: icon(t.item_id), lowest, highestBuy, advice, net: Math.floor(t.price * FEE) * t.quantity };
+    const underbid = !!lowest && tr.price > lowest; // flagg til renderer, så den slipper å tolke teksten
+    if (underbid) advice = t('tp.underbid', { lowest, diff: tr.price - lowest });
+    else if (lowest && tr.price === lowest) advice = t('tp.lowestPrice');
+    return { ...tr, name: name(tr.item_id), icon: icon(tr.item_id), lowest, highestBuy, advice, underbid, net: Math.floor(tr.price * FEE) * tr.quantity };
   });
-  const buyRows = buys.map((t) => {
-    const p = prices.get(t.item_id);
+  const buyRows = buys.map((tr) => {
+    const p = prices.get(tr.item_id);
     const highest = p?.buys?.unit_price || 0;
     const lowestSell = p?.sells?.unit_price || 0;
     let advice = '';
-    if (highest && t.price < highest) advice = `Overbudt: høyeste bud er ${highest}c, du ligger ${highest - t.price}c under`;
-    else if (highest && t.price === highest) advice = 'Du har høyeste bud';
-    return { ...t, name: name(t.item_id), icon: icon(t.item_id), highest, lowestSell, advice, total: t.price * t.quantity };
+    const overbid = !!highest && tr.price < highest;
+    if (overbid) advice = t('tp.overbid', { highest, diff: highest - tr.price });
+    else if (highest && tr.price === highest) advice = t('tp.highestBid');
+    return { ...tr, name: name(tr.item_id), icon: icon(tr.item_id), highest, lowestSell, advice, overbid, total: tr.price * tr.quantity };
   });
 
   const since = (days) => Date.now() - days * 864e5;

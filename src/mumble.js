@@ -4,6 +4,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const { EventEmitter } = require('events');
 const log = require('./log');
+const { t } = require('./i18n');
 
 // Sti til gw2overlay_helper.exe: bygd i helper/target/release under utvikling, kopiert til resources/helper når pakket.
 function helperPath() {
@@ -25,7 +26,7 @@ class Mumble extends EventEmitter {
     let buf = '';
     p.on('error', (e) => {
       failed = true; this.proc = null;
-      this.state = { running: false, error: 'Fant ikke hjelperen ' + exe + ' (' + (e.code || e.message) + '). Bygg den med `cargo build --release` i helper/.' };
+      this.state = { running: false, error: t('mumble.noHelper', { exe, code: e.code || e.message }) };
       log.error('mumble', 'Hjelperen kunne ikke startes', e);
       this.emit('state', this.state);
     });

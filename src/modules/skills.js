@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const gw2 = require('../gw2');
 const ai = require('../ai');
+const { t } = require('../i18n');
 
 const PROF_NAMES = { 1: 'Guardian', 2: 'Warrior', 3: 'Engineer', 4: 'Ranger', 5: 'Thief', 6: 'Elementalist', 7: 'Mesmer', 8: 'Necromancer', 9: 'Revenant' };
 const BOON_NAMES = ['Might', 'Fury', 'Quickness', 'Alacrity', 'Protection', 'Regeneration', 'Swiftness', 'Vigor', 'Stability', 'Aegis', 'Resolution', 'Resistance'];
@@ -238,8 +239,8 @@ function normalizeRotation(r) {
  */
 async function getSkillbar(config, snap, mumble, opts = {}) {
   const ident = mumble?.identity;
-  if (!ident?.name) return { ok: false, error: 'Ingen karakter fra spillet ennå (MumbleLink). Gå inn i verden med en karakter.' };
-  if (!config.apiKey) return { ok: false, error: 'Ingen API-nøkkel.' };
+  if (!ident?.name) return { ok: false, error: t('skills.noCharacter') };
+  if (!config.apiKey) return { ok: false, error: t('common.noApiKeyShort') };
   const profName = PROF_NAMES[ident.profession] || 'Guardian';
   const liveSpec = ident.spec || 0;
   const idx = await fetchIndex();
@@ -248,7 +249,7 @@ async function getSkillbar(config, snap, mumble, opts = {}) {
     gw2.get(`/characters/${encodeURIComponent(ident.name)}/buildtabs`, { key: config.apiKey, params: { tabs: 'all' } }).catch(() => []),
     gw2.get(`/characters/${encodeURIComponent(ident.name)}/equipmenttabs`, { key: config.apiKey, params: { tabs: 'all' } }).catch(() => []),
   ]);
-  if (!buildTabs.length) return { ok: false, error: 'Fikk ingen builds fra API-et. Nøkkelen trenger tillatelsen builds.' };
+  if (!buildTabs.length) return { ok: false, error: t('skills.noBuilds') };
 
   // Velg build-fane: ønsket fane, ellers den aktive hvis spec stemmer med spillet, ellers første fane med samme elite-spec
   const eliteOf = (t) => (t.build?.specializations || []).map((s) => s?.id).find((id) => id && id >= 27 && id !== 0) || 0;
@@ -325,8 +326,8 @@ async function getSkillbar(config, snap, mumble, opts = {}) {
   const bar = {
     ok: true, key: setKey(cur), buildKey: key, weaponSet: wantSet, character: ident.name, professionName: profName, specId, specName: spec?.name || '',
     sets: { A: setOut(sets.A), B: sets.B ? setOut(sets.B) : null },
-    tab: tab.tab, buildName: tab.name || `Build ${tab.tab}`, isActiveTab: !!tab.is_active,
-    builds: buildTabs.map((t) => ({ tab: t.tab, name: t.name || `Build ${t.tab}`, active: !!t.is_active, spec: eliteOf(t) })),
+    tab: tab.tab, buildName: tab.name || t('skills.buildFallback', { tab: tab.tab }), isActiveTab: !!tab.is_active,
+    builds: buildTabs.map((b) => ({ tab: b.tab, name: b.name || t('skills.buildFallback', { tab: b.tab }), active: !!b.is_active, spec: eliteOf(b) })),
     profession: professionSkills, weapon, heal, utilities, elite,
     weaponTypes: [mainType, offType].filter(Boolean),
     rotation: rotationFor(cur),
@@ -363,10 +364,10 @@ const ROT_SCHEMA = {
 
 async function suggestRotation(config, key, opts = {}) {
   const bar = lastBar.get(key);
-  if (!bar) throw new Error('Hent skill-baren først.');
+  if (!bar) throw new Error(t('skills.fetchFirst'));
   const lines = bar.all.map((s) => `- id ${s.id}: ${s.name} (${s.slot || s.type}${s.attunement ? ', ' + s.attunement : ''}${s.recharge ? ', cooldown ' + s.recharge + 's' : ''}${s.ammo ? ', ' + s.ammo.count + ' ladninger' : ''}${s.buffs?.length ? ', gir ' + s.buffs.join('/') : ''}): ${s.description}`);
   const messages = [
-    { role: 'system', content: 'Du er en erfaren Guild Wars 2-spiller. Foreslå en praktisk skill-rotasjon for PvE ut fra skillene under. Bruk bare id-er fra lista. Svar på norsk. Vær ærlig i forklaringen om at dette er et forslag og ikke en benchmark-rotasjon.' },
+    { role: 'system', content: `Du er en erfaren Guild Wars 2-spiller. Foreslå en praktisk skill-rotasjon for PvE ut fra skillene under. Bruk bare id-er fra lista. Svar på ${ai.answerLanguage()}. Vær ærlig i forklaringen om at dette er et forslag og ikke en benchmark-rotasjon.` },
     { role: 'user', content: `Karakter: ${bar.character}, ${bar.professionName}${bar.specName ? ' (' + bar.specName + ')' : ''}, build «${bar.buildName}», våpen: ${bar.weaponTypes.join(' + ') || 'ukjent'}.\nSkills:\n${lines.join('\n')}\n\nLag en rotasjon på 8 til 16 steg som JSON: rotasjon = liste av { skill: id, note: kort merknad }, pluss forklaring.` },
   ];
   const text = await ai.completeText(config, messages, { jsonSchema: ROT_SCHEMA, maxTokens: 6000, onProgress: opts.onProgress });

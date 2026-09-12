@@ -7,8 +7,11 @@ const cfg = require('./config');
 const dps = require('./modules/dps');
 const mumble = require('./mumble');
 const arcdps = require('./modules/arcdps');
+const overlays = require('./overlays');
+const i18n = require('./i18n');
 
 const { TEST_MODE } = cfg;
+const { t } = i18n;
 const webPreferences = { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false };
 const APP_ICON = path.join(__dirname, '..', 'assets', 'icon.png');
 
@@ -104,7 +107,10 @@ function applyConfig(prev) {
   if (prev.launchAtStartup !== config.launchAtStartup && !TEST_MODE) {
     app.setLoginItemSettings({ openAtLogin: !!config.launchAtStartup, path: process.execPath, args: [path.resolve(__dirname, '..')] });
   }
+  const languageChanged = prev.language !== config.language;
+  if (languageChanged) { i18n.setLanguage(config.language); setTrayMenu(); }
   broadcast('config:changed', cfg.publicConfig());
+  if (languageChanged) overlays.broadcast('config:changed', cfg.publicConfig()); // overlay-vinduene henter ny ordbok
 }
 
 function startDpsWatch() {
@@ -136,18 +142,22 @@ function setupAutoHide() {
 
 // Systemstatusfelt: appen kan ligge skjult og vente på spillet
 let tray = null;
+function setTrayMenu() {
+  if (!tray) return;
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: t('tray.showWheel'), click: () => { wheelWin?.show(); } },
+    { label: t('tray.openPanel'), click: () => openModule(currentModule || 'inventory', { toggle: false }) },
+    { label: t('tray.settings'), click: () => openModule('settings', { toggle: false }) },
+    { type: 'separator' },
+    { label: t('tray.quit'), click: () => { quitting = true; app.quit(); } },
+  ]));
+}
 function createTray() {
   try {
     const iconPath = path.join(__dirname, '..', 'assets', 'tray.png');
     tray = new Tray(nativeImage.createFromPath(iconPath));
     tray.setToolTip('GW2 Overlay');
-    tray.setContextMenu(Menu.buildFromTemplate([
-      { label: 'Vis hjulet', click: () => { wheelWin?.show(); } },
-      { label: 'Åpne panel', click: () => openModule(currentModule || 'inventory', { toggle: false }) },
-      { label: 'Innstillinger', click: () => openModule('settings', { toggle: false }) },
-      { type: 'separator' },
-      { label: 'Avslutt', click: () => { quitting = true; app.quit(); } },
-    ]));
+    setTrayMenu();
     tray.on('click', () => { if (wheelWin?.isVisible()) wheelWin.hide(); else wheelWin?.show(); });
   } catch (e) { console.error('Tray:', e.message); }
 }

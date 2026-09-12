@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 const evtc = require('../evtc');
 const log = require('../log');
+const { t } = require('../i18n');
 
 const DEFAULT_DIR = path.join(os.homedir(), 'Documents', 'Guild Wars 2', 'addons', 'arcdps', 'arcdps.cbtlogs');
 const cache = new Map();
@@ -69,7 +70,7 @@ async function upload(file) {
   const form = new FormData();
   form.append('file', new Blob([buf]), path.basename(file));
   const res = await fetch('https://dps.report/uploadContent?json=1&generator=ei', { method: 'POST', body: form });
-  if (!res.ok) throw new Error(`dps.report svarte ${res.status}`);
+  if (!res.ok) throw new Error(t('dps.reportStatus', { status: res.status }));
   const j = await res.json();
   if (j.error) throw new Error(j.error);
   return { permalink: j.permalink, id: j.id };

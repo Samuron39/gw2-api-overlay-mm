@@ -52,7 +52,7 @@ grid.addEventListener('error', (e) => { const id = Number(e.target?.dataset?.ski
 function applyConfig(c) {
   cfg = c;
   document.body.classList.toggle('edit', !c.locked);
-  hint.textContent = `${labelFor(TYPE)}: dra for å flytte, strekk i kantene. Lås i panelet (Live).`;
+  hint.textContent = T.t('overlay.hint', { label: labelFor(TYPE) });
   document.documentElement.style.setProperty('--is', (c.iconSize || 40) + 'px');
   document.documentElement.style.setProperty('--ps', Math.round((c.iconSize || 40) * 0.72) + 'px');
   grid.classList.toggle('col', c.direction === 'col');
@@ -60,7 +60,7 @@ function applyConfig(c) {
   grid.hidden = isSb; sb.hidden = !isSb; sbStatus.hidden = !isSb;
   render();
 }
-function labelFor(t) { return { buffs: 'Buffs', debuffs: 'Conditions på deg', target: 'Target', skillbar: 'Skill-bar' }[t] || t; }
+function labelFor(type) { return T.t('overlay.label.' + type); }
 
 function renderBuffs() {
   if (!cfg) return;
@@ -131,7 +131,7 @@ function renderSkillbar() {
   if (!cfg) return;
   if (!skillbar || !skillbar.ok) {
     sb.innerHTML = '';
-    sbStatus.textContent = skillbar?.error || 'Venter på karakter…';
+    sbStatus.textContent = skillbar?.error || T.t('overlay.waitingCharacter');
     return;
   }
   // Aktivt våpensett fra broen (A/B); skills og rotasjon følger settet
@@ -211,15 +211,15 @@ function renderSkillbar() {
     const missing = snap?.connected ? missingFor(s.id) : [];
     const ready = !cdHtml;
     const alarm = missing.length && ready;
-    return `<div class="s ${isNext ? 'next' : ''} ${alarm ? 'upkeep' : ''}" title="${s.name}${s.recharge ? ' · ' + s.recharge + 's' : ''}${am ? ' · ' + am.count + ' ladninger' : ''}${missing.length ? ' · mangler ' + missing.join(', ') : ''}"><img src="${s.icon}" alt="" />${cdHtml}${idx.length ? `<span class="rn">${idx.join(',')}</span>` : ''}${ammoHtml}${alarm ? `<span class="uk">${missing[0].slice(0, 3).toUpperCase()}</span>` : ''}</div>`;
+    return `<div class="s ${isNext ? 'next' : ''} ${alarm ? 'upkeep' : ''}" title="${s.name}${s.recharge ? ' · ' + s.recharge + 's' : ''}${am ? ' · ' + T.t('overlay.charges', { n: am.count }) : ''}${missing.length ? ' · ' + T.t('overlay.missing', { boons: missing.join(', ') }) : ''}"><img src="${s.icon}" alt="" />${cdHtml}${idx.length ? `<span class="rn">${idx.join(',')}</span>` : ''}${ammoHtml}${alarm ? `<span class="uk">${missing[0].slice(0, 3).toUpperCase()}</span>` : ''}</div>`;
   };
   const profHtml = profession.map(cell).join('');
   const weaponsHtml = weapons.map(cell).join('');
   const utilsHtml = [heal, ...utilities, elite].map(cell).join('');
   sb.innerHTML = `<div class="row prof">${profHtml}</div><div class="row">${weaponsHtml}<div class="gap"></div>${utilsHtml}</div>`;
-  const setTxt = skillbar.sets?.B ? ` · sett ${setId} (${(set.types || []).join('+')})` : '';
+  const setTxt = skillbar.sets?.B ? ' · ' + T.t('overlay.set', { set: setId, types: (set.types || []).join('+') }) : '';
   const modeTxt = modes.length ? ' · ' + modes.join(' · ') : '';
-  sbStatus.textContent = `${skillbar.character} · ${skillbar.specName || skillbar.professionName}${setTxt}${modeTxt}${rot.length ? ` · rotasjon ${rotationPos + 1}/${rot.length}` : ' · ingen rotasjon'}${snap?.connected ? '' : ' · ingen live-data'}`;
+  sbStatus.textContent = `${skillbar.character} · ${skillbar.specName || skillbar.professionName}${setTxt}${modeTxt} · ${rot.length ? T.t('overlay.rotation', { pos: rotationPos + 1, total: rot.length }) : T.t('overlay.noRotation')}${snap?.connected ? '' : ' · ' + T.t('overlay.noLive')}`;
 }
 
 function render() { if (TYPE === 'skillbar') renderSkillbar(); else renderBuffs(); }
@@ -234,7 +234,11 @@ window.api.on('live:state', (s) => { snap = s; render(); });
 window.api.on('overlays:changed', ({ type, config }) => { if (type === TYPE) applyConfig(config); });
 window.api.on('skills:changed', () => loadSkillbar());
 window.api.on('mumble:state', (m) => { if (TYPE === 'skillbar' && m.identity && skillbar && (m.identity.name !== skillbar.character || m.identity.spec !== skillbar.specId)) loadSkillbar(); });
-window.api.invoke('overlays:get').then((all) => applyConfig(all[TYPE]));
-window.api.invoke('live:get').then((s) => { snap = s; render(); });
-if (TYPE === 'skillbar') loadSkillbar();
+// Språkbytte: ny ordbok, så hint og statuslinje tegnes på nytt (feilmeldingen fra skills:get hentes på nytt)
+window.api.on('config:changed', async (c) => { if (await T.sync(c) && cfg) { applyConfig(cfg); if (TYPE === 'skillbar' && !skillbar?.ok) loadSkillbar(); } });
+T.load().then(() => {
+  window.api.invoke('overlays:get').then((all) => applyConfig(all[TYPE]));
+  window.api.invoke('live:get').then((s) => { snap = s; render(); });
+  if (TYPE === 'skillbar') loadSkillbar();
+});
 setInterval(() => { if (snap) { const dt = 100; for (const b of snap.buffs || []) b.remainingMs -= dt; for (const b of snap.target?.buffs || []) b.remainingMs -= dt; for (const c of snap.cooldowns || []) c.sinceMs += dt; render(); } }, 100);

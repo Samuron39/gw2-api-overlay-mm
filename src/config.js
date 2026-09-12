@@ -3,6 +3,7 @@
 // Holder også miljøflaggene DEMO (GW2_DEMO) og TEST_MODE (GW2_SHOT) som resten av hovedprosessen bruker.
 const fs = require('fs');
 const log = require('./log');
+const i18n = require('./i18n');
 
 const DEFAULT_CONFIG = {
   apiKey: '',
@@ -28,6 +29,7 @@ const DEFAULT_CONFIG = {
   overlays: {}, // per overlay-vindu (buffs, debuffs, target, skillbar): posisjon, størrelse, utseende
   rotations: {}, // anbefalt rotasjon per karakter/spec: { "<nøkkel>": [{ skill, note }] }
   autoUpdate: true, // sjekk GitHub Releases for ny versjon ved oppstart og hver 6. time (bare pakket app)
+  language: i18n.DEFAULT_LANGUAGE, // språk i UI-et, én JSON-fil per språk i src/i18n/
 };
 
 const DEMO = !!process.env.GW2_DEMO;
@@ -51,6 +53,7 @@ function loadConfig() {
     config = { ...DEFAULT_CONFIG, ...saved, wheel: { ...DEFAULT_CONFIG.wheel, ...(saved.wheel || {}) }, panel: { ...DEFAULT_CONFIG.panel, ...(saved.panel || {}) } };
   } catch { config = { ...DEFAULT_CONFIG }; }
   if (!config.lmModel) config.lmModel = DEFAULT_CONFIG.lmModel;
+  i18n.setLanguage(config.language);
 }
 
 function saveConfig() {

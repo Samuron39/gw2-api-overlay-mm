@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
+const { t } = require('../i18n');
 
 const ARC_URL = 'https://www.deltaconnected.com/arcdps/x64/d3d11.dll';
 const ARC_MD5_URL = 'https://www.deltaconnected.com/arcdps/x64/d3d11.dll.md5sum';
@@ -47,9 +48,9 @@ function md5File(file) { return crypto.createHash('md5').update(fs.readFileSync(
 
 async function remoteMd5() {
   const res = await fetch(ARC_MD5_URL, { headers: { 'User-Agent': 'gw2-overlay' } });
-  if (!res.ok) throw new Error(`Sjekksum-nedlasting feilet (${res.status})`);
+  if (!res.ok) throw new Error(t('arcdps.md5Failed', { status: res.status }));
   const m = (await res.text()).trim().match(/^[0-9a-f]{32}/i);
-  if (!m) throw new Error('Uventet sjekksum-format');
+  if (!m) throw new Error(t('arcdps.md5Format'));
   return m[0].toLowerCase();
 }
 
@@ -66,15 +67,15 @@ async function status(gw2Dir) {
 }
 
 async function install(gw2Dir) {
-  if (!isGameDir(gw2Dir)) throw new Error('Fant ikke Gw2-64.exe i mappa.');
-  if (await gameRunning()) throw new Error('Spillet kjører. Avslutt Guild Wars 2 først, fila er låst mens det kjører.');
+  if (!isGameDir(gw2Dir)) throw new Error(t('arcdps.notGameDir'));
+  if (await gameRunning()) throw new Error(t('arcdps.gameRunning'));
   const expected = await remoteMd5();
   const res = await fetch(ARC_URL, { headers: { 'User-Agent': 'gw2-overlay' } });
-  if (!res.ok) throw new Error(`Nedlasting feilet (${res.status})`);
+  if (!res.ok) throw new Error(t('arcdps.downloadFailed', { status: res.status }));
   const buf = Buffer.from(await res.arrayBuffer());
   const got = crypto.createHash('md5').update(buf).digest('hex');
-  if (got !== expected) throw new Error(`Sjekksummen stemmer ikke (${got} vs ${expected}). Installerer ikke.`);
-  if (buf.readUInt16LE(0) !== 0x5a4d) throw new Error('Fila er ikke en Windows-DLL. Installerer ikke.');
+  if (got !== expected) throw new Error(t('arcdps.md5Mismatch', { got, expected }));
+  if (buf.readUInt16LE(0) !== 0x5a4d) throw new Error(t('arcdps.notDll'));
   const target = path.join(gw2Dir, 'd3d11.dll');
   if (fs.existsSync(target)) {
     const backup = path.join(gw2Dir, 'd3d11.dll.bak');
@@ -104,10 +105,10 @@ function bridgeStatus(gw2Dir) {
   return { available: !!src, installed, upToDate, target };
 }
 async function installBridge(gw2Dir) {
-  if (!isGameDir(gw2Dir)) throw new Error('Fant ikke Gw2-64.exe i mappa.');
+  if (!isGameDir(gw2Dir)) throw new Error(t('arcdps.notGameDir'));
   const src = bridgeSource();
-  if (!src) throw new Error('Broen (gw2overlay_bridge.dll) finnes ikke i denne installasjonen.');
-  if (await gameRunning()) throw new Error('Spillet kjører. Avslutt Guild Wars 2 først.');
+  if (!src) throw new Error(t('arcdps.bridgeMissing'));
+  if (await gameRunning()) throw new Error(t('arcdps.gameRunningShort'));
   const target = bridgeTarget(gw2Dir);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.copyFileSync(src, target + '.tmp');

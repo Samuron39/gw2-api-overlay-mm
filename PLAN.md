@@ -109,7 +109,7 @@ Arbeidspakker, kjøres parallelt av underagenter på egne grener, flettes av ark
 - **E. Automatisk oppdatering.** electron-updater mot GitHub Releases, sjekk ved oppstart og knapp under Innstillinger, utgivelsesrutine.
 - **F. Skill-bar for alle profesjoner.** Elementalist-attunements live, Engineer-kits, Revenant-legends, Necromancer-shroud, ammo-skills og trait-cooldowns der API-et gir det.
 - **G. Automatiske tester.** `npm test` med node:test for regelmotor, EVTC, live-tilstand, tidsplan, daglig og skills.
-- **H. Flerspråk.** Alle tekster i språkfiler (norsk og engelsk), språkvalg under Innstillinger, lett å legge til flere. Kjøres sist. Deling av `main.js` i mindre filer i samme runde.
+- **H. Flerspråk.** Alle tekster i språkfiler (norsk og engelsk), språkvalg under Innstillinger, lett å legge til flere. Kjøres sist. Deling av `main.js` i mindre filer i samme runde. Gjort 12. sept: `main.js` delt i `config.js`, `windows.js` og `ipc.js`; `src/i18n.js` + `src/i18n/nb.json` og `en.json` (545 nøkler), global `T` i vinduene, språkvelger øverst i Innstillinger som bytter uten omstart (panel, hjul, overlay-vinduer og tray), feilmeldinger og regelmotoren følger språket, AI-en bes svare på valgt språk, `test/i18n.test.js`. Ikke gjort: feilrapporten (`log:report`) er fortsatt norsk, og ordbøkene er oversatt av en modell, ikke korrekturlest.
 
 Deretter: samlet gjennomgang, testkjøring, ny installer, push. Brukeren tester mot ekte konto og i kamp når han er tilbake ved PC-en.
 

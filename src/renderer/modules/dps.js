@@ -2,6 +2,7 @@
 // DPS-modul (renderer): viser resultat fra ArcDPS-logger. Post-fight: ArcDPS skriver loggen når kampen er over.
 (() => {
   const { $, esc, setStatus } = Panel;
+  const t = (k, v) => T.t(k, v);
   let root = null;
   let logs = [];
   let selected = null;
@@ -9,49 +10,49 @@
   let dir = '';
   let exists = false;
 
-  const TEMPLATE = `
+  const template = () => `
     <div class="toolbar">
       <span class="muted" id="dpsDir"></span>
       <div class="spacer"></div>
-      <button id="dpsInfoBtn" title="Slik virker DPS-modulen">Slik virker det</button>
-      <button id="dpsRefresh">Oppdater liste</button>
+      <button id="dpsInfoBtn" title="${esc(t('dps.howTitle'))}">${esc(t('dps.how'))}</button>
+      <button id="dpsRefresh">${esc(t('dps.refreshList'))}</button>
     </div>
     <div id="dpsInfo" class="dps-info" hidden>
-      <h4>Slik virker DPS-modulen</h4>
-      <p>Guild Wars 2 har ingen kamp-API. Det eneste verktøyet ArenaNet tolererer for å lese kampdata er <b>ArcDPS</b>, som viser live DPS i sitt eget vindu inne i spillet og skriver en logg når kampen er over. Denne modulen leser de loggene og gir deg skade per spiller, boon-uptime, sammenligning og opplasting til dps.report. Tallene kommer noen sekunder etter at kampen er ferdig, ikke underveis.</p>
+      <h4>${esc(t('dps.howTitle'))}</h4>
+      <p>${t('dps.intro')}</p>
       <ol>
-        <li>Installer ArcDPS med knappen under. Appen laster ned fila fra utgiverens offisielle adresse, sjekker sjekksummen og legger den i spillmappa. ArcDPS kan ikke pakkes med appen, utgiveren tillater ikke det, og fila må oppdateres ved hver spillpatch.</li>
-        <li>Start spillet. Trykk <b>Alt+Shift+T</b> for ArcDPS-menyen, gå til fanen <b>Logging</b> og huk av for logging. Det gjøres én gang.</li>
-        <li>Slåss. Loggen havner i <code>Dokumenter\\Guild Wars 2\\addons\\arcdps\\arcdps.cbtlogs</code>, og dukker opp her automatisk.</li>
+        <li>${t('dps.step1')}</li>
+        <li>${t('dps.step2')}</li>
+        <li>${t('dps.step3')}</li>
       </ol>
-      <div id="arcStatus" class="muted">Sjekker ArcDPS…</div>
+      <div id="arcStatus" class="muted">${esc(t('dps.checking'))}</div>
       <div class="row" style="margin-top:6px">
-        <button id="arcInstall" class="primary">Installer ArcDPS</button>
-        <button id="arcCheck">Sjekk på nytt</button>
+        <button id="arcInstall" class="primary">${esc(t('dps.install'))}</button>
+        <button id="arcCheck">${esc(t('dps.recheck'))}</button>
       </div>
     </div>
     <div class="dps-wrap">
       <div class="dps-logs" id="dpsLogs"></div>
-      <div class="dps-detail" id="dpsDetail"><div class="empty">Velg en logg, eller vent på neste kamp.</div></div>
+      <div class="dps-detail" id="dpsDetail"><div class="empty">${esc(t('dps.pickLog'))}</div></div>
     </div>`;
 
   async function mount(el) {
     root = el;
-    el.innerHTML = TEMPLATE;
+    el.innerHTML = template();
     $('#dpsRefresh', el).addEventListener('click', refresh);
     $('#dpsInfoBtn', el).addEventListener('click', () => { const box = $('#dpsInfo', root); box.hidden = !box.hidden; if (!box.hidden) arcStatus(); });
     $('#arcCheck', el).addEventListener('click', arcStatus);
     $('#arcInstall', el).addEventListener('click', async () => {
       const btn = $('#arcInstall', root);
-      btn.disabled = true; $('#arcStatus', root).textContent = 'Laster ned og verifiserer…';
+      btn.disabled = true; $('#arcStatus', root).textContent = t('dps.downloading');
       try {
         const r = await window.api.invoke('arc:install');
-        if (root) $('#arcStatus', root).textContent = `Installert: ${r.target} (${Math.round(r.size / 1024)} kB, md5 ${r.md5.slice(0, 8)}…). Start spillet og slå på logging med Alt+Shift+T.`;
-      } catch (e) { if (root) $('#arcStatus', root).textContent = 'Feil: ' + e.message; }
+        if (root) $('#arcStatus', root).textContent = t('dps.installed', { target: r.target, kb: Math.round(r.size / 1024), md5: r.md5.slice(0, 8) });
+      } catch (e) { if (root) $('#arcStatus', root).textContent = t('common.error', { message: e.message }); }
       finally { if (root) btn.disabled = false; }
     });
     offNew = window.api.on('dps:new', (r) => {
-      setStatus(`Ny kamp logget: ${r.boss} (${fmtDur(r.durationMs)})`);
+      setStatus(t('dps.newFight', { boss: r.boss, dur: fmtDur(r.durationMs) }));
       selected = r;
       refresh();
     });
@@ -63,34 +64,34 @@
   async function arcStatus() {
     if (!root) return;
     const el = $('#arcStatus', root), btn = $('#arcInstall', root);
-    el.textContent = 'Sjekker ArcDPS…';
+    el.textContent = t('dps.checking');
     try {
       const s = await window.api.invoke('arc:status');
       if (!root) return;
-      if (!s.validDir) { el.textContent = 'Fant ikke spillmappa. Velg mappa med Gw2-64.exe under Innstillinger.'; btn.disabled = true; return; }
+      if (!s.validDir) { el.textContent = t('dps.noGameDir'); btn.disabled = true; return; }
       btn.disabled = false;
-      const parts = [`Spillmappe: ${s.gw2Dir}.`];
-      if (!s.installed) { parts.push('ArcDPS er ikke installert.'); btn.textContent = 'Installer ArcDPS'; }
-      else if (s.updateAvailable) { parts.push('ArcDPS er installert, men en nyere versjon finnes.'); btn.textContent = 'Oppdater ArcDPS'; }
-      else if (s.remoteMd5) { parts.push('ArcDPS er installert og oppdatert.'); btn.textContent = 'Installer på nytt'; }
-      else { parts.push('ArcDPS er installert.'); btn.textContent = 'Installer på nytt'; }
-      if (s.running) parts.push('Spillet kjører, avslutt det før du installerer.');
-      if (s.error) parts.push('Kunne ikke sjekke ny versjon: ' + s.error);
+      const parts = [t('dps.gameDir', { dir: s.gw2Dir })];
+      if (!s.installed) { parts.push(t('dps.notInstalled')); btn.textContent = t('dps.install'); }
+      else if (s.updateAvailable) { parts.push(t('dps.updateAvailable')); btn.textContent = t('dps.update'); }
+      else if (s.remoteMd5) { parts.push(t('dps.upToDate')); btn.textContent = t('dps.reinstall'); }
+      else { parts.push(t('dps.installedPlain')); btn.textContent = t('dps.reinstall'); }
+      if (s.running) parts.push(t('dps.gameRunning'));
+      if (s.error) parts.push(t('dps.checkFailed', { error: s.error }));
       el.textContent = parts.join(' ');
-    } catch (e) { el.textContent = 'Feil: ' + e.message; }
+    } catch (e) { el.textContent = t('common.error', { message: e.message }); }
   }
 
   function fmtDur(ms) { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`; }
-  function fmtNum(n) { return Math.round(n).toLocaleString('nb-NO'); }
-  function fmtWhen(ms) { const d = new Date(ms); return d.toLocaleDateString('nb-NO', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' }); }
+  function fmtNum(n) { return Math.round(n).toLocaleString(T.locale); }
+  function fmtWhen(ms) { const d = new Date(ms); return d.toLocaleDateString(T.locale, { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString(T.locale, { hour: '2-digit', minute: '2-digit' }); }
 
   async function refresh() {
     try {
       const r = await window.api.invoke('dps:list');
       dir = r.dir; exists = r.exists; logs = r.logs;
-    } catch (e) { setStatus('Feil: ' + e.message, true); return; }
+    } catch (e) { setStatus(t('common.error', { message: e.message }), true); return; }
     if (!root) return;
-    $('#dpsDir', root).textContent = exists ? `Loggmappe: ${dir}` : `Fant ikke loggmappa ${dir}. Installer ArcDPS og slå på logging, eller sett mappa under Innstillinger.`;
+    $('#dpsDir', root).textContent = exists ? t('dps.logDir', { dir }) : t('dps.logDirMissing', { dir });
     renderLogs();
     if (selected) renderDetail(selected);
     else if (logs.length) select(logs[0].file);
@@ -98,33 +99,34 @@
 
   function renderLogs() {
     const list = $('#dpsLogs', root);
-    if (!logs.length) { list.innerHTML = '<div class="empty">Ingen logger ennå.</div>'; return; }
+    if (!logs.length) { list.innerHTML = `<div class="empty">${esc(t('dps.noLogs'))}</div>`; return; }
     list.innerHTML = logs.map((l) => `<button class="dps-log ${selected?.file === l.file ? 'active' : ''}" data-file="${esc(l.file)}">
       <b>${esc(l.folder)}</b><br><span class="muted">${fmtWhen(l.mtime)} · ${Math.round(l.size / 1024)} kB</span></button>`).join('');
     list.querySelectorAll('.dps-log').forEach((b) => b.addEventListener('click', () => select(b.dataset.file)));
   }
 
   async function select(file) {
-    $('#dpsDetail', root).innerHTML = '<div class="empty">Leser logg…</div>';
+    $('#dpsDetail', root).innerHTML = `<div class="empty">${esc(t('dps.reading'))}</div>`;
     try {
       selected = await window.api.invoke('dps:parse', file);
       renderLogs();
       renderDetail(selected);
-    } catch (e) { $('#dpsDetail', root).innerHTML = `<div class="empty">Kunne ikke lese loggen: ${esc(e.message)}</div>`; }
+    } catch (e) { $('#dpsDetail', root).innerHTML = `<div class="empty">${esc(t('dps.readFailed', { message: e.message }))}</div>`; }
   }
 
   function renderDetail(r) {
     if (!root) return;
     const max = Math.max(1, ...r.players.map((p) => p.dpsTarget || p.dpsAll));
     const useTarget = r.players.some((p) => p.dpsTarget > 0);
+    const outcome = r.success ? t('dps.victory') : (r.bossHpEnd != null ? t('dps.wipe', { pct: r.bossHpEnd.toFixed(1) }) : t('dps.unknownOutcome'));
     $('#dpsDetail', root).innerHTML = `
       <div class="dps-head">
-        <h3>${esc(r.boss)} <span class="badge ${r.success ? 'tp' : 'vendor'}">${r.success ? 'Seier' : (r.bossHpEnd != null ? 'Wipe ved ' + r.bossHpEnd.toFixed(1) + ' %' : 'Ukjent utfall')}</span></h3>
-        <div class="muted">${fmtWhen(r.when)} · varighet ${fmtDur(r.durationMs)} · ${r.players.length} spillere · total ${fmtNum(useTarget ? r.totalDpsTarget : r.totalDpsAll)} DPS ${useTarget ? 'mot boss' : ''}
-          · <button id="dpsUpload" class="small" title="Laster opp loggen til dps.report og åpner rapporten. Sender fila til en ekstern tjeneste.">Last opp til dps.report</button></div>
+        <h3>${esc(r.boss)} <span class="badge ${r.success ? 'tp' : 'vendor'}">${esc(outcome)}</span></h3>
+        <div class="muted">${fmtWhen(r.when)} · ${esc(t('dps.duration', { dur: fmtDur(r.durationMs) }))} · ${esc(T.tn('dps.players', r.players.length))} · ${esc(t('dps.total', { n: fmtNum(useTarget ? r.totalDpsTarget : r.totalDpsAll) }))} ${useTarget ? esc(t('dps.vsBoss')) : ''}
+          · <button id="dpsUpload" class="small" title="${esc(t('dps.uploadTitle'))}">${esc(t('dps.upload'))}</button></div>
       </div>
       <table class="dps-table">
-        <thead><tr><th>#</th><th>Spiller</th><th>Spec</th><th>Gr.</th><th class="num">DPS ${useTarget ? 'boss' : ''}</th><th class="num">DPS alt</th><th class="num">Skade</th><th class="num" title="Quickness-uptime">Quick</th><th class="num" title="Alacrity-uptime">Alac</th><th class="num" title="Fury-uptime">Fury</th><th style="width:25%"></th></tr></thead>
+        <thead><tr><th>#</th><th>${esc(t('dps.col.player'))}</th><th>${esc(t('dps.col.spec'))}</th><th>${esc(t('dps.col.group'))}</th><th class="num">${esc(t(useTarget ? 'dps.col.dpsBoss' : 'dps.col.dps'))}</th><th class="num">${esc(t('dps.col.dpsAll'))}</th><th class="num">${esc(t('dps.col.damage'))}</th><th class="num" title="${esc(t('dps.col.quickTitle'))}">Quick</th><th class="num" title="${esc(t('dps.col.alacTitle'))}">Alac</th><th class="num" title="${esc(t('dps.col.furyTitle'))}">Fury</th><th style="width:25%"></th></tr></thead>
         <tbody>${r.players.map((p, i) => {
           const v = useTarget ? p.dpsTarget : p.dpsAll;
           const pct = (x) => x == null ? '' : Math.round(x * 100) + '%';
@@ -137,15 +139,15 @@
           </tr>`;
         }).join('')}</tbody>
       </table>
-      <p class="muted small">Skade er direkte pluss condition mot fiender, kjæledyr og minions regnet til eieren. Boon-uptime er forenklet (uten stack-grense). Healing krever ArcDPS Healing Stats-addon og er ikke med ennå.</p>`;
+      <p class="muted small">${esc(t('dps.footnote'))}</p>`;
     const up = $('#dpsUpload', root);
     if (up) up.addEventListener('click', async () => {
-      up.disabled = true; setStatus('Laster opp til dps.report…');
-      try { const res = await window.api.invoke('dps:upload', r.file); setStatus(`Lastet opp: ${res.permalink}`); window.api.invoke('open:url', res.permalink); }
-      catch (e) { setStatus('Opplasting feilet: ' + e.message, true); }
+      up.disabled = true; setStatus(t('dps.uploading'));
+      try { const res = await window.api.invoke('dps:upload', r.file); setStatus(t('dps.uploaded', { url: res.permalink })); window.api.invoke('open:url', res.permalink); }
+      catch (e) { setStatus(t('dps.uploadFailed', { message: e.message }), true); }
       finally { up.disabled = false; }
     });
   }
 
-  Panel.register({ id: 'dps', title: 'DPS', icon: '⚔️', mount, unmount });
+  Panel.register({ id: 'dps', title: () => T.t('module.dps'), icon: '⚔️', mount, unmount });
 })();

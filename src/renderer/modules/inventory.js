@@ -2,40 +2,41 @@
 // Inventory-modul (renderer): tabell med anbefalinger og AI-rådgiver.
 (() => {
   const { $, esc, gold, setStatus } = Panel;
+  const t = (k, v) => T.t(k, v);
   const RARITY_ORDER = ['Junk', 'Basic', 'Fine', 'Masterwork', 'Rare', 'Exotic', 'Ascended', 'Legendary'];
   const state = { data: null, sort: { key: 'totalValue', dir: 'desc' }, chat: [], view: 'table', aiBusy: null };
   let root = null;
   let offProgress = null;
 
-  const TEMPLATE = `
+  const template = () => `
     <div class="toolbar">
       <div class="subtabs">
-        <button class="subtab active" data-view="table">Tabell</button>
-        <button class="subtab" data-view="ai">AI-rådgiver</button>
+        <button class="subtab active" data-view="table">${t('inventory.table')}</button>
+        <button class="subtab" data-view="ai">${t('inventory.ai')}</button>
       </div>
-      <input id="invSearch" type="search" placeholder="Søk item…" />
+      <input id="invSearch" type="search" placeholder="${esc(t('inventory.search'))}" />
       <select id="invAction">
-        <option value="">Alle anbefalinger</option>
-        <option value="tp">Selg på TP</option><option value="vendor">Selg til vendor</option><option value="salvage">Salvage</option>
-        <option value="deposit">Deposit</option><option value="open">Åpne</option><option value="use">Bruk</option>
-        <option value="keep">Behold</option><option value="stored">I lager</option>
-        <option value="f:collection">Mangler i samling</option><option value="f:skinLocked">Skinn ikke låst opp</option>
-        <option value="f:unlockNew">Opplåsning du mangler</option><option value="f:unlockDup">Duplikat-opplåsning</option>
+        <option value="">${t('inventory.allActions')}</option>
+        <option value="tp">${t('rules.action.tp')}</option><option value="vendor">${t('rules.action.vendor')}</option><option value="salvage">${t('rules.action.salvage')}</option>
+        <option value="deposit">${t('rules.action.deposit')}</option><option value="open">${t('rules.action.open')}</option><option value="use">${t('rules.action.use')}</option>
+        <option value="keep">${t('rules.action.keep')}</option><option value="stored">${t('rules.action.stored')}</option>
+        <option value="f:collection">${t('inventory.filter.collection')}</option><option value="f:skinLocked">${t('inventory.filter.skinLocked')}</option>
+        <option value="f:unlockNew">${t('inventory.filter.unlockNew')}</option><option value="f:unlockDup">${t('inventory.filter.unlockDup')}</option>
       </select>
-      <select id="invSource"><option value="">Alle kilder</option></select>
-      <label class="inline"><input type="checkbox" id="invHideStored" checked /> Skjul materiallager</label>
+      <select id="invSource"><option value="">${t('inventory.allSources')}</option></select>
+      <label class="inline"><input type="checkbox" id="invHideStored" checked /> ${t('inventory.hideStored')}</label>
       <div class="spacer"></div>
-      <button id="invRefresh" class="primary">Oppdater</button>
+      <button id="invRefresh" class="primary">${t('common.refresh')}</button>
     </div>
     <div id="invView-table" class="view active">
       <div id="invSummary" class="summary"></div>
       <div class="table-wrap">
         <table id="invTable">
           <thead><tr>
-            <th data-sort="name">Item</th><th data-sort="count" class="num">Ant.</th><th data-sort="rarity" class="col-c">Rarity</th>
-            <th data-sort="source">Hvor</th><th data-sort="action">Anbefaling</th><th data-sort="unitValue" class="num col-b">Per stk</th>
-            <th data-sort="totalValue" class="num">Totalt</th><th data-sort="vendor" class="num col-a">Vendor</th>
-            <th data-sort="tpList" class="num col-a">TP</th><th data-sort="salvage" class="num col-a">Salvage est.</th><th class="col-b">Hvorfor</th>
+            <th data-sort="name">${t('common.item')}</th><th data-sort="count" class="num">${t('common.count')}</th><th data-sort="rarity" class="col-c">${t('inventory.col.rarity')}</th>
+            <th data-sort="source">${t('inventory.col.where')}</th><th data-sort="action">${t('inventory.col.action')}</th><th data-sort="unitValue" class="num col-b">${t('inventory.col.unit')}</th>
+            <th data-sort="totalValue" class="num">${t('inventory.col.total')}</th><th data-sort="vendor" class="num col-a">${t('inventory.col.vendor')}</th>
+            <th data-sort="tpList" class="num col-a">${t('inventory.col.tp')}</th><th data-sort="salvage" class="num col-a">${t('inventory.col.salvage')}</th><th class="col-b">${t('inventory.col.why')}</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -45,21 +46,21 @@
       <div class="toolbar">
         <span id="aiModelInfo" class="muted"></span>
         <div class="spacer"></div>
-        <button id="planBtn" class="primary">Lag oppryddingsplan</button>
+        <button id="planBtn" class="primary">${t('inventory.makePlan')}</button>
       </div>
       <div id="plan" class="plan"></div>
       <div class="chat">
         <div id="chatLog" class="chat-log"></div>
         <form id="chatForm" class="chat-form">
-          <input id="chatInput" type="text" placeholder="Spør om inventoryet ditt, f.eks. hva gjør jeg med alle Mystic Coins?" autocomplete="off" />
-          <button type="submit" class="primary">Send</button>
+          <input id="chatInput" type="text" placeholder="${esc(t('inventory.chatPlaceholder'))}" autocomplete="off" />
+          <button type="submit" class="primary">${t('inventory.send')}</button>
         </form>
       </div>
     </div>`;
 
   function mount(el) {
     root = el;
-    el.innerHTML = TEMPLATE;
+    el.innerHTML = template();
     el.querySelectorAll('.subtab').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
     ['#invSearch', '#invAction', '#invSource', '#invHideStored'].forEach((s) => $(s, el).addEventListener('input', render));
     el.querySelectorAll('th[data-sort]').forEach((th) => th.addEventListener('click', () => {
@@ -72,7 +73,7 @@
     $('#planBtn', el).addEventListener('click', makePlan);
     $('#chatForm', el).addEventListener('submit', sendChat);
     offProgress = window.api.on('ai:progress', (p) => {
-      const txt = p.content ? `Skriver svar… (${p.content} tegn)` : `Modellen tenker… (${p.reasoning} tegn resonnering)`;
+      const txt = p.content ? t('inventory.writing', { n: p.content }) : t('inventory.thinking', { n: p.reasoning });
       if (state.aiBusy === 'plan') $('#plan', root).innerHTML = `<p class="muted">${esc(txt)}</p>`;
       else if (state.aiBusy === 'chat') { const pe = $('#chatLog .pending', root); if (pe) pe.textContent = txt; }
     });
@@ -89,7 +90,7 @@
 
   function updateModelInfo(c) {
     if (!root || !c) return;
-    $('#aiModelInfo', root).textContent = c.lmModel ? `Modell: ${c.lmModel} via ${c.lmUrl}` : 'Ingen modell valgt. Velg under Innstillinger.';
+    $('#aiModelInfo', root).textContent = c.lmModel ? t('inventory.modelInfo', { model: c.lmModel, url: c.lmUrl }) : t('inventory.noModel');
   }
 
   function setView(v) {
@@ -101,25 +102,25 @@
   async function refresh() {
     const btn = $('#invRefresh', root);
     btn.disabled = true;
-    setStatus('Henter fra GW2 API…');
+    setStatus(t('inventory.fetching'));
     try {
       state.data = await window.api.invoke('inv:refresh');
       if (!root) return; // brukeren byttet modul mens vi hentet
       const d = state.data;
       const coins = d.wallet?.find((w) => w.id === 1)?.value || 0;
-      let msg = `${d.account?.name || ''}: ${d.rows.length} ulike items hentet. Gull: ${(coins / 10000).toFixed(2)}g.`;
+      let msg = t('inventory.fetched', { account: d.account?.name || '', n: d.rows.length, gold: (coins / 10000).toFixed(2) });
       const cnt = (f) => d.rows.filter((r) => (r.flags || []).includes(f)).length;
       const facts = [];
-      if (cnt('collection')) facts.push(`${cnt('collection')} mangler i samlinger`);
-      if (cnt('skinLocked')) facts.push(`${cnt('skinLocked')} skinn ikke låst opp`);
-      if (cnt('unlockNew')) facts.push(`${cnt('unlockNew')} opplåsninger du mangler`);
-      if (cnt('unlockDup')) facts.push(`${cnt('unlockDup')} duplikater`);
+      if (cnt('collection')) facts.push(t('inventory.factCollection', { n: cnt('collection') }));
+      if (cnt('skinLocked')) facts.push(t('inventory.factSkin', { n: cnt('skinLocked') }));
+      if (cnt('unlockNew')) facts.push(t('inventory.factUnlockNew', { n: cnt('unlockNew') }));
+      if (cnt('unlockDup')) facts.push(t('inventory.factDup', { n: cnt('unlockDup') }));
       if (facts.length) msg += ' ' + facts.join(', ') + '.';
-      if (d.errors?.length) msg += ' Advarsler: ' + d.errors.join(' | ');
+      if (d.errors?.length) msg += ' ' + t('inventory.warnings', { errors: d.errors.join(' | ') });
       setStatus(msg, !!d.errors?.length);
       fillSources();
       render();
-    } catch (e) { setStatus('Feil: ' + e.message, true); }
+    } catch (e) { setStatus(t('common.error', { message: e.message }), true); }
     finally { if (root) btn.disabled = false; }
   }
 
@@ -128,7 +129,7 @@
     const cur = sel.value;
     const sources = new Set();
     for (const r of state.data.rows) for (const l of r.locations) sources.add(l.source);
-    sel.innerHTML = '<option value="">Alle kilder</option>' + [...sources].sort().map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    sel.innerHTML = `<option value="">${esc(t('inventory.allSources'))}</option>` + [...sources].sort().map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
     sel.value = cur;
   }
 
@@ -162,23 +163,23 @@
       th.classList.toggle('sorted', th.dataset.sort === state.sort.key);
       th.classList.toggle('asc', th.dataset.sort === state.sort.key && state.sort.dir === 'asc');
     });
-    if (!state.data) { tbody.innerHTML = '<tr><td colspan="11" class="empty">Legg inn API-nøkkel under Innstillinger og trykk Oppdater.</td></tr>'; $('#invSummary', root).innerHTML = ''; return; }
+    if (!state.data) { tbody.innerHTML = `<tr><td colspan="11" class="empty">${esc(t('inventory.empty'))}</td></tr>`; $('#invSummary', root).innerHTML = ''; return; }
     const rows = sortRows(visibleRows());
     renderSummary();
-    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="11" class="empty">Ingen items matcher filteret.</td></tr>'; return; }
+    if (!rows.length) { tbody.innerHTML = `<tr><td colspan="11" class="empty">${esc(t('inventory.noMatch'))}</td></tr>`; return; }
     tbody.innerHTML = rows.map((r) => {
       const where = r.locations.map((l) => `${esc(l.source)} (${l.count})`).join(', ');
-      const bind = r.binding ? `<span class="bind">${r.binding === 'Account' ? 'konto' : 'sjel'}-bundet</span>` : '';
-      const FLAG = { collection: ['📘', 'Mangler i samling: ' + (r.collections || []).filter((c) => !c.has).map((c) => c.name).join(', ')], skinLocked: ['🎨', 'Skinnet er ikke låst opp'], unlockNew: ['🔓', 'Opplåsning du mangler'], unlockDup: ['♻️', 'Du har allerede denne opplåsningen'], listed: ['🏷️', 'Du har allerede dette ute for salg på TP'] };
+      const bind = r.binding ? `<span class="bind">${esc(t(r.binding === 'Account' ? 'inventory.boundAccount' : 'inventory.boundSoul'))}</span>` : '';
+      const FLAG = { collection: ['📘', t('inventory.flag.collection', { names: (r.collections || []).filter((c) => !c.has).map((c) => c.name).join(', ') })], skinLocked: ['🎨', t('inventory.flag.skinLocked')], unlockNew: ['🔓', t('inventory.flag.unlockNew')], unlockDup: ['♻️', t('inventory.flag.unlockDup')], listed: ['🏷️', t('inventory.flag.listed')] };
       const flagHtml = (r.flags || []).map((f) => FLAG[f] ? `<span class="flag" title="${esc(FLAG[f][1])}">${FLAG[f][0]}</span>` : '').join('');
       return `<tr>
         <td class="name"><img src="${esc(r.icon)}" alt="" /><a href="#" data-wiki="${esc(r.name)}" class="r-${r.rarity}">${esc(r.name)}</a>${flagHtml}${bind}</td>
         <td class="num">${r.count}</td>
-        <td class="r-${r.rarity} col-c">${r.rarity}${r.level ? ` <span class="bind">lvl ${r.level}</span>` : ''}</td>
+        <td class="r-${r.rarity} col-c">${r.rarity}${r.level ? ` <span class="bind">${esc(t('inventory.lvl', { n: r.level }))}</span>` : ''}</td>
         <td class="where">${where}</td>
         <td><span class="badge ${r.action}">${esc(r.label)}</span></td>
         <td class="num col-b">${gold(r.unitValue)}</td><td class="num">${gold(r.totalValue)}</td><td class="num col-a">${gold(r.vendor)}</td>
-        <td class="num col-a" title="Netto etter 15 % avgift. Instant-salg: ${Math.round(r.tpInstant)}c">${gold(r.tpList)}</td>
+        <td class="num col-a" title="${esc(t('inventory.tpTitle', { c: Math.round(r.tpInstant) }))}">${gold(r.tpList)}</td>
         <td class="num col-a">${gold(r.salvage)}</td>
         <td class="why col-b" title="${esc(r.reason)}">${esc(r.reason)}</td>
       </tr>`;
@@ -196,8 +197,8 @@
     const cur = $('#invAction', root).value;
     const sum = $('#invSummary', root);
     sum.innerHTML = ['tp', 'vendor', 'salvage', 'deposit', 'open', 'use', 'keep'].filter((a) => totals[a]).map((a) => {
-      const t = totals[a];
-      return `<span class="chip ${cur === a ? 'active' : ''}" data-action="${a}"><span class="dot" style="background:var(--${a})"></span>${esc(t.label)}: ${t.n}${t.v ? ' · ' + gold(t.v) : ''}</span>`;
+      const tot = totals[a];
+      return `<span class="chip ${cur === a ? 'active' : ''}" data-action="${a}"><span class="dot" style="background:var(--${a})"></span>${esc(tot.label)}: ${tot.n}${tot.v ? ' · ' + gold(tot.v) : ''}</span>`;
     }).join('');
     sum.querySelectorAll('.chip').forEach((chip) => chip.addEventListener('click', () => {
       const a = chip.dataset.action;
@@ -209,17 +210,17 @@
   async function makePlan() {
     const btn = $('#planBtn', root);
     btn.disabled = true; state.aiBusy = 'plan';
-    $('#plan', root).innerHTML = '<p class="muted">Sender inventory til modellen…</p>';
+    $('#plan', root).innerHTML = `<p class="muted">${esc(t('inventory.sending'))}</p>`;
     try {
       const plan = await window.api.invoke('ai:prioritize');
       const steps = (plan.steg || []).sort((a, b) => a.prioritet - b.prioritet);
       if (!root) return;
       $('#plan', root).innerHTML = `
-        <h4>Oppryddingsplan</h4>
+        <h4>${esc(t('inventory.planTitle'))}</h4>
         <p>${esc(plan.oppsummering)}</p>
         <ol>${steps.map((s) => `<li><b>${esc(s.hva)}</b> — ${esc(s.handling)}<br><span class="muted">${esc(s.hvorfor)}</span></li>`).join('')}</ol>
         ${(plan.advarsler || []).length ? '<p class="warn">' + plan.advarsler.map(esc).join('<br>') + '</p>' : ''}`;
-    } catch (e) { if (root) $('#plan', root).innerHTML = `<p class="status error">Feil: ${esc(e.message)}</p>`; }
+    } catch (e) { if (root) $('#plan', root).innerHTML = `<p class="status error">${esc(t('common.error', { message: e.message }))}</p>`; }
     finally { state.aiBusy = null; if (root) btn.disabled = false; }
   }
 
@@ -233,7 +234,7 @@
     state.aiBusy = 'chat';
     renderChat(true);
     try { state.chat.push({ role: 'assistant', content: await window.api.invoke('ai:chat', state.chat) }); }
-    catch (err) { state.chat.push({ role: 'assistant', content: 'Feil: ' + err.message }); }
+    catch (err) { state.chat.push({ role: 'assistant', content: t('common.error', { message: err.message }) }); }
     state.aiBusy = null;
     renderChat(false);
   }
@@ -241,9 +242,9 @@
   function renderChat(pending) {
     if (!root) return;
     const log = $('#chatLog', root);
-    log.innerHTML = state.chat.map((m) => `<div class="msg ${m.role}">${esc(m.content)}</div>`).join('') + (pending ? '<div class="msg assistant pending">Tenker…</div>' : '');
+    log.innerHTML = state.chat.map((m) => `<div class="msg ${m.role}">${esc(m.content)}</div>`).join('') + (pending ? `<div class="msg assistant pending">${esc(t('inventory.pending'))}</div>` : '');
     log.scrollTop = log.scrollHeight;
   }
 
-  Panel.register({ id: 'inventory', title: 'Inventory', icon: '🎒', mount, unmount });
+  Panel.register({ id: 'inventory', title: () => T.t('module.inventory'), icon: '🎒', mount, unmount });
 })();

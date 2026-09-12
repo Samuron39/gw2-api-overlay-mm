@@ -1,6 +1,7 @@
 'use strict';
 // Regelmotor: gir én anbefaling per item basert på vendorverdi, TP-pris,
-// estimert salvage-verdi, binding, materiallager og behold-liste.
+// estimert salvage-verdi, binding, materiallager og behold-liste. Tekstene (label og reason) hentes fra språkfila.
+const { t } = require('./i18n');
 
 const ECTO_ID = 19721;
 const TP_FEE = 0.85; // 5 % listing + 10 % salg
@@ -13,16 +14,10 @@ const TIER = {
   wood:    [19723, 19726, 19727, 19724, 19722, 19725],
 };
 
-const ACTION_LABEL = {
-  tp: 'Selg på TP',
-  vendor: 'Selg til vendor',
-  salvage: 'Salvage',
-  deposit: 'Deposit',
-  keep: 'Behold',
-  open: 'Åpne',
-  use: 'Bruk',
-  stored: 'I lager',
-};
+// Etikett per anbefaling på valgt språk. Gettere, så ACTION_LABEL.keep alltid gir gjeldende språk.
+const ACTIONS = ['tp', 'vendor', 'salvage', 'deposit', 'keep', 'open', 'use', 'stored'];
+const ACTION_LABEL = {};
+for (const a of ACTIONS) Object.defineProperty(ACTION_LABEL, a, { get: () => t('rules.action.' + a), enumerable: true });
 
 function tierFor(level) {
   if (level <= 15) return 0;
@@ -47,13 +42,13 @@ function salvageEstimate(item, prices) {
     return Math.max(0, Math.round(buy(ECTO_ID) * ectos - 40));
   }
   if (item.type === 'Trinket' || item.type === 'Back') return 0;
-  const t = tierFor(lvl);
+  const tier = tierFor(lvl);
   let matIds;
   if (item.type === 'Armor') {
     const w = item.details?.weight_class;
-    matIds = w === 'Heavy' ? [TIER.metal[t]] : w === 'Medium' ? [TIER.leather[t]] : [TIER.cloth[t]];
+    matIds = w === 'Heavy' ? [TIER.metal[tier]] : w === 'Medium' ? [TIER.leather[tier]] : [TIER.cloth[tier]];
   } else {
-    matIds = [TIER.metal[t], TIER.wood[t]];
+    matIds = [TIER.metal[tier], TIER.wood[tier]];
   }
   const avg = matIds.reduce((s, id) => s + buy(id), 0) / matIds.length;
   const luck = r === 'Masterwork' ? 8 : r === 'Fine' ? 3 : 0;
@@ -79,12 +74,12 @@ function accountFacts(item, ctx) {
   }
   if (un && un.available) {
     if (item.default_skin && ['Armor', 'Weapon', 'Back'].includes(item.type) && un.skins) f.skinLocked = !un.skins.has(item.default_skin);
-    if (item.type === 'MiniPet' && item.details?.minipet_id != null && un.minis) { f.unlockDup = un.minis.has(item.details.minipet_id); f.unlockName = 'minien'; }
+    if (item.type === 'MiniPet' && item.details?.minipet_id != null && un.minis) { f.unlockDup = un.minis.has(item.details.minipet_id); f.unlockName = t('rules.unlock.mini'); }
     if (item.type === 'Consumable' && item.details?.type === 'Unlock') {
       const d = item.details;
-      const map = { Dye: ['dyes', d.color_id, 'fargen'], CraftingRecipe: ['recipes', d.recipe_id, 'oppskriften'], Minipet: ['minis', d.minipet_id, 'minien'] };
+      const map = { Dye: ['dyes', d.color_id, 'rules.unlock.dye'], CraftingRecipe: ['recipes', d.recipe_id, 'rules.unlock.recipe'], Minipet: ['minis', d.minipet_id, 'rules.unlock.mini'] };
       const e = map[d.unlock_type];
-      if (e && e[1] != null && un[e[0]]) { f.unlockDup = un[e[0]].has(e[1]); f.unlockName = e[2]; }
+      if (e && e[1] != null && un[e[0]]) { f.unlockDup = un[e[0]].has(e[1]); f.unlockName = t(e[2]); }
     }
   }
   return f;
@@ -124,68 +119,68 @@ function recommend(row, ctx) {
   // 1. Materiallager
   if (sourceType === 'materials') {
     if (count > ctx.materialCap && tpList >= ctx.minTp) {
-      return done('tp', `Over ${ctx.materialCap} i lager, overskuddet (${count - ctx.materialCap}) kan selges`, tpList, count - ctx.materialCap);
+      return done('tp', t('rules.reason.materialsOver', { cap: ctx.materialCap, excess: count - ctx.materialCap }), tpList, count - ctx.materialCap);
     }
-    return done('stored', 'Ligger i materiallageret');
+    return done('stored', t('rules.reason.stored'));
   }
 
   // 2. Materialer med plass i lageret deponeres alltid, det er aldri feil
   if (isMaterial) {
     const stored = ctx.materialCounts.get(item.id) || 0;
-    if (stored < ctx.materialCap) return done('deposit', `Plass i materiallageret (${stored}/${ctx.materialCap})`, 0);
+    if (stored < ctx.materialCap) return done('deposit', t('rules.reason.depositRoom', { stored, cap: ctx.materialCap }), 0);
     // lageret er fullt, fall gjennom til behold/salgslogikk
   }
 
   // 2b. Samlinger: itemet teller i en samling som ikke er registrert
   if (missingColl.length) {
-    const names = missingColl.slice(0, 2).map((c) => `«${c.name}»`).join(' og ');
-    return done('use', `Teller i samlingen ${names}, ikke registrert ennå. Bruk eller utrust den`);
+    const names = missingColl.slice(0, 2).map((c) => `«${c.name}»`).join(' ' + t('common.and') + ' ');
+    return done('use', t('rules.reason.collection', { names }));
   }
   // 2c. Opplåsninger (farger, oppskrifter, minis)
-  if (facts.unlockDup === false) return done('use', `Låser opp ${facts.unlockName}, som du mangler`);
+  if (facts.unlockDup === false) return done('use', t('rules.reason.unlockNew', { what: facts.unlockName }));
 
   // 3. Behold-liste og toppgear
-  if (keepHit) return done('keep', `På behold-lista ("${keepHit}")`);
+  if (keepHit) return done('keep', t('rules.reason.keepList', { hit: keepHit }));
   const isEquipment = ['Armor', 'Weapon', 'Trinket', 'Back', 'UpgradeComponent'].includes(item.type);
-  if (item.rarity === 'Legendary') return done('keep', 'Legendary beholdes');
-  if (item.rarity === 'Ascended' && isEquipment) return done('keep', 'Ascended-utstyr beholdes');
+  if (item.rarity === 'Legendary') return done('keep', t('rules.reason.legendary'));
+  if (item.rarity === 'Ascended' && isEquipment) return done('keep', t('rules.reason.ascended'));
 
   // 4. Uidentifisert gear (er teknisk en beholder, så sjekkes først)
   if (lname.includes('unidentified gear')) {
     const ecto = (ctx.prices.get(ECTO_ID)?.buys?.unit_price) || 0;
     if (item.rarity === 'Rare') {
       const ectoEst = Math.max(0, Math.round(ecto * 0.875 - 40));
-      if (tpList > ectoEst) return done('tp', `TP (${tpList}c) slår ecto-verdien ved salvage (~${ectoEst}c)`, tpList);
-      return done('salvage', `Identifiser og salvage for ecto (~${ectoEst}c/stk, TP gir ${tpList}c)`, ectoEst);
+      if (tpList > ectoEst) return done('tp', t('rules.reason.unidRareTp', { tp: tpList, ecto: ectoEst }), tpList);
+      return done('salvage', t('rules.reason.unidRareSalvage', { tp: tpList, ecto: ectoEst }), ectoEst);
     }
-    const t = tierFor(80);
-    const matEst = Math.round(((ctx.prices.get(TIER.cloth[t])?.buys?.unit_price || 0) + (ctx.prices.get(TIER.leather[t])?.buys?.unit_price || 0) + (ctx.prices.get(TIER.metal[t])?.buys?.unit_price || 0)) / 3 * 1.8);
-    if (tpList > matEst * 1.2) return done('tp', `TP (${tpList}c) slår salvage-verdien (~${matEst}c)`, tpList);
-    return done('salvage', `Salvage direkte med copper-fed kit, ~${matEst}c i materialer pluss luck`, Math.max(matEst, vendor));
+    const tier = tierFor(80);
+    const matEst = Math.round(((ctx.prices.get(TIER.cloth[tier])?.buys?.unit_price || 0) + (ctx.prices.get(TIER.leather[tier])?.buys?.unit_price || 0) + (ctx.prices.get(TIER.metal[tier])?.buys?.unit_price || 0)) / 3 * 1.8);
+    if (tpList > matEst * 1.2) return done('tp', t('rules.reason.unidTp', { tp: tpList, mat: matEst }), tpList);
+    return done('salvage', t('rules.reason.unidSalvage', { mat: matEst }), Math.max(matEst, vendor));
   }
 
   // 5. Beholdere
   if (item.type === 'Container') {
-    if (tpList * count >= ctx.minTp && tpList > vendor * 2) return done('tp', 'Uåpnet beholder som er verdt mer på TP enn innholdet vanligvis er', tpList);
-    return done('open', 'Åpne beholderen og vurder innholdet');
+    if (tpList * count >= ctx.minTp && tpList > vendor * 2) return done('tp', t('rules.reason.containerTp'), tpList);
+    return done('open', t('rules.reason.containerOpen'));
   }
 
   // 6. Forbruksvarer
   if (item.type === 'Consumable') {
     if (facts.unlockDup === true) {
-      if (tpList > 0) return done('tp', `Du har allerede ${facts.unlockName}, selg duplikatet`, tpList);
-      if (vendor > 0) return done('vendor', `Du har allerede ${facts.unlockName}, vendor`, vendor);
-      return done('keep', `Du har allerede ${facts.unlockName}. Kan ikke selges, ødelegg eller gi bort`);
+      if (tpList > 0) return done('tp', t('rules.reason.dupTp', { what: facts.unlockName }), tpList);
+      if (vendor > 0) return done('vendor', t('rules.reason.dupVendor', { what: facts.unlockName }), vendor);
+      return done('keep', t('rules.reason.dupKeep', { what: facts.unlockName }));
     }
-    if (tpList * count >= ctx.minTp && tpList > vendor) return done('tp', 'Forbruksvare med god TP-pris', tpList);
-    return done('use', binding ? 'Bundet forbruksvare, bruk den' : 'Forbruksvare, bruk den eller vendor', vendor);
+    if (tpList * count >= ctx.minTp && tpList > vendor) return done('tp', t('rules.reason.consumableTp'), tpList);
+    return done('use', t(binding ? 'rules.reason.consumableBound' : 'rules.reason.consumableUse'), vendor);
   }
 
   // 7. Verktøy, poser, minis, moduler osv.
   if (['Bag', 'Gathering', 'Tool', 'Gizmo', 'Trait', 'MiniPet', 'Key', 'JadeTechModule', 'PowerCore', 'Relic'].includes(item.type)) {
-    if (tpList * count >= ctx.minTp && tpList > vendor) return done('tp', 'Selges på TP', tpList);
-    if (item.type === 'MiniPet') return facts.unlockDup === true ? done(vendor > 0 ? 'vendor' : 'keep', 'Du har allerede minien', vendor) : done('use', 'Lås opp minien', 0);
-    return done('keep', 'Verktøy eller utstyr, behold', 0);
+    if (tpList * count >= ctx.minTp && tpList > vendor) return done('tp', t('rules.reason.toolTp'), tpList);
+    if (item.type === 'MiniPet') return facts.unlockDup === true ? done(vendor > 0 ? 'vendor' : 'keep', t('rules.reason.miniDup'), vendor) : done('use', t('rules.reason.miniUse'), 0);
+    return done('keep', t('rules.reason.toolKeep'), 0);
   }
 
   // 8. Alt annet: velg høyeste av TP, vendor og salvage
@@ -197,8 +192,8 @@ function recommend(row, ctx) {
   ].filter((c) => c.value > 0).sort((a, b) => b.value - a.value);
 
   if (!candidates.length) {
-    if (tpList > 0) return done('tp', 'Lav verdi, men kan selges på TP', tpList);
-    return done('keep', 'Kan verken selges eller salvages, behold eller ødelegg');
+    if (tpList > 0) return done('tp', t('rules.reason.lowTp'), tpList);
+    return done('keep', t('rules.reason.nothing'));
   }
 
   let best = candidates[0];
@@ -207,19 +202,19 @@ function recommend(row, ctx) {
   if (facts.skinLocked === true) {
     const canSalvage = !flags_.includes('NoSalvage') && ['Armor', 'Weapon', 'Back'].includes(item.type);
     if (best.action !== 'tp' || best.value < 10000) {
-      if (canSalvage) return done('salvage', `Skinnet er ikke låst opp. Salvage låser det opp gratis (${best.action} gir bare ${best.value}c)`, salvage || best.value);
-      return done('use', 'Skinnet er ikke låst opp og itemet kan ikke salvages. Utrust det for å låse opp');
+      if (canSalvage) return done('salvage', t('rules.reason.skinSalvage', { action: best.action, value: best.value }), salvage || best.value);
+      return done('use', t('rules.reason.skinUse'));
     }
   }
-  if (best.action === 'tp') reason = `TP gir mest (${second ? second.action + ' er lavere' : 'ingen alternativ'})`;
-  else if (best.action === 'vendor') reason = second ? `Vendor slår ${second.action}` : 'Bare vendor gir verdi';
-  else reason = `Salvage (est.) gir mest${second ? ', ' + second.action + ' er lavere' : ''}`;
-  if (second && best.value < second.value * 1.1) reason += '. Nesten likt, ta det raskeste';
+  if (best.action === 'tp') reason = t('rules.reason.tpBest', { alt: second ? t('rules.reason.tpAlt', { action: second.action }) : t('rules.reason.tpNoAlt') });
+  else if (best.action === 'vendor') reason = second ? t('rules.reason.vendorBest', { action: second.action }) : t('rules.reason.vendorOnly');
+  else reason = t('rules.reason.salvageBest') + (second ? t('rules.reason.salvageAlt', { action: second.action }) : '');
+  if (second && best.value < second.value * 1.1) reason += t('rules.reason.close');
   if (item.rarity === 'Rare' && (item.level || 0) >= 68 && best.action !== 'salvage') {
-    reason += `. Salvage gir ~${salvage}c i ecto`;
+    reason += t('rules.reason.ectoNote', { c: salvage });
   }
-  if (facts.skinLocked === true) reason += '. Skinnet er ikke låst opp, salvage hvis du vil ha det';
-  if (ctx.listed?.has(item.id)) reason += '. Du har allerede dette ute for salg';
+  if (facts.skinLocked === true) reason += t('rules.reason.skinNote');
+  if (ctx.listed?.has(item.id)) reason += t('rules.reason.listedNote');
   return done(best.action, reason, best.value);
 }
 

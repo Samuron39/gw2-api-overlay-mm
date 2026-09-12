@@ -1,73 +1,76 @@
 'use strict';
-// Innstillinger-modul (renderer).
+// Innstillinger-modul (renderer). Språkvalget øverst lagres med en gang og bytter språk uten omstart.
 (() => {
   const { $, esc, setStatus } = Panel;
+  const t = (k, v) => T.t(k, v);
   let root = null;
   let offUpdate = null;
 
-  const TEMPLATE = `
+  const template = () => `
     <div class="settings">
-      <h3>Guild Wars 2</h3>
-      <label>API-nøkkel <input id="apiKey" type="password" placeholder="Lim inn nøkkel fra account.arena.net/applications" /></label>
-      <p class="muted">Nøkkelen trenger tillatelsene <b>account</b>, <b>inventories</b>, <b>characters</b> og <b>wallet</b>. <a href="#" id="apiLink">Åpne ArenaNet-siden</a>. Når du lagrer en ny nøkkel hentes inventory automatisk. Senere bruker du Oppdater-knappen på Inventory-fanen.</p>
+      <label>${t('settings.language')} <select id="language">${T.languages.map((l) => `<option value="${esc(l.id)}" ${l.id === T.language ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></label>
 
-      <h3>Lokal AI (LM Studio)</h3>
-      <label>Server-URL <input id="lmUrl" type="text" /></label>
-      <label>Modell <span class="row"><select id="lmModel"></select><button id="modelsBtn" type="button">Hent modeller</button></span></label>
-      <p class="muted">Last modellen med 16k kontekst, ikke maks, ellers fyller KV-cachen skjermkortet. Gemma 4 12B (6,7 GB) passer ved siden av spillet.</p>
+      <h3>${t('settings.gw2')}</h3>
+      <label>${t('settings.apiKey')} <input id="apiKey" type="password" placeholder="${esc(t('settings.apiKeyPlaceholder'))}" /></label>
+      <p class="muted">${t('settings.apiKeyHelp', { link: `<a href="#" id="apiLink">${esc(t('settings.apiLink'))}</a>` })}</p>
 
-      <h3>Inventory-regler</h3>
-      <label>Materiallager-kapasitet per item <input id="materialCap" type="number" min="250" step="250" /></label>
-      <label>Minste TP-verdi per stack som er verdt bryet (kobber) <input id="minTp" type="number" min="0" step="10" /></label>
-      <label>Behold-liste (ett navn eller delnavn per linje) <textarea id="keepList" rows="8"></textarea></label>
+      <h3>${t('settings.ai')}</h3>
+      <label>${t('settings.lmUrl')} <input id="lmUrl" type="text" /></label>
+      <label>${t('settings.lmModel')} <span class="row"><select id="lmModel"></select><button id="modelsBtn" type="button">${t('settings.fetchModels')}</button></span></label>
+      <p class="muted">${t('settings.aiHelp')}</p>
 
-      <h3>Spillet og ArcDPS</h3>
-      <label>Spillmappe (der Gw2-64.exe ligger)
-        <span class="row"><input id="gw2Dir" type="text" placeholder="C:\\Guild Wars 2" /><button id="gw2Detect" type="button">Søk</button><button id="gw2Pick" type="button">Velg mappe</button></span>
+      <h3>${t('settings.rules')}</h3>
+      <label>${t('settings.materialCap')} <input id="materialCap" type="number" min="250" step="250" /></label>
+      <label>${t('settings.minTp')} <input id="minTp" type="number" min="0" step="10" /></label>
+      <label>${t('settings.keepList')} <textarea id="keepList" rows="8"></textarea></label>
+
+      <h3>${t('settings.game')}</h3>
+      <label>${t('settings.gw2Dir')}
+        <span class="row"><input id="gw2Dir" type="text" placeholder="C:\\Guild Wars 2" /><button id="gw2Detect" type="button">${t('settings.detect')}</button><button id="gw2Pick" type="button">${t('settings.pickDir')}</button></span>
       </label>
-      <p class="muted small">Brukes til å installere og oppdatere ArcDPS fra DPS-modulen (knappen «Slik virker det»).</p>
-      <label class="inline"><input type="checkbox" id="followGame" /> Vis overlayen bare når spillet kjører. Sammen med «Start med Windows» starter overlayen i praksis sammen med spillet, og ligger ellers i systemstatusfeltet.</label>
-      <label>ArcDPS-loggmappe <input id="dpsLogDir" type="text" placeholder="" /></label>
-      <p class="muted">Tom = standardmappa <span id="dpsDefault"></span>. ArcDPS må ha logging slått på (Alt+Shift+T, Logging).</p>
+      <p class="muted small">${t('settings.gw2DirHelp')}</p>
+      <label class="inline"><input type="checkbox" id="followGame" /> ${t('settings.followGame')}</label>
+      <label>${t('settings.dpsLogDir')} <input id="dpsLogDir" type="text" placeholder="" /></label>
+      <p class="muted">${t('settings.dpsLogDirHelp1')} <span id="dpsDefault"></span>. ${t('settings.dpsLogDirHelp2')}</p>
 
-      <h3>Moduler på hjulet</h3>
+      <h3>${t('settings.modules')}</h3>
       <div id="modList" class="dy-list"></div>
-      <p class="muted small">Innstillinger er alltid med. Endringen slår inn med en gang, både på hjulet og som faner i panelet.</p>
+      <p class="muted small">${t('settings.modulesHelp')}</p>
 
-      <h3>Overlay</h3>
-      <label>Hjulstørrelse (px, krever omstart) <input id="wheelSize" type="number" min="140" max="320" step="10" /></label>
-      <label class="inline"><input type="checkbox" id="autoHide" /> Skjul overlayen når verken spillet eller overlayen har fokus (alt-tab)</label>
-      <label class="inline"><input type="checkbox" id="launchAtStartup" /> Start overlayen sammen med Windows</label>
-      <p class="muted small">Hjulet slipper klikk gjennom de gjennomsiktige områdene, så det stjeler ikke klikk fra spillet. Ctrl+Shift+G viser eller skjuler panelet.</p>
+      <h3>${t('settings.overlay')}</h3>
+      <label>${t('settings.wheelSize')} <input id="wheelSize" type="number" min="140" max="320" step="10" /></label>
+      <label class="inline"><input type="checkbox" id="autoHide" /> ${t('settings.autoHide')}</label>
+      <label class="inline"><input type="checkbox" id="launchAtStartup" /> ${t('settings.launchAtStartup')}</label>
+      <p class="muted small">${t('settings.overlayHelp')}</p>
 
-      <h3>Oppdatering</h3>
-      <p class="muted">Installert versjon: <b id="updVersion"></b></p>
-      <label class="inline"><input type="checkbox" id="autoUpdate" /> Sjekk automatisk ved oppstart og hver 6. time</label>
-      <p class="muted small">Ny versjon lastes ned i bakgrunnen og installeres når du avslutter overlayen, eller med en gang med knappen under.</p>
+      <h3>${t('settings.update')}</h3>
+      <p class="muted">${t('settings.installedVersion')} <b id="updVersion"></b></p>
+      <label class="inline"><input type="checkbox" id="autoUpdate" /> ${t('settings.autoUpdate')}</label>
+      <p class="muted small">${t('settings.updateHelp')}</p>
       <div class="row">
-        <button id="updCheck" type="button">Sjekk for oppdatering</button>
-        <button id="updInstall" type="button" class="primary" style="display:none">Installer og start på nytt</button>
+        <button id="updCheck" type="button">${t('settings.updCheck')}</button>
+        <button id="updInstall" type="button" class="primary" style="display:none">${t('settings.updInstall')}</button>
         <span id="updStatus" class="muted small"></span>
       </div>
-      <p class="muted small">Oppdateringer hentes fra GitHub Releases for prosjektet. Innstillingene dine beholdes.</p>
+      <p class="muted small">${t('settings.updateSource')}</p>
 
       <div class="row">
-        <button id="saveBtn" class="primary">Lagre</button>
-        <button id="quitBtn">Avslutt overlay</button>
+        <button id="saveBtn" class="primary">${t('settings.save')}</button>
+        <button id="quitBtn">${t('settings.quit')}</button>
       </div>
-      <p class="muted small">Konfig lagres i <span id="cfgPath"></span>. <span id="cfgErr" class="status error"></span></p>
+      <p class="muted small">${t('settings.configStored')} <span id="cfgPath"></span>. <span id="cfgErr" class="status error"></span></p>
 
-      <h3>Feilsøking</h3>
+      <h3>${t('settings.debug')}</h3>
       <div class="row">
-        <button id="logOpenBtn" type="button">Åpne loggmappe</button>
-        <button id="logReportBtn" type="button">Kopier feilrapport</button>
+        <button id="logOpenBtn" type="button">${t('settings.openLog')}</button>
+        <button id="logReportBtn" type="button">${t('settings.copyReport')}</button>
       </div>
-      <p class="muted small">Loggfila app.log ligger i loggmappa (roteres ved 2 MB). Feilrapporten inneholder versjoner, innstillinger uten API-nøkkel, status for ArcDPS og broen, og de siste 200 logglinjene. Lim den inn når du melder en feil.</p>
+      <p class="muted small">${t('settings.debugHelp')}</p>
     </div>`;
 
   function fillModels(list, selected) {
     const sel = $('#lmModel', root);
-    sel.innerHTML = list.length ? list.map((id) => `<option value="${esc(id)}" ${id === selected ? 'selected' : ''}>${esc(id)}</option>`).join('') : '<option value="">(trykk Hent modeller)</option>';
+    sel.innerHTML = list.length ? list.map((id) => `<option value="${esc(id)}" ${id === selected ? 'selected' : ''}>${esc(id)}</option>`).join('') : `<option value="">${esc(t('settings.modelsPlaceholder'))}</option>`;
   }
 
   function fill(c) {
@@ -84,11 +87,11 @@
     $('#wheelSize', root).value = c.wheel?.size || 200;
     $('#autoHide', root).checked = !!c.autoHide;
     $('#launchAtStartup', root).checked = !!c.launchAtStartup;
-    const ALL = [['inventory', '🎒 Inventory'], ['daily', '📅 I dag'], ['timers', '⏱️ Tidsplan'], ['tp', '💰 Trading Post'], ['dps', '⚔️ DPS'], ['live', '⚡ Live'], ['characters', '🧙 Karakterer'], ['guild', '🏰 Guild']];
+    const ALL = [['inventory', '🎒'], ['daily', '📅'], ['timers', '⏱️'], ['tp', '💰'], ['dps', '⚔️'], ['live', '⚡'], ['characters', '🧙'], ['guild', '🏰']];
     const on = c.wheelModules;
-    $('#modList', root).innerHTML = ALL.map(([id, label]) => `<label class="dy-item inline"><input type="checkbox" class="modToggle" value="${id}" ${!on || on.includes(id) ? 'checked' : ''} /> ${label}</label>`).join('');
+    $('#modList', root).innerHTML = ALL.map(([id, icon]) => `<label class="dy-item inline"><input type="checkbox" class="modToggle" value="${id}" ${!on || on.includes(id) ? 'checked' : ''} /> ${icon} ${esc(t('module.' + id))}</label>`).join('');
     $('#cfgPath', root).textContent = c.configPath || '';
-    $('#cfgErr', root).textContent = c.lastSaveError ? 'Siste lagring feilet: ' + c.lastSaveError : '';
+    $('#cfgErr', root).textContent = c.lastSaveError ? t('settings.lastSaveFailed', { error: c.lastSaveError }) : '';
     $('#autoUpdate', root).checked = c.autoUpdate !== false;
     $('#updVersion', root).textContent = c.appVersion || '';
     fillModels([c.lmModel].filter(Boolean), c.lmModel);
@@ -99,13 +102,13 @@
     if (!s) return '';
     const v = s.version ? ` (${s.version})` : '';
     switch (s.status) {
-      case 'dev': return 'Oppdatering er bare tilgjengelig i den installerte versjonen.';
-      case 'checking': return 'Sjekker…';
-      case 'available': return `Ny versjon${v} funnet, laster ned…`;
-      case 'not-available': return 'Du har nyeste versjon.';
-      case 'downloading': return `Laster ned${v}: ${s.percent || 0} %`;
-      case 'downloaded': return `Versjon${v} er lastet ned og klar til å installeres.`;
-      case 'error': return 'Feil ved oppdatering: ' + (s.error || 'ukjent');
+      case 'dev': return t('settings.upd.dev');
+      case 'checking': return t('settings.upd.checking');
+      case 'available': return t('settings.upd.available', { v });
+      case 'not-available': return t('settings.upd.notAvailable');
+      case 'downloading': return t('settings.upd.downloading', { v, percent: s.percent || 0 });
+      case 'downloaded': return t('settings.upd.downloaded', { v });
+      case 'error': return t('settings.upd.error', { error: s.error || t('settings.upd.unknown') });
       default: return '';
     }
   }
@@ -122,16 +125,18 @@
 
   function mount(el) {
     root = el;
-    el.innerHTML = TEMPLATE;
+    el.innerHTML = template();
     fill(Panel.config);
+    // Språk: lagres med en gang; hovedprosessen sender config:changed, og panelet monterer modulen på nytt
+    $('#language', el).addEventListener('change', async (e) => { Panel.config = await window.api.invoke('config:set', { language: e.target.value }); });
     $('#apiLink', el).addEventListener('click', (e) => { e.preventDefault(); window.api.invoke('open:url', 'https://account.arena.net/applications'); });
     $('#modelsBtn', el).addEventListener('click', async () => {
       try {
         await window.api.invoke('config:set', { lmUrl: $('#lmUrl', root).value.trim() });
         const models = await window.api.invoke('ai:models');
         fillModels(models, $('#lmModel', root).value || Panel.config.lmModel || models[0]);
-        setStatus(`Fant ${models.length} modeller i LM Studio.`);
-      } catch (e) { setStatus('Kunne ikke hente modeller: ' + e.message, true); }
+        setStatus(t('settings.modelsFound', { n: models.length }));
+      } catch (e) { setStatus(t('settings.modelsFailed', { message: e.message }), true); }
     });
     $('#saveBtn', el).addEventListener('click', async () => {
       const patch = {
@@ -148,36 +153,38 @@
         autoHide: $('#autoHide', root).checked,
         launchAtStartup: $('#launchAtStartup', root).checked,
         autoUpdate: $('#autoUpdate', root).checked,
+        language: $('#language', root).value,
         wheelModules: [...root.querySelectorAll('.modToggle')].filter((cb) => cb.checked).map((cb) => cb.value),
       };
       const prevKey = Panel.config?.apiKey || '';
       Panel.config = await window.api.invoke('config:set', patch);
-      $('#cfgErr', root).textContent = Panel.config.lastSaveError ? 'Siste lagring feilet: ' + Panel.config.lastSaveError : '';
-      if (Panel.config.lastSaveError) { setStatus('Kunne ikke skrive konfigfila: ' + Panel.config.lastSaveError, true); return; }
+      if (!root) return; // språkbytte monterte modulen på nytt
+      $('#cfgErr', root).textContent = Panel.config.lastSaveError ? t('settings.lastSaveFailed', { error: Panel.config.lastSaveError }) : '';
+      if (Panel.config.lastSaveError) { setStatus(t('settings.saveFailed', { error: Panel.config.lastSaveError }), true); return; }
       if (patch.apiKey && patch.apiKey !== prevKey) {
-        setStatus('Innstillinger lagret. Henter inventory…');
+        setStatus(t('settings.savedFetching'));
         window.api.invoke('panel:show', 'inventory');
       } else if (patch.apiKey) {
-        setStatus('Innstillinger lagret. Trykk Oppdater på Inventory-fanen for å hente på nytt.');
+        setStatus(t('settings.savedRefresh'));
       } else {
-        setStatus('Innstillinger lagret.');
+        setStatus(t('settings.saved'));
       }
     });
     $('#quitBtn', el).addEventListener('click', () => window.api.invoke('app:quit'));
     $('#logOpenBtn', el).addEventListener('click', async () => {
-      try { const p = await window.api.invoke('log:open'); setStatus('Åpnet ' + p); }
-      catch (e) { setStatus('Kunne ikke åpne loggmappa: ' + e.message, true); }
+      try { const p = await window.api.invoke('log:open'); setStatus(t('settings.opened', { path: p })); }
+      catch (e) { setStatus(t('settings.openLogFailed', { message: e.message }), true); }
     });
     $('#logReportBtn', el).addEventListener('click', async () => {
-      try { await window.api.invoke('log:report'); setStatus('Feilrapport kopiert til utklippstavla.'); }
-      catch (e) { setStatus('Kunne ikke lage feilrapport: ' + e.message, true); }
+      try { await window.api.invoke('log:report'); setStatus(t('settings.reportCopied')); }
+      catch (e) { setStatus(t('settings.reportFailed', { message: e.message }), true); }
     });
     $('#gw2Detect', el).addEventListener('click', async () => {
       const d = await window.api.invoke('gw2:detectDir');
-      if (d) { $('#gw2Dir', root).value = d; setStatus(`Fant spillet i ${d}. Trykk Lagre.`); } else setStatus('Fant ikke Gw2-64.exe automatisk. Bruk «Velg mappe».', true);
+      if (d) { $('#gw2Dir', root).value = d; setStatus(t('settings.foundGame', { dir: d })); } else setStatus(t('settings.gameNotFound'), true);
     });
     $('#gw2Pick', el).addEventListener('click', async () => {
-      try { const d = await window.api.invoke('gw2:pickDir'); if (d) { $('#gw2Dir', root).value = d; setStatus('Mappe valgt. Trykk Lagre.'); } }
+      try { const d = await window.api.invoke('gw2:pickDir'); if (d) { $('#gw2Dir', root).value = d; setStatus(t('settings.dirPicked')); } }
       catch (e) { setStatus(e.message, true); }
     });
     // Oppdatering: manuell sjekk, fremdrift fra hovedprosessen, og installer når nedlastingen er ferdig
@@ -188,12 +195,12 @@
       catch (e) { showUpdate({ status: 'error', error: e.message }); }
     });
     $('#updInstall', el).addEventListener('click', async () => {
-      try { if (!(await window.api.invoke('update:install'))) setStatus('Ingen nedlastet oppdatering å installere.', true); }
+      try { if (!(await window.api.invoke('update:install'))) setStatus(t('settings.noDownload'), true); }
       catch (e) { setStatus(e.message, true); }
     });
   }
 
   function unmount() { offUpdate?.(); offUpdate = null; root = null; }
 
-  Panel.register({ id: 'settings', title: 'Innstillinger', icon: '⚙️', mount, unmount });
+  Panel.register({ id: 'settings', title: () => T.t('module.settings'), icon: '⚙️', mount, unmount });
 })();

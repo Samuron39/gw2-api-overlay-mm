@@ -1,11 +1,13 @@
 'use strict';
 // Klient mot LM Studio (OpenAI-kompatibelt API). Ingen data forlater maskinen.
+// Systemprompten er norsk, men modellen bes svare på språket brukeren har valgt (ai.language i språkfila).
+const { t } = require('./i18n');
 
 function base(cfg) { return (cfg.lmUrl || 'http://localhost:1234/v1').replace(/\/+$/, ''); }
 
 async function listModels(cfg) {
   const res = await fetch(base(cfg) + '/models');
-  if (!res.ok) throw new Error(`LM Studio svarte ${res.status}`);
+  if (!res.ok) throw new Error(t('ai.lmStatus', { status: res.status }));
   const j = await res.json();
   return (j.data || []).map((m) => m.id).filter((id) => !id.includes('embed'));
 }
@@ -28,7 +30,7 @@ async function complete(cfg, messages, opts = {}) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`LM Studio ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  if (!res.ok) throw new Error(t('ai.lmError', { status: res.status, text: (await res.text()).slice(0, 300) }));
 
   let content = '';
   let reasoning = '';
@@ -52,7 +54,7 @@ async function complete(cfg, messages, opts = {}) {
     }
   }
   content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-  if (!content && reasoning) throw new Error('Modellen brukte hele token-budsjettet på å tenke uten å svare. Prøv igjen eller velg en modell som tenker mindre.');
+  if (!content && reasoning) throw new Error(t('ai.noAnswer'));
   return content;
 }
 
@@ -104,7 +106,10 @@ function buildContext(data, maxRows = 60) {
   return lines.join('\n');
 }
 
-const SYSTEM = `Du er en erfaren Guild Wars 2-spiller som hjelper med å rydde inventory. Du får et utdrag av spillerens inventory med ferdig utregnede verdier (kobber: 10000c = 1g) og en regelbasert anbefaling per item. Tallene er fasit for verdi, du skal ikke regne dem på nytt. Din jobb er å prioritere, forklare og fange opp ting reglene ikke ser: items som brukes i kjente samlinger, legendary-crafting, populære oppskrifter, eller som er dumme å selge nå. Svar alltid på norsk, kort og konkret. Bruk itemnavnene slik de står.`;
+// Språket modellen skal svare på, styrt av valgt UI-språk
+function answerLanguage() { return t('ai.language'); }
+
+const SYSTEM = () => `Du er en erfaren Guild Wars 2-spiller som hjelper med å rydde inventory. Du får et utdrag av spillerens inventory med ferdig utregnede verdier (kobber: 10000c = 1g) og en regelbasert anbefaling per item. Tallene er fasit for verdi, du skal ikke regne dem på nytt. Din jobb er å prioritere, forklare og fange opp ting reglene ikke ser: items som brukes i kjente samlinger, legendary-crafting, populære oppskrifter, eller som er dumme å selge nå. Svar alltid på ${answerLanguage()}, kort og konkret. Bruk itemnavnene slik de står.`;
 
 const PLAN_SCHEMA = {
   name: 'oppryddingsplan',
@@ -137,14 +142,14 @@ function parseJson(text) {
   try { return JSON.parse(text); } catch { /* prøv å finne objektet */ }
   const m = text.match(/\{[\s\S]*\}/);
   if (m) { try { return JSON.parse(m[0]); } catch { /* gi opp */ } }
-  throw new Error('Modellen svarte ikke med gyldig JSON:\n' + text.slice(0, 500));
+  throw new Error(t('ai.badJson', { text: text.slice(0, 500) }));
 }
 
 async function prioritize(cfg, data, opts = {}) {
   const ctx = buildContext(data);
   const messages = [
-    { role: 'system', content: SYSTEM },
-    { role: 'user', content: `${ctx}\n\nLag en prioritert oppryddingsplan med 5 til 12 steg. Start med det som frigjør mest plass eller gir mest gull for minst innsats. Nevn eksplisitt hvis noe i lista bør beholdes selv om regelmotoren sier selg, og hvorfor. Svar som JSON.` },
+    { role: 'system', content: SYSTEM() },
+    { role: 'user', content: `${ctx}\n\nLag en prioritert oppryddingsplan med 5 til 12 steg. Start med det som frigjør mest plass eller gir mest gull for minst innsats. Nevn eksplisitt hvis noe i lista bør beholdes selv om regelmotoren sier selg, og hvorfor. Svar som JSON, med tekstene på ${answerLanguage()}.` },
   ];
   const text = await complete(cfg, messages, { jsonSchema: PLAN_SCHEMA, maxTokens: 8000, onProgress: opts.onProgress });
   return parseJson(text);
@@ -153,10 +158,10 @@ async function prioritize(cfg, data, opts = {}) {
 async function chat(cfg, data, history, opts = {}) {
   const ctx = buildContext(data, 80);
   const messages = [
-    { role: 'system', content: SYSTEM + '\n\nSpillerens inventory:\n' + ctx },
+    { role: 'system', content: SYSTEM() + '\n\nSpillerens inventory:\n' + ctx },
     ...history.slice(-10),
   ];
   return complete(cfg, messages, { maxTokens: 4000, onProgress: opts.onProgress });
 }
 
-module.exports = { listModels, prioritize, chat, buildContext, completeText: (cfg, messages, opts = {}) => complete(cfg, messages, { maxTokens: 4000, ...opts }) };
+module.exports = { listModels, prioritize, chat, buildContext, answerLanguage, completeText: (cfg, messages, opts = {}) => complete(cfg, messages, { maxTokens: 4000, ...opts }) };

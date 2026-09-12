@@ -21,8 +21,10 @@ const updater = require('./updater');
 const mumble = require('./mumble');
 const ai = require('./ai');
 const log = require('./log');
+const i18n = require('./i18n');
 
 const { DEMO, TEST_MODE } = cfg;
+const { t } = i18n;
 const APP_VERSION = require('../package.json').version;
 
 // IPC-handler med logging: feil logges med kanalnavn og kastes videre til renderer
@@ -49,6 +51,8 @@ function register() {
     win.applyConfig(prev);
     return cfg.publicConfig();
   });
+  // Ordboka for valgt språk (lagt oppå nb) pluss lista over språk som finnes i src/i18n/
+  handle('i18n:get', () => i18n.bundle());
 
   // ---------- Inventory og AI ----------
   handle('inv:refresh', () => inventory.refresh(cfg.config, DEMO));
@@ -78,13 +82,13 @@ function register() {
   handle('arc:status', () => arcdps.status(cfg.config.gw2Dir));
   handle('arc:install', async () => {
     const dir = arcdps.isGameDir(cfg.config.gw2Dir) ? cfg.config.gw2Dir : await arcdps.detectDir();
-    if (!dir) throw new Error('Velg spillmappa under Innstillinger først.');
+    if (!dir) throw new Error(t('main.pickGameDirFirst'));
     return arcdps.install(dir);
   });
   handle('arc:uninstall', () => arcdps.uninstall(cfg.config.gw2Dir));
   handle('arc:installBridge', async () => {
     const dir = arcdps.isGameDir(cfg.config.gw2Dir) ? cfg.config.gw2Dir : await arcdps.detectDir();
-    if (!dir) throw new Error('Velg spillmappa under Innstillinger først.');
+    if (!dir) throw new Error(t('main.pickGameDirFirst'));
     return arcdps.installBridge(dir);
   });
 
@@ -100,10 +104,10 @@ function register() {
   // ---------- Spillmappe ----------
   handle('gw2:detectDir', async () => { const d = await arcdps.detectDir(); if (d && !cfg.config.gw2Dir) { cfg.config.gw2Dir = d; cfg.saveConfig(); } return d; });
   handle('gw2:pickDir', async () => {
-    const r = await dialog.showOpenDialog(win.panelWin, { title: 'Velg mappa der Gw2-64.exe ligger', properties: ['openDirectory'], defaultPath: cfg.config.gw2Dir || 'C:\\' });
+    const r = await dialog.showOpenDialog(win.panelWin, { title: t('main.pickDirTitle'), properties: ['openDirectory'], defaultPath: cfg.config.gw2Dir || 'C:\\' });
     if (r.canceled || !r.filePaths[0]) return null;
     const dir = r.filePaths[0];
-    if (!arcdps.isGameDir(dir)) throw new Error('Fant ikke Gw2-64.exe i den mappa.');
+    if (!arcdps.isGameDir(dir)) throw new Error(t('main.notGameDir'));
     return dir;
   });
 
