@@ -13,8 +13,12 @@ const INVOKE = new Set([
   'clipboard:write', 'game:paste', 'open:wiki', 'open:url',
   'panel:open', 'panel:show', 'panel:close', 'panel:state', 'wheel:setLocked', 'app:quit',
   'log:open', 'log:report',
+  'update:check', 'update:install',
 ]);
-const EVENTS = new Set(['ai:progress', 'mumble:state', 'dps:new', 'panel:module', 'panel:visible', 'wheel:locked', 'config:changed', 'live:state', 'skills:changed', 'overlays:changed']);
+const EVENTS = new Set([
+  'ai:progress', 'mumble:state', 'dps:new', 'panel:module', 'panel:visible', 'wheel:locked', 'config:changed', 'live:state', 'skills:changed', 'overlays:changed',
+  'update:status',
+]);
 
 contextBridge.exposeInMainWorld('api', {
   invoke: (channel, ...args) => {

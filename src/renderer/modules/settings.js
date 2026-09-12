@@ -3,6 +3,7 @@
 (() => {
   const { $, esc, setStatus } = Panel;
   let root = null;
+  let offUpdate = null;
 
   const TEMPLATE = `
     <div class="settings">
@@ -38,6 +39,17 @@
       <label class="inline"><input type="checkbox" id="autoHide" /> Skjul overlayen når verken spillet eller overlayen har fokus (alt-tab)</label>
       <label class="inline"><input type="checkbox" id="launchAtStartup" /> Start overlayen sammen med Windows</label>
       <p class="muted small">Hjulet slipper klikk gjennom de gjennomsiktige områdene, så det stjeler ikke klikk fra spillet. Ctrl+Shift+G viser eller skjuler panelet.</p>
+
+      <h3>Oppdatering</h3>
+      <p class="muted">Installert versjon: <b id="updVersion"></b></p>
+      <label class="inline"><input type="checkbox" id="autoUpdate" /> Sjekk automatisk ved oppstart og hver 6. time</label>
+      <p class="muted small">Ny versjon lastes ned i bakgrunnen og installeres når du avslutter overlayen, eller med en gang med knappen under.</p>
+      <div class="row">
+        <button id="updCheck" type="button">Sjekk for oppdatering</button>
+        <button id="updInstall" type="button" class="primary" style="display:none">Installer og start på nytt</button>
+        <span id="updStatus" class="muted small"></span>
+      </div>
+      <p class="muted small">Oppdateringer hentes fra GitHub Releases for prosjektet. Innstillingene dine beholdes.</p>
 
       <div class="row">
         <button id="saveBtn" class="primary">Lagre</button>
@@ -77,7 +89,35 @@
     $('#modList', root).innerHTML = ALL.map(([id, label]) => `<label class="dy-item inline"><input type="checkbox" class="modToggle" value="${id}" ${!on || on.includes(id) ? 'checked' : ''} /> ${label}</label>`).join('');
     $('#cfgPath', root).textContent = c.configPath || '';
     $('#cfgErr', root).textContent = c.lastSaveError ? 'Siste lagring feilet: ' + c.lastSaveError : '';
+    $('#autoUpdate', root).checked = c.autoUpdate !== false;
+    $('#updVersion', root).textContent = c.appVersion || '';
     fillModels([c.lmModel].filter(Boolean), c.lmModel);
+  }
+
+  // Oppdateringsstatus fra hovedprosessen (update:status) eller svaret på en manuell sjekk
+  function updateText(s) {
+    if (!s) return '';
+    const v = s.version ? ` (${s.version})` : '';
+    switch (s.status) {
+      case 'dev': return 'Oppdatering er bare tilgjengelig i den installerte versjonen.';
+      case 'checking': return 'Sjekker…';
+      case 'available': return `Ny versjon${v} funnet, laster ned…`;
+      case 'not-available': return 'Du har nyeste versjon.';
+      case 'downloading': return `Laster ned${v}: ${s.percent || 0} %`;
+      case 'downloaded': return `Versjon${v} er lastet ned og klar til å installeres.`;
+      case 'error': return 'Feil ved oppdatering: ' + (s.error || 'ukjent');
+      default: return '';
+    }
+  }
+
+  function showUpdate(s) {
+    if (!root || !s) return;
+    if (s.appVersion) $('#updVersion', root).textContent = s.appVersion;
+    const el = $('#updStatus', root);
+    el.textContent = updateText(s);
+    el.classList.toggle('error', s.status === 'error');
+    $('#updInstall', root).style.display = s.status === 'downloaded' ? '' : 'none';
+    $('#updCheck', root).disabled = s.status === 'checking' || s.status === 'downloading';
   }
 
   function mount(el) {
@@ -107,6 +147,7 @@
         wheel: { size: Number($('#wheelSize', root).value) || 200 },
         autoHide: $('#autoHide', root).checked,
         launchAtStartup: $('#launchAtStartup', root).checked,
+        autoUpdate: $('#autoUpdate', root).checked,
         wheelModules: [...root.querySelectorAll('.modToggle')].filter((cb) => cb.checked).map((cb) => cb.value),
       };
       const prevKey = Panel.config?.apiKey || '';
@@ -139,9 +180,20 @@
       try { const d = await window.api.invoke('gw2:pickDir'); if (d) { $('#gw2Dir', root).value = d; setStatus('Mappe valgt. Trykk Lagre.'); } }
       catch (e) { setStatus(e.message, true); }
     });
+    // Oppdatering: manuell sjekk, fremdrift fra hovedprosessen, og installer når nedlastingen er ferdig
+    offUpdate = window.api.on('update:status', showUpdate);
+    $('#updCheck', el).addEventListener('click', async () => {
+      showUpdate({ status: 'checking' });
+      try { showUpdate(await window.api.invoke('update:check')); }
+      catch (e) { showUpdate({ status: 'error', error: e.message }); }
+    });
+    $('#updInstall', el).addEventListener('click', async () => {
+      try { if (!(await window.api.invoke('update:install'))) setStatus('Ingen nedlastet oppdatering å installere.', true); }
+      catch (e) { setStatus(e.message, true); }
+    });
   }
 
-  function unmount() { root = null; }
+  function unmount() { offUpdate?.(); offUpdate = null; root = null; }
 
   Panel.register({ id: 'settings', title: 'Innstillinger', icon: '⚙️', mount, unmount });
 })();

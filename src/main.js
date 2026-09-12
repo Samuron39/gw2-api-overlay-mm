@@ -14,6 +14,7 @@ const arcdps = require('./modules/arcdps');
 const live = require('./live');
 const overlays = require('./overlays');
 const skills = require('./modules/skills');
+const updater = require('./updater');
 const { dialog, Tray, Menu, nativeImage } = require('electron');
 const mumble = require('./mumble');
 const ai = require('./ai');
@@ -54,6 +55,7 @@ const DEFAULT_CONFIG = {
   followGame: false, // vis overlayen bare når Gw2-64.exe kjører (start med Windows + dette = starter med spillet)
   overlays: {}, // per overlay-vindu (buffs, debuffs, target, skillbar): posisjon, størrelse, utseende
   rotations: {}, // anbefalt rotasjon per karakter/spec: { "<nøkkel>": [{ skill, note }] }
+  autoUpdate: true, // sjekk GitHub Releases for ny versjon ved oppstart og hver 6. time (bare pakket app)
 };
 
 const APP_VERSION = require('../package.json').version;
@@ -181,7 +183,7 @@ function applyConfig(prev) {
   broadcast('config:changed', publicConfig());
 }
 
-function publicConfig() { return { ...config, demo: DEMO, dpsDefaultDir: dps.DEFAULT_DIR, configPath, lastSaveError }; }
+function publicConfig() { return { ...config, demo: DEMO, dpsDefaultDir: dps.DEFAULT_DIR, configPath, lastSaveError, appVersion: app.getVersion() }; }
 
 function startDpsWatch() {
   const dir = config.dpsLogDir || dps.DEFAULT_DIR;
@@ -311,6 +313,10 @@ handle('log:report', () => {
   return text;
 });
 
+// Oppdatering: manuell sjekk fra Innstillinger, og installer nedlastet versjon (avslutter og starter på nytt)
+handle('update:check', () => updater.check());
+handle('update:install', () => { const ok = updater.install(); if (ok) quitting = true; return ok; });
+
 // ---------- Oppstart ----------
 app.whenReady().then(async () => {
   configPath = path.join(app.getPath('userData'), 'config.json');
@@ -350,6 +356,9 @@ app.whenReady().then(async () => {
 
   // Hurtigtast: vis/skjul panelet med siste modul
   globalShortcut.register('CommandOrControl+Shift+G', () => openModule(currentModule || 'inventory'));
+
+  // Automatisk oppdatering fra GitHub Releases (bare pakket app, aldri i testmodus)
+  updater.init({ app, config, testMode: TEST_MODE, onStatus: (s) => broadcast('update:status', s) });
 
   // Systemstatusfelt: appen kan ligge skjult og vente på spillet
   let tray = null;

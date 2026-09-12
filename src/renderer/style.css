@@ -69,6 +69,7 @@ td.where { color: var(--muted); font-size: 12px; }
 .settings label input, .settings label select, .settings label textarea { display: block; width: 100%; margin-top: 4px; color: var(--text); }
 .settings .row { display: flex; gap: 8px; margin-top: 4px; }
 .settings .row select { flex: 1; }
+.settings #updStatus.error { color: #ff7b7b; }
 .muted { color: var(--muted); }
 .settings a { color: var(--accent); }
 .empty { padding: 40px; text-align: center; color: var(--muted); }
