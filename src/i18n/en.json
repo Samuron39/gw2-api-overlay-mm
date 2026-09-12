@@ -565,5 +565,6 @@
   "skills.noCharacter": "No character from the game yet (MumbleLink). Enter the world with a character.",
   "skills.noBuilds": "No builds received from the API. The key needs the builds permission.",
   "skills.fetchFirst": "Fetch the skill bar first.",
-  "skills.buildFallback": "Build {tab}"
+  "skills.buildFallback": "Build {tab}",
+  "settings.uiScale": "Scale of wheel, panel and overlay windows (applies immediately)"
 }

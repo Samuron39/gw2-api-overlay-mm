@@ -565,5 +565,6 @@
   "skills.noCharacter": "Ingen karakter fra spillet ennå (MumbleLink). Gå inn i verden med en karakter.",
   "skills.noBuilds": "Fikk ingen builds fra API-et. Nøkkelen trenger tillatelsen builds.",
   "skills.fetchFirst": "Hent skill-baren først.",
-  "skills.buildFallback": "Build {tab}"
+  "skills.buildFallback": "Build {tab}",
+  "settings.uiScale": "Skalering av hjul, panel og overlay-vinduer (virker med en gang)"
 }

@@ -46,6 +46,7 @@ function createWheel() {
   wheelWin.setMinimumSize(opts.width, opts.height); wheelWin.setMaximumSize(opts.width, opts.height); // fast størrelse uansett DPI-avrunding
   wheelWin.setAlwaysOnTop(true, 'screen-saver');
   wheelWin.setMenuBarVisibility(false);
+  wheelWin.webContents.once('did-finish-load', () => applyScale());
   wheelWin.loadFile(path.join(__dirname, 'renderer', 'wheel.html'));
   wheelWin.on('moved', () => { const [x, y] = wheelWin.getPosition(); cfg.config.wheel.x = x; cfg.config.wheel.y = y; cfg.saveSoon(); });
   wheelWin.on('closed', () => { wheelWin = null; if (!quitting) { quitting = true; app.quit(); } });
@@ -62,7 +63,7 @@ function createPanel() {
   panelWin = new BrowserWindow(opts);
   panelWin.setAlwaysOnTop(!!p.pinned, 'screen-saver');
   panelWin.setMenuBarVisibility(false);
-  panelReady = new Promise((resolve) => panelWin.webContents.once('did-finish-load', resolve));
+  panelReady = new Promise((resolve) => panelWin.webContents.once('did-finish-load', () => { applyScale(); resolve(); }));
   panelWin.loadFile(path.join(__dirname, 'renderer', 'panel.html'));
   const saveBounds = () => { const b = panelWin.getBounds(); Object.assign(cfg.config.panel, { x: b.x, y: b.y, width: b.width, height: b.height }); cfg.saveSoon(); };
   panelWin.on('moved', saveBounds);
@@ -97,8 +98,25 @@ function closePanel() {
 function panelState() { return { visible: !!panelWin?.isVisible(), module: currentModule }; }
 
 // Etter at konfigen er endret (config:set, wheel:setLocked): oppdater vinduene der noe relevant er endret
+// Skalering: hjulet får større vindu og zoom, panel og overlay-vinduer får zoom. Virker uten omstart.
+function applyScale() {
+  const config = cfg.config;
+  const scale = Math.max(0.5, Math.min(2.5, Number(config.uiScale) || 1));
+  if (wheelWin && !wheelWin.isDestroyed()) {
+    const base = Math.max(140, Math.min(320, config.wheel.size || 200));
+    const w = Math.round(base * scale), h = Math.round((base + 34) * scale);
+    wheelWin.setMinimumSize(w, h); wheelWin.setMaximumSize(w, h);
+    const b = wheelWin.getBounds();
+    wheelWin.setBounds({ x: b.x, y: b.y, width: w, height: h });
+    wheelWin.webContents.setZoomFactor(scale);
+  }
+  if (panelWin && !panelWin.isDestroyed()) panelWin.webContents.setZoomFactor(scale);
+  overlays.setZoom(scale);
+}
+
 function applyConfig(prev) {
   const config = cfg.config;
+  if (prev.uiScale !== config.uiScale) applyScale();
   if (panelWin) {
     if (prev.panel.pinned !== config.panel.pinned) panelWin.setAlwaysOnTop(!!config.panel.pinned, 'screen-saver');
     if (prev.panel.opacity !== config.panel.opacity) panelWin.setOpacity(Number(config.panel.opacity) || 1);
@@ -183,7 +201,7 @@ function setQuitting() { quitting = true; }
 module.exports = {
   webPreferences, APP_ICON,
   createWheel, createPanel, openModule, closePanel, panelState, broadcast, clampToScreen, applyConfig, startDpsWatch,
-  setupAutoHide, createTray, startFollowGame, setQuitting,
+  setupAutoHide, createTray, startFollowGame, setQuitting, applyScale,
   get wheelWin() { return wheelWin; },
   get panelWin() { return panelWin; },
   get currentModule() { return currentModule; },

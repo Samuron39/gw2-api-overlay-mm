@@ -41,6 +41,7 @@ function create(type, c) {
   w.setAlwaysOnTop(true, 'screen-saver');
   w.setMenuBarVisibility(false);
   w.setIgnoreMouseEvents(!!c.locked, { forward: true });
+  w.webContents.once('did-finish-load', () => { const z = Number(ctx.config.uiScale) || 1; if (z !== 1) w.webContents.setZoomFactor(z); });
   w.loadFile(path.join(__dirname, 'renderer', 'overlay.html'), { query: { type } });
   const save = () => { if (w.isDestroyed()) return; const b = w.getBounds(); const cur = (ctx.config.overlays[type] ||= {}); Object.assign(cur, { x: b.x, y: b.y, w: b.width, h: b.height }); ctx.saveSoon(); };
   w.on('moved', save); w.on('resized', save);
@@ -79,4 +80,6 @@ function ensure(type, patch = {}) {
   return wins.get(type);
 }
 
-module.exports = { init, getAll, set, broadcast, ensure, DEFAULTS, get: (type) => wins.get(type) || null };
+function setZoom(scale) { for (const w of wins.values()) if (w && !w.isDestroyed()) w.webContents.setZoomFactor(scale); }
+
+module.exports = { init, getAll, set, broadcast, ensure, setZoom, DEFAULTS, get: (type) => wins.get(type) || null };

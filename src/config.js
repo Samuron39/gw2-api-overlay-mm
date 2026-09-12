@@ -25,6 +25,7 @@ const DEFAULT_CONFIG = {
   launchAtStartup: false,
   wheelModules: null, // null = alle moduler på hjulet; ellers liste med id-er
   gw2Dir: '', // mappa med Gw2-64.exe, brukes til ArcDPS-installasjon
+  uiScale: 1, // skalering av hjul, panel og overlay-vinduer (1 = 100 %), byttes uten omstart
   followGame: false, // vis overlayen bare når Gw2-64.exe kjører (start med Windows + dette = starter med spillet)
   overlays: {}, // per overlay-vindu (buffs, debuffs, target, skillbar): posisjon, størrelse, utseende
   rotations: {}, // anbefalt rotasjon per karakter/spec: { "<nøkkel>": [{ skill, note }] }

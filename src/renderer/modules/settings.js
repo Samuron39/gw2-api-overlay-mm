@@ -38,6 +38,7 @@
       <p class="muted small">${t('settings.modulesHelp')}</p>
 
       <h3>${t('settings.overlay')}</h3>
+      <label>${t('settings.uiScale')} <span class="row"><input id="uiScale" type="range" min="0.6" max="2.2" step="0.1" style="width:60%" /><span id="uiScaleVal" class="muted"></span></span></label>
       <label>${t('settings.wheelSize')} <input id="wheelSize" type="number" min="140" max="320" step="10" /></label>
       <label class="inline"><input type="checkbox" id="autoHide" /> ${t('settings.autoHide')}</label>
       <label class="inline"><input type="checkbox" id="launchAtStartup" /> ${t('settings.launchAtStartup')}</label>
@@ -85,6 +86,8 @@
     $('#followGame', root).checked = !!c.followGame;
     $('#dpsDefault', root).textContent = c.dpsDefaultDir || '';
     $('#wheelSize', root).value = c.wheel?.size || 200;
+    $('#uiScale', root).value = c.uiScale || 1;
+    $('#uiScaleVal', root).textContent = Math.round((c.uiScale || 1) * 100) + ' %';
     $('#autoHide', root).checked = !!c.autoHide;
     $('#launchAtStartup', root).checked = !!c.launchAtStartup;
     const ALL = [['inventory', '🎒'], ['daily', '📅'], ['timers', '⏱️'], ['tp', '💰'], ['dps', '⚔️'], ['live', '⚡'], ['characters', '🧙'], ['guild', '🏰']];
@@ -150,6 +153,7 @@
         gw2Dir: $('#gw2Dir', root).value.trim(),
         followGame: $('#followGame', root).checked,
         wheel: { size: Number($('#wheelSize', root).value) || 200 },
+        uiScale: Number($('#uiScale', root).value) || 1,
         autoHide: $('#autoHide', root).checked,
         launchAtStartup: $('#launchAtStartup', root).checked,
         autoUpdate: $('#autoUpdate', root).checked,
@@ -171,6 +175,8 @@
       }
     });
     $('#quitBtn', el).addEventListener('click', () => window.api.invoke('app:quit'));
+    $('#uiScale', el).addEventListener('input', (e) => { $('#uiScaleVal', root).textContent = Math.round(Number(e.target.value) * 100) + ' %'; });
+    $('#uiScale', el).addEventListener('change', async (e) => { Panel.config = await window.api.invoke('config:set', { uiScale: Number(e.target.value) || 1 }); });
     $('#logOpenBtn', el).addEventListener('click', async () => {
       try { const p = await window.api.invoke('log:open'); setStatus(t('settings.opened', { path: p })); }
       catch (e) { setStatus(t('settings.openLogFailed', { message: e.message }), true); }
