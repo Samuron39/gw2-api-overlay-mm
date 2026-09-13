@@ -53,7 +53,8 @@
       "allowToChangeInstallationDirectory": true,
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico",
-      "shortcutName": "GW2 Overlay"
+      "shortcutName": "GW2 Overlay",
+      "include": "build/installer.nsh"
     },
     "publish": [
       {
