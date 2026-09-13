@@ -7,7 +7,13 @@ const evtc = require('../evtc');
 const log = require('../log');
 const { t } = require('../i18n');
 
-const DEFAULT_DIR = path.join(os.homedir(), 'Documents', 'Guild Wars 2', 'addons', 'arcdps', 'arcdps.cbtlogs');
+// ArcDPS skriver til Windows' "Dokumenter"-mappe, som ofte er flyttet til OneDrive. Electron kjenner den riktige stien;
+// utenfor Electron (tester) faller vi tilbake til hjemmemappa.
+function documentsDir() {
+  try { const { app } = require('electron'); if (app && app.getPath) return app.getPath('documents'); } catch { /* ikke i Electron */ }
+  return path.join(os.homedir(), 'Documents');
+}
+const DEFAULT_DIR = path.join(documentsDir(), 'Guild Wars 2', 'addons', 'arcdps', 'arcdps.cbtlogs');
 const cache = new Map();
 let watcher = null;
 let onNew = null;
