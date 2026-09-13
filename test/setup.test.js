@@ -16,7 +16,7 @@ function fakeDeps(over = {}) {
     gw2: { get: async (ep) => (ep === '/tokeninfo' ? { permissions: ['account', 'inventories', 'characters', 'wallet', 'builds', 'unlocks', 'progression', 'tradingpost', 'guilds'] } : { name: 'Test.1234' }) },
     arcdps: { isGameDir: (d) => d === 'C:\GW2', detectDir: async () => '', gameRunning: async () => false, status: async () => ({ installed: true, updateAvailable: false, bridge: { available: true, installed: true, upToDate: true }, error: '' }) },
     dps: { DEFAULT_DIR: 'C:\finnes-ikke\arcdps.cbtlogs', listLogs: () => [] },
-    ai: { listModels: async () => ['a', 'b'] },
+    ai: { describe: () => ({ provider: 'local', name: 'LM Studio', model: 'a', url: 'u', needsKey: false, hasKey: false }), listModels: async () => ['a', 'b'] },
     mumble: { state: { running: false } },
     ...over,
   };
@@ -34,7 +34,7 @@ test('check gir grønt på alt når alt er på plass', async () => {
 test('check tåler ugyldig nøkkel, manglende spillmappe og LM Studio som er nede', async () => {
   const deps = fakeDeps({
     gw2: { get: async () => { throw new Error('HTTP 401'); } },
-    ai: { listModels: async () => { throw new Error('ECONNREFUSED'); } },
+    ai: { describe: () => ({ provider: 'local', name: 'LM Studio', model: '', url: 'u', needsKey: false, hasKey: false }), listModels: async () => { throw new Error('ECONNREFUSED'); } },
     mumble: { state: { running: false, error: 'mangler exe' } },
   });
   const r = await setup.check({ apiKey: 'feil', gw2Dir: '' }, deps);

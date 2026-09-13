@@ -88,9 +88,13 @@
 
   function unmount() { offProgress?.(); offProgress = null; root = null; }
 
-  function updateModelInfo(c) {
+  async function updateModelInfo(c) {
     if (!root || !c) return;
-    $('#aiModelInfo', root).textContent = c.lmModel ? t('inventory.modelInfo', { model: c.lmModel, url: c.lmUrl }) : t('inventory.noModel');
+    let cur = null;
+    try { cur = (await window.api.invoke('ai:providers')).current; } catch { /* faller tilbake til lokal */ }
+    if (!root) return;
+    if (!cur || cur.provider === 'local') $('#aiModelInfo', root).textContent = c.lmModel ? t('inventory.modelInfo', { model: c.lmModel, url: c.lmUrl }) : t('inventory.noModel');
+    else $('#aiModelInfo', root).textContent = cur.hasKey ? t('inventory.modelInfoCloud', { model: cur.model, name: cur.name }) : t('inventory.noKey', { name: cur.name });
   }
 
   function setView(v) {

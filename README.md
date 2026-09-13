@@ -108,6 +108,21 @@ data/                        tidsplaner og waypoints fra wikien (CC BY-SA)
 
 En ny modul er to filer: `src/modules/<navn>.js` med IPC-handlere registrert i ipc.js og kanalen i preload.js, og `src/renderer/modules/<navn>.js` som kaller `Panel.register({ id, title: () => T.t('module.<navn>'), icon, mount, unmount })`. Legg id-en til i `MODULES` i `wheel.js` og skriptet i `panel.html`, og tekstene i `src/i18n/*.json`.
 
+## AI-leverandør
+
+Standard er LM Studio lokalt, da forlater ingen data maskinen. Under *Innstillinger*, seksjonen *AI*, kan du i stedet velge en skyleverandør for de som ikke har skjermkort til en lokal modell:
+
+| Leverandør | Nøkkel fra | Pris | Standardmodell |
+|---|---|---|---|
+| Google Gemini | aistudio.google.com/apikey | Gratis nivå (grense per minutt og dag), holder til appen | gemini-2.5-flash |
+| OpenAI | platform.openai.com/api-keys | Per bruk | gpt-5-mini |
+| Anthropic Claude | console.anthropic.com | Per bruk | claude-sonnet-5 |
+| DeepSeek | platform.deepseek.com | Per bruk, svært billig | deepseek-chat |
+| xAI Grok | console.x.ai | Per bruk | grok-4-fast |
+| Egendefinert | valgfritt | | alt som snakker OpenAI-formatet: Ollama, OpenRouter, Mistral, Groq |
+
+Chat-abonnement (ChatGPT Plus, Claude Pro, Gemini Advanced, SuperGrok) gir ikke API-tilgang; API betales separat per token. En inventory-analyse er noen tusen tokens. Alle leverandørene går gjennom samme klient (`src/ai.js`) med OpenAI-formatet; avvikene (OpenAI vil ha `max_completion_tokens` og standard temperatur, Anthropic og DeepSeek støtter ikke `json_schema`) ligger i `src/ai-providers.js`. Nøklene lagres i konfigfila under `aiProviders` og tas aldri med i feilrapporten.
+
 ## Minne og modellvalg mens du spiller
 
 | Modell | Vekter | Ved siden av GW2 |

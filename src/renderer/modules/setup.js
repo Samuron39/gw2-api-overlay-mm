@@ -133,9 +133,11 @@
     {
       let state = 'wait', status = '';
       if (s) {
-        if (!s.ai.ok) { state = 'warn'; status = t('setup.ai.down', { url: s.ai.url }); }
-        else if (!s.ai.modelLoaded) { state = 'warn'; status = t('setup.ai.noModel', { n: s.ai.models, model: s.ai.model }); }
-        else { state = 'ok'; status = t('setup.ai.ok', { model: s.ai.model }); }
+        const local = s.ai.provider === 'local';
+        if (s.ai.error === 'NOKEY') { state = 'warn'; status = t('setup.ai.noKey', { name: s.ai.name }); }
+        else if (!s.ai.ok) { state = 'warn'; status = local ? t('setup.ai.down', { url: s.ai.url }) : t('setup.ai.cloudDown', { name: s.ai.name, error: s.ai.error }); }
+        else if (local && !s.ai.modelLoaded) { state = 'warn'; status = t('setup.ai.noModel', { n: s.ai.models, model: s.ai.model }); }
+        else { state = 'ok'; status = local ? t('setup.ai.ok', { model: s.ai.model }) : t('setup.ai.cloudOk', { name: s.ai.name, model: s.ai.model }); }
       }
       steps.push(step('ai', state, t('setup.ai.title'), t('setup.ai.body', { link: link('https://lmstudio.ai', 'lmstudio.ai') }), esc(status),
         `<button type="button" data-module="settings">${t('setup.openSettings')}</button>`));

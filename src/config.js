@@ -9,6 +9,8 @@ const DEFAULT_CONFIG = {
   apiKey: '',
   lmUrl: 'http://localhost:1234/v1',
   lmModel: 'google/gemma-4-12b-qat', // liten nok til å ligge ved siden av spillet
+  aiProvider: 'local', // local | gemini | openai | anthropic | deepseek | xai | custom, se ai-providers.js
+  aiProviders: {}, // per leverandør: { apiKey, model, url (bare custom) }
   materialCap: 250,
   minTp: 100,
   keepList: [
@@ -55,6 +57,7 @@ function loadConfig() {
     config = { ...DEFAULT_CONFIG, ...saved, wheel: { ...DEFAULT_CONFIG.wheel, ...(saved.wheel || {}) }, panel: { ...DEFAULT_CONFIG.panel, ...(saved.panel || {}) } };
   } catch { config = { ...DEFAULT_CONFIG }; }
   if (!config.lmModel) config.lmModel = DEFAULT_CONFIG.lmModel;
+  if (!config.aiProviders || typeof config.aiProviders !== 'object') config.aiProviders = {};
   i18n.setLanguage(config.language);
 }
 

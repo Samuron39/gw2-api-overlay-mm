@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 const INVOKE = new Set([
   'config:get', 'config:set', 'i18n:get',
-  'inv:refresh', 'ai:models', 'ai:prioritize', 'ai:chat',
+  'inv:refresh', 'ai:models', 'ai:providers', 'ai:prioritize', 'ai:chat',
   'timers:data', 'gw2:maps', 'mumble:get', 'daily:get',
   'dps:list', 'dps:parse', 'dps:upload',
   'tp:get', 'chars:get', 'chars:review', 'guild:get',

@@ -1,36 +1,35 @@
 'use strict';
-// Klient mot LM Studio (OpenAI-kompatibelt API). Ingen data forlater maskinen.
+// AI-klient. Standard er LM Studio lokalt (ingen data forlater maskinen); alternativt en skyleverandør valgt i
+// Innstillinger (Gemini, OpenAI, Anthropic, DeepSeek, xAI eller egendefinert). Alle bruker OpenAI-formatet, se ai-providers.js.
 // Systemprompten er norsk, men modellen bes svare på språket brukeren har valgt (ai.language i språkfila).
 const { t } = require('./i18n');
+const providers = require('./ai-providers');
 
-function base(cfg) { return (cfg.lmUrl || 'http://localhost:1234/v1').replace(/\/+$/, ''); }
-
-async function listModels(cfg) {
-  const res = await fetch(base(cfg) + '/models');
-  if (!res.ok) throw new Error(t('ai.lmStatus', { status: res.status }));
-  const j = await res.json();
-  return (j.data || []).map((m) => m.id).filter((id) => !id.includes('embed'));
+function target(cfg) {
+  const r = providers.resolve(cfg);
+  if (!r.url) throw new Error(t('ai.noUrl', { name: r.name }));
+  if (r.needsKey && !r.apiKey) throw new Error(t('ai.noKey', { name: r.name }));
+  return r;
 }
 
+async function listModels(cfg) {
+  const r = target(cfg);
+  const res = await fetch(r.url + '/models', { headers: providers.headers(r) });
+  if (!res.ok) throw new Error(t('ai.status', { name: r.name, status: res.status }));
+  return providers.parseModels(await res.json());
+}
+
+// Kort beskrivelse til UI-et: leverandør og modell
+function describe(cfg) { const r = providers.resolve(cfg); return { provider: r.id, name: r.name, model: r.model, url: r.url, needsKey: r.needsKey, hasKey: !!r.apiKey }; }
+
 async function complete(cfg, messages, opts = {}) {
+  const r = target(cfg);
   // Resonneringsmodeller (Qwen3, Gemma 4) tenker først og legger tenkingen i delta.reasoning_content.
-  // Tenkingen teller mot max_tokens, så budsjettet må være romslig, ellers blir svaret tomt.
-  const body = {
-    model: cfg.lmModel || undefined,
-    messages,
-    temperature: opts.temperature ?? 0.3,
-    max_tokens: opts.maxTokens ?? 4000,
-    stream: true, // strømming, ellers stopper Node etter 5 min uten svarhoder
-  };
-  if (opts.jsonSchema) {
-    body.response_format = { type: 'json_schema', json_schema: { name: opts.jsonSchema.name, strict: true, schema: opts.jsonSchema.schema } };
-  }
-  const res = await fetch(base(cfg) + '/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(t('ai.lmError', { status: res.status, text: (await res.text()).slice(0, 300) }));
+  // Tenkingen teller mot token-budsjettet, så det må være romslig, ellers blir svaret tomt.
+  const body = providers.buildBody(r, messages, opts); // stream: true, ellers stopper Node etter 5 min uten svarhoder
+  const res = await fetch(r.url + '/chat/completions', { method: 'POST', headers: providers.headers(r), body: JSON.stringify(body) });
+  if (res.status === 429) throw new Error(t('ai.rateLimited', { name: r.name }));
+  if (!res.ok) throw new Error(t('ai.error', { name: r.name, status: res.status, text: (await res.text()).slice(0, 300) }));
 
   let content = '';
   let reasoning = '';
@@ -164,4 +163,4 @@ async function chat(cfg, data, history, opts = {}) {
   return complete(cfg, messages, { maxTokens: 4000, onProgress: opts.onProgress });
 }
 
-module.exports = { listModels, prioritize, chat, buildContext, answerLanguage, completeText: (cfg, messages, opts = {}) => complete(cfg, messages, { maxTokens: 4000, ...opts }) };
+module.exports = { listModels, describe, prioritize, chat, buildContext, answerLanguage, completeText: (cfg, messages, opts = {}) => complete(cfg, messages, { maxTokens: 4000, ...opts }) };

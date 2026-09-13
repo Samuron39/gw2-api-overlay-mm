@@ -15,9 +15,17 @@
       <p class="muted">${t('settings.apiKeyHelp', { link: `<a href="#" id="apiLink">${esc(t('settings.apiLink'))}</a>` })}</p>
 
       <h3>${t('settings.ai')}</h3>
-      <label>${t('settings.lmUrl')} <input id="lmUrl" type="text" /></label>
+      <label>${t('settings.aiProvider')} <select id="aiProvider"></select></label>
+      <p class="muted small" id="aiProviderHelp"></p>
+      <div id="aiLocalBox">
+        <label>${t('settings.lmUrl')} <input id="lmUrl" type="text" /></label>
+      </div>
+      <div id="aiCloudBox" hidden>
+        <label id="aiUrlWrap" hidden>${t('settings.aiUrl')} <input id="aiUrl" type="text" placeholder="https://…/v1" /></label>
+        <label>${t('settings.aiKey')} <span class="row"><input id="aiKey" type="password" autocomplete="off" /><button id="aiKeyLink" type="button">${t('settings.aiGetKey')}</button></span></label>
+      </div>
       <label>${t('settings.lmModel')} <span class="row"><select id="lmModel"></select><button id="modelsBtn" type="button">${t('settings.fetchModels')}</button></span></label>
-      <p class="muted">${t('settings.aiHelp')}</p>
+      <p class="muted" id="aiHelp">${t('settings.aiHelp')}</p>
 
       <h3>${t('settings.rules')}</h3>
       <label>${t('settings.materialCap')} <input id="materialCap" type="number" min="250" step="250" /></label>
@@ -78,6 +86,7 @@
     if (!root || !c) return;
     $('#apiKey', root).value = c.apiKey || '';
     $('#lmUrl', root).value = c.lmUrl || '';
+    fillProvider(c, c.aiProvider || 'local');
     $('#materialCap', root).value = c.materialCap;
     $('#minTp', root).value = c.minTp;
     $('#keepList', root).value = (c.keepList || []).join('\n');
@@ -97,7 +106,36 @@
     $('#cfgErr', root).textContent = c.lastSaveError ? t('settings.lastSaveFailed', { error: c.lastSaveError }) : '';
     $('#autoUpdate', root).checked = c.autoUpdate !== false;
     $('#updVersion', root).textContent = c.appVersion || '';
-    fillModels([c.lmModel].filter(Boolean), c.lmModel);
+  }
+
+  // Leverandørvalget: viser feltene som gjelder (LM Studio-adresse, eller nøkkel og eventuelt adresse for skyleverandører)
+  let providers = [];
+  function fillProvider(c, id) {
+    const sel = $('#aiProvider', root);
+    sel.innerHTML = providers.map((p) => `<option value="${esc(p.id)}" ${p.id === id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+    const p = providers.find((x) => x.id === id) || providers[0] || { id: 'local', needsKey: false };
+    const saved = (c.aiProviders || {})[p.id] || {};
+    const local = p.id === 'local';
+    $('#aiLocalBox', root).hidden = !local;
+    $('#aiCloudBox', root).hidden = local;
+    $('#aiUrlWrap', root).hidden = p.id !== 'custom';
+    $('#aiUrl', root).value = saved.url || '';
+    $('#aiKey', root).value = saved.apiKey || '';
+    $('#aiKeyLink', root).hidden = !p.keyUrl;
+    $('#aiKeyLink', root).dataset.url = p.keyUrl || '';
+    const help = local ? t('settings.aiLocalNote') : p.id === 'custom' ? t('settings.aiCustomHelp') : (p.free ? t('settings.aiFree', { name: p.name }) : t('settings.aiPaid', { name: p.name }));
+    $('#aiProviderHelp', root).textContent = help;
+    $('#aiHelp', root).textContent = local ? t('settings.aiHelp') : t('settings.aiCloudModelHelp');
+    const model = local ? c.lmModel : (saved.model || p.defaultModel || '');
+    fillModels([model].filter(Boolean), model);
+  }
+  // Det som skal lagres for valgt leverandør
+  function providerPatch() {
+    const id = $('#aiProvider', root).value || 'local';
+    const patch = { aiProvider: id, lmUrl: $('#lmUrl', root).value.trim() };
+    if (id === 'local') patch.lmModel = $('#lmModel', root).value;
+    else patch.aiProviders = { [id]: { apiKey: $('#aiKey', root).value.trim(), model: $('#lmModel', root).value, ...(id === 'custom' ? { url: $('#aiUrl', root).value.trim() } : {}) } };
+    return patch;
   }
 
   // Oppdateringsstatus fra hovedprosessen (update:status) eller svaret på en manuell sjekk
@@ -126,26 +164,30 @@
     $('#updCheck', root).disabled = s.status === 'checking' || s.status === 'downloading';
   }
 
-  function mount(el) {
+  async function mount(el) {
     root = el;
     el.innerHTML = template();
+    try { providers = (await window.api.invoke('ai:providers')).providers; } catch { providers = [{ id: 'local', name: 'LM Studio', needsKey: false, free: true }]; }
+    if (!root) return;
     fill(Panel.config);
+    $('#aiProvider', el).addEventListener('change', (e) => fillProvider(Panel.config, e.target.value));
+    $('#aiKeyLink', el).addEventListener('click', (e) => { const u = e.currentTarget.dataset.url; if (u) window.api.invoke('open:url', u); });
     // Språk: lagres med en gang; hovedprosessen sender config:changed, og panelet monterer modulen på nytt
     $('#language', el).addEventListener('change', async (e) => { Panel.config = await window.api.invoke('config:set', { language: e.target.value }); });
     $('#apiLink', el).addEventListener('click', (e) => { e.preventDefault(); window.api.invoke('open:url', 'https://account.arena.net/applications'); });
     $('#modelsBtn', el).addEventListener('click', async () => {
       try {
-        await window.api.invoke('config:set', { lmUrl: $('#lmUrl', root).value.trim() });
+        Panel.config = await window.api.invoke('config:set', providerPatch());
         const models = await window.api.invoke('ai:models');
-        fillModels(models, $('#lmModel', root).value || Panel.config.lmModel || models[0]);
+        const want = $('#lmModel', root).value;
+        fillModels(models.includes(want) || !want ? models : [want, ...models], want || models[0]);
         setStatus(t('settings.modelsFound', { n: models.length }));
       } catch (e) { setStatus(t('settings.modelsFailed', { message: e.message }), true); }
     });
     $('#saveBtn', el).addEventListener('click', async () => {
       const patch = {
         apiKey: $('#apiKey', root).value.trim(),
-        lmUrl: $('#lmUrl', root).value.trim(),
-        lmModel: $('#lmModel', root).value,
+        ...providerPatch(),
         materialCap: Number($('#materialCap', root).value) || 250,
         minTp: Number($('#minTp', root).value) || 0,
         keepList: $('#keepList', root).value.split('\n').map((s) => s.trim()).filter(Boolean),

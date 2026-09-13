@@ -21,6 +21,7 @@ const skills = require('./modules/skills');
 const updater = require('./updater');
 const mumble = require('./mumble');
 const ai = require('./ai');
+const aiProviders = require('./ai-providers');
 const log = require('./log');
 const i18n = require('./i18n');
 
@@ -44,8 +45,9 @@ function register() {
   handle('config:set', (_e, patch) => {
     const config = cfg.config;
     const prev = JSON.parse(JSON.stringify(config));
-    const { wheel, panel, ...rest } = patch || {};
+    const { wheel, panel, aiProviders: ap, ...rest } = patch || {};
     Object.assign(config, rest);
+    if (ap) { config.aiProviders = config.aiProviders || {}; for (const [id, v] of Object.entries(ap)) config.aiProviders[id] = { ...(config.aiProviders[id] || {}), ...v }; }
     if (wheel) Object.assign(config.wheel, wheel);
     if (panel) Object.assign(config.panel, panel);
     cfg.saveConfig();
@@ -59,6 +61,7 @@ function register() {
   handle('inv:refresh', () => inventory.refresh(cfg.config, DEMO));
   const progress = (p) => broadcast('ai:progress', p);
   handle('ai:models', () => ai.listModels(cfg.config));
+  handle('ai:providers', () => ({ providers: aiProviders.list(), current: ai.describe(cfg.config) }));
   handle('ai:prioritize', () => inventory.prioritize(cfg.config, { onProgress: progress }));
   handle('ai:chat', (_e, history) => inventory.chat(cfg.config, history, { onProgress: progress }));
 

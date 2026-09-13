@@ -53,11 +53,15 @@ async function check(config, deps) {
   if (out.logs.exists) { try { out.logs.count = dps.listLogs(logDir, 5).length; } catch { /* tom */ } }
 
   // 5. Lokal AI (valgfri)
-  out.ai = { url: config.lmUrl, ok: false, models: 0, model: config.lmModel || '', modelLoaded: false, error: '' };
-  try {
-    const models = await ai.listModels(config);
-    out.ai.ok = true; out.ai.models = models.length; out.ai.modelLoaded = !!config.lmModel && models.includes(config.lmModel);
-  } catch (e) { out.ai.error = e.message; }
+  const d = ai.describe(config);
+  out.ai = { provider: d.provider, name: d.name, url: d.url, needsKey: d.needsKey, hasKey: d.hasKey, ok: false, models: 0, model: d.model, modelLoaded: false, error: '' };
+  if (d.needsKey && !d.hasKey) out.ai.error = 'NOKEY';
+  else {
+    try {
+      const models = await ai.listModels(config);
+      out.ai.ok = true; out.ai.models = models.length; out.ai.modelLoaded = !!d.model && models.includes(d.model);
+    } catch (e) { out.ai.error = e.message; }
+  }
 
   // 6. Hjelperen (MumbleLink og chat-innliming)
   out.helper = { ok: !mumble.state?.error, error: mumble.state?.error || '', gameSeen: !!mumble.state?.running };
