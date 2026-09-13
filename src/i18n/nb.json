@@ -678,5 +678,14 @@
   "overlay.dps.squad": "Squad ({n})",
   "live.showSquad": "Vis squad-lista",
   "live.squadRows": "Rader i squad-lista",
-  "dps.live.squad": "squad: {list}"
+  "dps.live.squad": "squad: {list}",
+  "overlay.dps.takenTitle": "Mottatt",
+  "overlay.dps.downedBy": "Nedkjempet av {killer}",
+  "overlay.dps.killedBy": "Drept av {killer}",
+  "overlay.dps.lastHit": "siste: {skill} {amount}",
+  "live.takenRows": "Kilder i mottatt-lista",
+  "dps.live.takenBy": "mottatt: {list}",
+  "dps.live.downedAt": "Nedkjempet {when}",
+  "dps.live.diedAt": "Døde {when}",
+  "dps.live.lastHits": "siste treff: {hits}"
 }

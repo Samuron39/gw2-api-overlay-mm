@@ -678,5 +678,14 @@
   "overlay.dps.squad": "Squad ({n})",
   "live.showSquad": "Show squad list",
   "live.squadRows": "Squad list rows",
-  "dps.live.squad": "squad: {list}"
+  "dps.live.squad": "squad: {list}",
+  "overlay.dps.takenTitle": "Taken",
+  "overlay.dps.downedBy": "Downed by {killer}",
+  "overlay.dps.killedBy": "Killed by {killer}",
+  "overlay.dps.lastHit": "last: {skill} {amount}",
+  "live.takenRows": "Sources in taken list",
+  "dps.live.takenBy": "taken: {list}",
+  "dps.live.downedAt": "Downed {when}",
+  "dps.live.diedAt": "Died {when}",
+  "dps.live.lastHits": "last hits: {hits}"
 }

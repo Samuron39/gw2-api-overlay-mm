@@ -74,9 +74,15 @@ function renderDps() {
   const d = snap?.dps || {};
   const edit = document.body.classList.contains('edit');
   let cur = d.current, last = d.last, sample = false;
-  if (!cur && !last && edit) { sample = true; cur = { active: true, dps10: 18420, dps: 15980, total: 287640, durationMs: 18000, taken: 9120, target: 'Legendary Destroyer', skills: [{ name: 'Arc Divider', dmg: 98000, pct: 34 }, { name: 'Decapitate', dmg: 61000, pct: 21 }, { name: 'Bleeding', dmg: 40000, pct: 14 }],
-    // Squad-DPS: eksempel med tre spillere så brukeren ser hvordan lista blir
-    squad: [{ name: 'Kara Nightwind', self: false, dmg: 380520, dps: 21140, pct: 45 }, { name: 'Morticon Storm', self: true, dmg: 287640, dps: 15980, pct: 34 }, { name: 'Thorn Ironbark', self: false, dmg: 176300, dps: 9790, pct: 21 }] }; }
+  let death = d.death;
+  if (!cur && !last && edit) {
+    sample = true;
+    cur = { active: true, dps10: 18420, dps: 15980, total: 287640, durationMs: 18000, taken: 9120, target: 'Legendary Destroyer', skills: [{ name: 'Arc Divider', dmg: 98000, pct: 34 }, { name: 'Decapitate', dmg: 61000, pct: 21 }, { name: 'Bleeding', dmg: 40000, pct: 14 }],
+      // Squad-DPS: eksempel med tre spillere så brukeren ser hvordan lista blir
+      squad: [{ name: 'Kara Nightwind', self: false, dmg: 380520, dps: 21140, pct: 45 }, { name: 'Morticon Storm', self: true, dmg: 287640, dps: 15980, pct: 34 }, { name: 'Thorn Ironbark', self: false, dmg: 176300, dps: 9790, pct: 21 }],
+      takenBySource: [{ name: 'Legendary Destroyer', dmg: 5200, hits: 6, pct: 57 }, { name: 'Destroyer Troll', dmg: 2900, hits: 4, pct: 32 }, { name: 'Destroyer Harpy', dmg: 1020, hits: 3, pct: 11 }] };
+    death = { downed: true, killer: 'Destroyer Troll', skill: 'Flame Burst', amount: 4200, hits: [] };
+  }
   const show = cur || (cfg.showLast !== false ? last : null);
   if (!show) { dp.innerHTML = `<div class="top"><span class="big idle">–</span><span class="lbl">DPS</span></div><div class="sub">${esc(T.t('overlay.dps.noFight'))}</div>`; return; }
   const active = !!cur;
@@ -101,6 +107,21 @@ function renderDps() {
       const rank = squad.indexOf(p) + 1;
       rows.push(`<div class="sq${p.self ? ' me' : ''}"><span class="bar" style="--w:${Math.round((p.dmg || 0) / top * 100)}%"></span><span class="n">${rank}. ${esc(shortName(p.name))}</span><span class="v">${fmtK(p.dps)} · ${p.pct || 0}%</span></div>`);
     }
+  }
+  // Mottatt: topp kilder (minions tilskrevet eieren) med andel av alt mottatt, søyle i rød tone
+  if (cfg.showTaken !== false) {
+    const tn = Number(cfg.takenRows ?? 3);
+    const src = (show.takenBySource || []).slice(0, tn);
+    if (src.length) {
+      rows.push(`<div class="tkh">${esc(T.t('overlay.dps.takenTitle'))}</div>`);
+      for (const s of src) rows.push(`<div class="sk tkr"><span class="bar" style="--w:${s.pct || 0}%"></span><span class="n">${esc(s.name || s.id || '?')}</span><span class="v">${fmtK(s.dmg)} · ${s.pct || 0}%</span></div>`);
+    }
+  }
+  // Dødslogg: «Nedkjempet av X · siste: skill 4.2k» så lenge den finnes (til neste kampstart)
+  if (death) {
+    const who = T.t(death.downed ? 'overlay.dps.downedBy' : 'overlay.dps.killedBy', { killer: death.killer || '?' });
+    const lastHit = death.skill ? ' · ' + T.t('overlay.dps.lastHit', { skill: death.skill, amount: fmtK(death.amount) }) : '';
+    rows.push(`<div class="death"><b>${esc(who)}</b>${esc(lastHit)}</div>`);
   }
   dp.innerHTML = rows.join('');
 }

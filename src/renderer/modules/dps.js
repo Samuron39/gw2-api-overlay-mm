@@ -84,7 +84,17 @@
     const skills = f?.skills?.length ? ' · ' + f.skills.slice(0, 3).map((s) => `${esc(s.name || s.skill)} ${s.pct}%`).join(', ') : '';
     // Squad-DPS: «squad: Navn 12.3k (34 %), …» når flere enn deg har gjort skade
     const squad = f?.squad?.length > 1 ? ' · ' + esc(t('dps.live.squad', { list: f.squad.slice(0, 5).map((p) => `${p.name || '?'} ${k(p.dmg)} (${p.pct} %)`).join(', ') })) : '';
-    el.innerHTML = `<b class="${d?.current ? 'up' : ''}">${esc(head)}</b> <span class="muted">${esc(body)}${skills}${squad}</span> <button id="dpsLiveWin" class="small">${esc(t('dps.live.window'))}</button>`;
+    // Mottatt per kilde (minions tilskrevet eieren): «mottatt: Kilde 3.1k (40 %), …»
+    const taken = f?.takenBySource?.length ? ` · <span class="tk">${esc(t('dps.live.takenBy', { list: f.takenBySource.slice(0, 3).map((s) => `${s.name || s.id || '?'} ${k(s.dmg)} (${s.pct} %)`).join(', ') }))}</span>` : '';
+    // Dødsloggen (frosset kopi av de siste treffene da du gikk ned/døde), som liten liste under kortet
+    let death = '';
+    if (d?.death) {
+      const x = d.death;
+      const when = x.at ? new Date(x.at).toLocaleTimeString(T.locale, { hour: '2-digit', minute: '2-digit' }) : '';
+      const hits = x.hits.slice().reverse().slice(0, 6).map((h) => `${h.name || h.skill} ${k(h.amount)}`).join(', ');
+      death = `<ul class="death"><li><b>${esc(t(x.downed ? 'dps.live.downedAt' : 'dps.live.diedAt', { when }))}</b> · ${esc(x.killer || '?')}${hits ? ' · ' + esc(t('dps.live.lastHits', { hits })) : ''}</li></ul>`;
+    }
+    el.innerHTML = `<b class="${d?.current ? 'up' : ''}">${esc(head)}</b> <span class="muted">${esc(body)}${skills}${squad}${taken}</span> <button id="dpsLiveWin" class="small">${esc(t('dps.live.window'))}</button>${death}`;
   }
 
   async function arcStatus() {
