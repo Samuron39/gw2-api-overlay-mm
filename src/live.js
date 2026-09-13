@@ -148,9 +148,9 @@ class Live extends EventEmitter {
     if (srcSelf && !this.self) this.self = { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite };
 
     if (m.sc === 1 && srcSelf) { this.inCombat = true; this.dirty = true; return; }
-    // Ut av kamp, og også når målet dør eller forsvinner: målet beholdes med conditions som løper ut i sitt eget tempo.
-    // Det byttes bare når du treffer eller velger et nytt mål.
-    if (m.sc === 2 && srcSelf) { this.inCombat = false; this.dirty = true; return; }
+    // Ut av kamp: målet nullstilles. ArcDPS sender ikke CHANGEDEAD for vanlige fiender i åpen verden, så død
+    // oppdages via dødsstøtet vårt (result 8, CBTR_KILLINGBLOW, chatbox-kanalen i sanntid) og ellers ved kampslutt.
+    if (m.sc === 2 && srcSelf) { this.inCombat = false; this.clearTarget(); this.dirty = true; return; }
     if (m.sc === 11 && srcSelf) { const v = Number(m.dstAgent); this.weaponSet = v === 5 ? 'B' : v === 4 ? 'A' : v === 1 ? 'W2' : v === 0 ? 'W1' : this.weaponSet; this.dirty = true; return; }
     // sc 18 (CBTS_BUFFINITIAL): buffs som allerede ligger på agenten ved oppstart eller kartbytte. Samme felt som en påføring.
     if (m.sc === 18) { this.applyBuff(m, false); return; }
@@ -197,11 +197,19 @@ class Live extends EventEmitter {
     // Buff påført: dst får buffen, value = varighet ms
     if (m.buff === 1 && m.value > 0) { this.applyBuff(m, true); return; }
 
-    // Skade fra oss mot fiende: husk målet
-    if (srcSelf && m.iff === 1 && m.dst && (m.value > 0 || m.buffDmg > 0)) {
+    // Skade fra oss mot fiende: husk målet. Chatbox-kanalen gir skade som negativt tall, derfor != 0.
+    if (srcSelf && m.iff === 1 && m.dst && (m.value !== 0 || m.buffDmg !== 0)) {
+      if (m.result === 8) { // CBTR_KILLINGBLOW: målet døde av dette treffet
+        this.targets.delete(m.dst.id);
+        if (this.targetId === m.dst.id) this.clearTarget();
+        this.dirty = true;
+        return;
+      }
       if (this.targetId !== m.dst.id) { this.targetId = m.dst.id; this.dirty = true; }
     }
   }
+
+  clearTarget() { if (this.targetId != null) { this.targetId = null; this.dirty = true; } }
 
   // Samme arcdps-id i samme scope to ganger = samme hendelse levert to ganger. Husker de siste DEDUPE_KEEP.
   isDuplicate(m) {
