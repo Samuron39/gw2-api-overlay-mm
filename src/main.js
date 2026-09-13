@@ -61,7 +61,8 @@ app.whenReady().then(async () => {
   globalShortcut.register('CommandOrControl+Shift+G', () => win.openModule(win.currentModule || 'inventory'));
 
   // Automatisk oppdatering fra GitHub Releases (bare pakket app, aldri i testmodus). electron-updater logger til app.log med scope "update".
-  const updLog = Object.fromEntries(['info', 'warn', 'error', 'debug'].map((lvl) => [lvl, (msg, ...extra) => log[lvl]('update', msg, extra.length > 1 ? extra : extra[0])]));
+  const short = (x) => String(x?.message || x).split(String.fromCharCode(10))[0].split(String.fromCharCode(13)).join('').split(' Headers:')[0].slice(0, 300);
+  const updLog = Object.fromEntries(['info', 'warn', 'error', 'debug'].map((lvl) => [lvl, (msg) => log[lvl]('update', short(msg))]));
   updater.init({ app, config, testMode: TEST_MODE, log: updLog, onStatus: (s) => win.broadcast('update:status', s) });
 
   win.createTray();

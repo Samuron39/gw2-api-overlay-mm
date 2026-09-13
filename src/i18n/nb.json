@@ -567,5 +567,6 @@
   "skills.fetchFirst": "Hent skill-baren først.",
   "skills.buildFallback": "Build {tab}",
   "settings.uiScale": "Skalering av hjul, panel og overlay-vinduer (virker med en gang)",
-  "settings.upd.noReleases": "Ingen utgivelse er publisert ennå, så det finnes ingenting å oppdatere til."
+  "settings.upd.noReleases": "Ingen utgivelse er publisert ennå, så det finnes ingenting å oppdatere til.",
+  "wheel.hide": "Skjul overlayen (ligger i systemstatusfeltet og viser seg når spillet starter)"
 }

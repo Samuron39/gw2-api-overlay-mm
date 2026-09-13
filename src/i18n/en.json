@@ -567,5 +567,6 @@
   "skills.fetchFirst": "Fetch the skill bar first.",
   "skills.buildFallback": "Build {tab}",
   "settings.uiScale": "Scale of wheel, panel and overlay windows (applies immediately)",
-  "settings.upd.noReleases": "No release has been published yet, so there is nothing to update to."
+  "settings.upd.noReleases": "No release has been published yet, so there is nothing to update to.",
+  "wheel.hide": "Hide the overlay (stays in the system tray and appears when the game starts)"
 }

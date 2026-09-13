@@ -150,6 +150,7 @@ function register() {
   handle('panel:state', () => win.panelState());
   handle('wheel:setLocked', (_e, locked) => { const config = cfg.config; const prev = JSON.parse(JSON.stringify(config)); config.wheel.locked = !!locked; cfg.saveConfig(); win.applyConfig(prev); return config.wheel.locked; });
   handle('app:quit', () => { win.setQuitting(); app.quit(); });
+  handle('app:hide', () => { win.wheelWin?.hide(); win.panelWin?.hide(); }); // ligger i systemstatusfeltet og venter på spillet
 
   // ---------- Feilsøking: loggmappe og feilrapport (uten hemmeligheter) til utklippstavla ----------
   handle('log:open', async () => { const r = await shell.openPath(log.path()); if (r) throw new Error(r); return log.path(); });

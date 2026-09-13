@@ -51,7 +51,7 @@ async function get(endpoint, { key, params = {}, bulk = false, retries = 3, with
     if (!res.ok) {
       let msg = '';
       try { msg = (await res.json()).text || ''; } catch { /* tom */ }
-      log.error('gw2', `HTTP ${res.status} på ${endpoint}`, msg);
+      log[res.status === 403 || res.status === 404 ? 'warn' : 'error']('gw2', `HTTP ${res.status} på ${endpoint}`, msg);
       throw new Error(t('gw2.httpError', { status: res.status, endpoint }) + (msg ? ': ' + msg : ''));
     }
     if (withHeaders) return { body: await res.json(), headers: Object.fromEntries(res.headers) };

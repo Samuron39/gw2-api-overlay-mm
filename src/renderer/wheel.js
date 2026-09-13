@@ -72,7 +72,7 @@ function setLocked(locked) {
 // Statiske tekster i wheel.html
 function applyStatic() {
   document.title = T.t('wheel.title');
-  document.getElementById('quitBtn').title = T.t('wheel.quit');
+  document.getElementById('quitBtn').title = T.t(followGame ? 'wheel.hide' : 'wheel.quit');
   setLocked(document.body.classList.contains('locked'));
   setLabel(null);
 }
@@ -81,7 +81,9 @@ document.getElementById('lockBtn').addEventListener('click', async () => {
   const locked = await window.api.invoke('wheel:setLocked', !document.body.classList.contains('locked'));
   setLocked(locked);
 });
-document.getElementById('quitBtn').addEventListener('click', () => window.api.invoke('app:quit'));
+let followGame = false;
+document.getElementById('quitBtn').addEventListener('click', () => window.api.invoke(followGame ? 'app:hide' : 'app:quit'));
+function applyFollow(c) { followGame = !!c?.followGame; document.getElementById('quitBtn').title = T.t(followGame ? 'wheel.hide' : 'wheel.quit'); }
 
 async function onMumble(s) {
   lastMumble = s;
@@ -119,10 +121,10 @@ document.addEventListener('mouseleave', () => { if (!ignoring) { ignoring = true
 window.api.on('mumble:state', onMumble);
 window.api.on('wheel:locked', ({ locked }) => setLocked(locked));
 window.api.on('panel:visible', ({ visible, module }) => setActive(visible ? module : null));
-window.api.on('config:changed', async (c) => { if (await T.sync(c)) applyStatic(); build(c.wheelModules || null); });
+window.api.on('config:changed', async (c) => { if (await T.sync(c)) applyStatic(); build(c.wheelModules || null); applyFollow(c); });
 T.load().then(() => {
   applyStatic();
-  window.api.invoke('config:get').then((c) => { setLocked(!!c.wheel?.locked); build(c.wheelModules || null); });
+  window.api.invoke('config:get').then((c) => { setLocked(!!c.wheel?.locked); build(c.wheelModules || null); applyFollow(c); });
   window.api.invoke('mumble:get').then(onMumble);
   window.api.invoke('panel:state').then(({ visible, module }) => setActive(visible ? module : null));
 });

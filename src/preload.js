@@ -11,7 +11,7 @@ const INVOKE = new Set([
   'arc:status', 'arc:install', 'arc:uninstall', 'arc:installBridge', 'gw2:detectDir', 'gw2:pickDir',
   'live:get', 'overlays:get', 'overlays:set', 'skills:get', 'skills:setRotation', 'skills:suggest', 'skills:icons',
   'clipboard:write', 'game:paste', 'open:wiki', 'open:url',
-  'panel:open', 'panel:show', 'panel:close', 'panel:state', 'wheel:setLocked', 'app:quit',
+  'panel:open', 'panel:show', 'panel:close', 'panel:state', 'wheel:setLocked', 'app:quit', 'app:hide',
   'log:open', 'log:report',
   'update:check', 'update:install',
 ]);
