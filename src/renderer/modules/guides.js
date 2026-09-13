@@ -61,7 +61,8 @@
     const room = CHAT_MAX - (code ? code.length + 3 : 0);
     return (name.length > room ? name.slice(0, room - 1).trimEnd() + '…' : name) + (code ? ' · ' + code : '');
   }
-  const wpButtons = (e) => e.waypoint ? `<button class="small gd-wp-paste" data-id="${esc(e.id)}" title="${esc(t('guides.pasteWpTitle', { line: wpLine(e) }))}">${esc(t('guides.paste'))}</button><button class="small gd-wp-copy" data-id="${esc(e.id)}" title="${esc(t('guides.copyWpTitle', { line: wpLine(e) }))}">${esc(t('guides.copy'))}</button>` : '';
+  // compact = ikoner (i lista), ellers tekst (i detaljvisningen); tittelen viser linja som limes inn
+  const wpButtons = (e, compact) => e.waypoint ? `<button class="small gd-wp-paste ${compact ? 'gd-ico' : ''}" data-id="${esc(e.id)}" title="${esc(t('guides.pasteWpTitle', { line: wpLine(e) }))}">${compact ? '💬' : esc(t('guides.paste'))}</button><button class="small gd-wp-copy ${compact ? 'gd-ico' : ''}" data-id="${esc(e.id)}" title="${esc(t('guides.copyWpTitle', { line: wpLine(e) }))}">${compact ? '📋' : esc(t('guides.copy'))}</button>` : '';
   function bindWpButtons(scope) {
     scope.querySelectorAll('.gd-wp-paste').forEach((b) => b.addEventListener('click', (ev) => { ev.stopPropagation(); const e = findEntry(b.dataset.id); if (e) paste(wpLine(e)); }));
     scope.querySelectorAll('.gd-wp-copy').forEach((b) => b.addEventListener('click', async (ev) => { ev.stopPropagation(); const e = findEntry(b.dataset.id); if (!e) return; await window.api.invoke('clipboard:write', wpLine(e)); setStatus(t('guides.copied')); }));
@@ -73,7 +74,7 @@
     const here = hereId();
     const hereEntries = here ? GROUPS.flatMap((g) => (data.groups[g] || []).filter((e) => onMap(e) && matches(e, q))) : [];
     // Rad i lista: navn (klikk velger) pluss «Lim inn i chat»/«Kopier» for waypointet
-    const row = (e) => `<div class="gd-item ${e.id === selected ? 'active' : ''}" data-id="${esc(e.id)}"><span class="gd-name"><b>${esc(e.name)}</b>${e.where && e.where !== e.name ? `<span class="muted"> · ${esc(e.where)}</span>` : ''}${e.wing ? `<span class="muted"> · ${esc(e.wing)}</span>` : ''}</span><span class="gd-wp">${wpButtons(e)}</span></div>`;
+    const row = (e) => `<div class="gd-item ${e.id === selected ? 'active' : ''}" data-id="${esc(e.id)}"><span class="gd-name"><b>${esc(e.name)}</b>${e.where && e.where !== e.name ? `<span class="muted"> · ${esc(e.where)}</span>` : ''}${e.wing ? `<span class="muted"> · ${esc(e.wing)}</span>` : ''}</span><span class="gd-wp">${wpButtons(e, true)}</span></div>`;
     const groups = GROUPS.map((g) => {
       const entries = (data.groups[g] || []).filter((e) => matches(e, q));
       if (!entries.length) return '';

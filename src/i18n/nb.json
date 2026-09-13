@@ -768,5 +768,8 @@
   "guides.noWaypoint": "Ingen waypoint registrert for denne oppføringen.",
   "guides.paths": "Stier",
   "guides.pasteWpTitle": "Limer inn «{line}» i chatten",
-  "guides.copyWpTitle": "Kopierer «{line}»"
+  "guides.copyWpTitle": "Kopierer «{line}»",
+  "timers.pasteNow": "{name} nå, slutter om {m} min",
+  "timers.pasteNext": "{name} om {m} min",
+  "ai.down": "{name} svarer ikke på {url} ({message}). Kjører LM Studio med serveren på, eller er nettet nede?"
 }

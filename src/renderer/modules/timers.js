@@ -137,6 +137,7 @@
       const curWp = wpInfo(r.cur), nextWp = wpInfo(r.next);
       const hereNow = here && (curWp?.mapId === here || nextWp?.mapId === here);
       const place = (wp, seg) => wp ? `${esc(wp.map)} · ${esc(wp.name)}` : esc(seg?.link || r.e.name);
+      const pasteText = (head, wp, link) => { const s = `${head}${wp ? ' · ' + wp.map : ''} · ${link}`; return s.length > 190 ? head.slice(0, 190 - link.length - 3) + ' · ' + link : s; };
       const countdown = r.curFiller ? t('timers.nextIn', { t: fmt(r.nextIn != null ? r.nextIn : r.remaining) }) : t('timers.endsIn', { t: fmt(r.remaining) });
       return `<div class="tm-row ${hereNow ? 'here' : ''} ${hidden.has(r.key) ? 'hidden-row' : ''}">
         ${editMode ? `<label class="inline tm-toggle"><input type="checkbox" data-key="${esc(r.key)}" ${hidden.has(r.key) ? '' : 'checked'} /></label>` : ''}
@@ -144,15 +145,16 @@
         <div class="tm-now" style="background:${bg(r.cur)}">
           <div class="tm-bar" style="width:${Math.round(r.progress * 100)}%"></div>
           <span class="tm-txt">${r.curFiller ? `<span class="muted">${esc(t('timers.nothingNow'))}</span>` : `${esc(t('timers.now'))} <b>${esc(r.cur?.name)}</b>${killed(r.cur)}${strategyBtn(r.key, r.e, r.cur)}`} · ${esc(countdown)}</span>
-          ${!r.curFiller && r.cur?.chatlink ? `<button class="wp" data-link="${esc(r.cur.chatlink)}" title="${esc(t('timers.pasteWp'))}">${place(curWp, r.cur)} ⧉</button>` : ''}
+          ${!r.curFiller && r.cur?.chatlink ? `<button class="wp" data-link="${esc(r.cur.chatlink)}" data-text="${esc(pasteText(t('timers.pasteNow', { name: r.cur.name, m: Math.max(0, Math.round(r.remaining / 60)) }), curWp, r.cur.chatlink))}" title="${esc(t('timers.pasteWp'))}">${place(curWp, r.cur)} ⧉</button>` : ''}
         </div>
         ${r.next ? `<div class="tm-next">${esc(t('timers.next'))} <b>${esc(r.next.name)}</b>${killed(r.next)}${strategyBtn(r.key, r.e, r.next)} ${esc(t('timers.inTime', { t: fmt(r.nextIn) }))}
-          ${r.next.chatlink ? `<button class="wp" data-link="${esc(r.next.chatlink)}" title="${esc(t('timers.pasteWp'))}">${place(nextWp, r.next)} ⧉</button>` : ''}</div>` : ''}
+          ${r.next.chatlink ? `<button class="wp" data-link="${esc(r.next.chatlink)}" data-text="${esc(pasteText(t('timers.pasteNext', { name: r.next.name, m: Math.max(0, Math.round((r.nextIn || 0) / 60)) }), nextWp, r.next.chatlink))}" title="${esc(t('timers.pasteWp'))}">${place(nextWp, r.next)} ⧉</button>` : ''}</div>` : ''}
       </div>`;
     }).join('') || `<div class="empty">${esc(t('timers.empty'))}</div>`;
     root.querySelectorAll('button.wp').forEach((b) => b.addEventListener('click', async () => {
-      const r = await window.api.invoke('game:paste', b.dataset.link);
-      const link = b.dataset.link;
+      // Limer inn «Boss om N min · kart · [&lenke]» (maks 190 tegn, spillets chat tar 199), regnet ut i det du trykker
+      const link = b.dataset.text || b.dataset.link;
+      const r = await window.api.invoke('game:paste', link);
       if (r.ok) setStatus(t('timers.pasted', { link }));
       else if (r.reason === 'NOGAME') setStatus(t('timers.noGame', { link }));
       else if (r.reason === 'NOHELPER') setStatus(t('timers.noHelper', { link }));

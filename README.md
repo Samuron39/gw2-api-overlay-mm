@@ -76,6 +76,10 @@ Utstyr per karakter med stat-kombinasjon, runer, sigiller og infusions. Automati
 ### Guild
 MOTD, logg, lager og treasury med hva som mangler til pågående oppgraderinger, for hver guild kontoen er med i. Krever guilds-tillatelse og at rangen din har innsyn i guilden.
 
+### Guider
+
+Korte strategier for verdensbosser og metaer, fraktaler, raids, strikes og dungeons. Lista (`data/guides.json`, 121 oppføringer) er bygd fra wikiens egne sider med sted og waypoint-kode per oppføring; «Lim inn i chat» og «Kopier» gir én linje som `Ascalonian Catacombs · [&BIYBAAA=]`. Utdraget for en boss lages første gang du åpner den: appen henter wikisiden (wiki.guildwars2.com, CC BY-SA, lenke og lisenslinje vises) og ber AI-leverandøren du har valgt om 5–8 linjer mekanikk pluss 2–4 chat-linjer på maks 190 tegn. Resultatet caches per boss og språk i `userData/guides/`, «Hent på nytt» lager det på nytt. Kartet du står på (MumbleLink) ligger øverst, og Tidsplan-fanen har en «Strategi»-knapp per boss. Waypoint-knappene på Tidsplan limer inn «Boss om N min · kart · [&lenke]», regnet ut i det du trykker.
+
 ### Innstillinger
 Språk, API-nøkkel, LM Studio, inventory-regler, ArcDPS-loggmappe, hvilke moduler som vises på hjulet og som faner, hjulstørrelse, auto-skjul ved alt-tab, start med Windows. Viser hvor konfigfila ligger og om siste lagring feilet.
 

@@ -27,7 +27,9 @@ async function complete(cfg, messages, opts = {}) {
   // Resonneringsmodeller (Qwen3, Gemma 4) tenker først og legger tenkingen i delta.reasoning_content.
   // Tenkingen teller mot token-budsjettet, så det må være romslig, ellers blir svaret tomt.
   const body = providers.buildBody(r, messages, opts); // stream: true, ellers stopper Node etter 5 min uten svarhoder
-  const res = await fetch(r.url + '/chat/completions', { method: 'POST', headers: providers.headers(r), body: JSON.stringify(body) });
+  let res;
+  try { res = await fetch(r.url + '/chat/completions', { method: 'POST', headers: providers.headers(r), body: JSON.stringify(body) }); }
+  catch (e) { throw new Error(t('ai.down', { name: r.name, url: r.url, message: e.cause?.code || e.message })); }
   if (res.status === 429) throw new Error(t('ai.rateLimited', { name: r.name }));
   if (!res.ok) throw new Error(t('ai.error', { name: r.name, status: res.status, text: (await res.text()).slice(0, 300) }));
 

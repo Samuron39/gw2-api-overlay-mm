@@ -768,5 +768,8 @@
   "guides.noWaypoint": "No waypoint registered for this entry.",
   "guides.paths": "Paths",
   "guides.pasteWpTitle": "Pastes “{line}” into the chat",
-  "guides.copyWpTitle": "Copies “{line}”"
+  "guides.copyWpTitle": "Copies “{line}”",
+  "timers.pasteNow": "{name} now, ends in {m} min",
+  "timers.pasteNext": "{name} in {m} min",
+  "ai.down": "{name} does not respond at {url} ({message}). Is LM Studio running with the server on, or is the network down?"
 }

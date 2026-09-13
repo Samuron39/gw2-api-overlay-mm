@@ -284,6 +284,7 @@ button.small { padding: 2px 8px; font-size: 12px; }
 
 /* ---------- Guider ---------- */
 /* To kolonner: liste med søk og sammenleggbare grupper til venstre, valgt guide til høyre */
+.gd-ico { padding: 1px 6px !important; font-size: 13px !important; }
 .gd-wrap { flex: 1; min-height: 0; display: flex; }
 .gd-list { width: 280px; flex: 0 0 280px; overflow: auto; border-right: 1px solid var(--line); padding: 6px; display: flex; flex-direction: column; gap: 4px; }
 .gd-list input[type=search] { width: 100%; box-sizing: border-box; margin-bottom: 4px; }
