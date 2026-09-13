@@ -116,6 +116,8 @@ function register() {
   handle('live:record', (_e, ms) => live.record(path.join(log.path(), 'live-' + new Date().toISOString().replace(/[:.]/g, '-') + '.jsonl'), Math.min(Number(ms) || 180000, 600000)));
   handle('overlays:get', () => overlays.getAll());
   handle('overlays:set', (_e, type, patch) => { const r = overlays.set(type, patch); cfg.saveConfig(); return r; });
+  // Låst overlay-vindu slipper klikk gjennom; verktøylinja i DPS-vinduet ber om klikk mens pekeren er over den
+  handle('overlays:ignoreMouse', (_e, type, ignore) => { const w = overlays.get(type); if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(!!ignore, { forward: true }); return true; });
   handle('skills:get', (_e, opts) => skills.getSkillbar(cfg.config, live.snapshot(), mumble.state, opts || {}));
   handle('skills:setRotation', (_e, key, rotation) => { const config = cfg.config; config.rotations = config.rotations || {}; config.rotations[key] = rotation; cfg.saveConfig(); overlays.broadcast('skills:changed', { key }); return true; });
   handle('skills:suggest', (_e, key) => skills.suggestRotation(cfg.config, key, { onProgress: progress }));

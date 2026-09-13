@@ -21,6 +21,7 @@ const grid = document.getElementById('grid');
 const sb = document.getElementById('sb');
 const sbStatus = document.getElementById('sbStatus');
 const dp = document.getElementById('dps');
+const dpBar = document.getElementById('dpsbar');
 const hint = document.getElementById('hint');
 
 function classify(skill) { if (BOONS[skill]) return 'boon'; if (CONDS[skill]) return 'cond'; return 'other'; }
@@ -61,10 +62,34 @@ function applyConfig(c) {
   document.documentElement.style.setProperty('--ps', Math.round((c.iconSize || 40) * 0.72) + 'px');
   grid.classList.toggle('col', c.direction === 'col');
   const isSb = TYPE === 'skillbar', isDps = KIND === 'dps';
-  grid.hidden = isSb || isDps; sb.hidden = !isSb; sbStatus.hidden = !isSb; dp.hidden = !isDps;
+  grid.hidden = isSb || isDps; sb.hidden = !isSb; sbStatus.hidden = !isSb; dp.hidden = !isDps; dpBar.hidden = !isDps;
   document.documentElement.style.setProperty('--fs', (c.fontSize || 14) + 'px');
+  if (isDps) renderDpsBar();
   render();
 }
+
+// ---------- Verktøylinja i DPS-vinduet ----------
+// Visning, periode og lås rett i boksen. Låst vindu slipper klikk gjennom til spillet, men mousemove kommer likevel
+// (setIgnoreMouseEvents med forward), så når pekeren er over verktøylinja slår vi klikk-gjennom av midlertidig, som hjulet gjør.
+function renderDpsBar() {
+  const opt = (v, cur, key) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${esc(T.t(key))}</option>`;
+  const view = cfg.view || 'all', period = cfg.period || 'fight';
+  dpBar.innerHTML = `<select id="dpView" title="${esc(T.t('live.view'))}">${opt('all', view, 'live.view.all')}${opt('damage', view, 'live.view.damage')}${opt('squad', view, 'live.view.squad')}${opt('taken', view, 'live.view.taken')}${opt('healing', view, 'live.view.healing')}</select>`
+    + `<select id="dpPeriod" title="${esc(T.t('live.period'))}">${opt('fight', period, 'live.period.fight')}${opt('last', period, 'live.period.last')}${opt('session', period, 'live.period.session')}</select>`
+    + `<button id="dpLock" class="${cfg.locked ? 'locked' : ''}" title="${esc(T.t(cfg.locked ? 'wheel.unlockPosition' : 'wheel.lockPosition'))}">${cfg.locked ? '🔒' : '🔓'}</button>`;
+  dpBar.querySelector('#dpView').addEventListener('change', (e) => window.api.invoke('overlays:set', TYPE, { view: e.target.value }));
+  dpBar.querySelector('#dpPeriod').addEventListener('change', (e) => window.api.invoke('overlays:set', TYPE, { period: e.target.value }));
+  dpBar.querySelector('#dpLock').addEventListener('click', () => window.api.invoke('overlays:set', TYPE, { locked: !cfg.locked }));
+}
+let barHover = false;
+document.addEventListener('mousemove', (e) => {
+  if (KIND !== 'dps' || !cfg?.locked) return;
+  const over = !!(e.target && e.target.closest && e.target.closest('#dpsbar'));
+  if (over !== barHover) { barHover = over; window.api.invoke('overlays:ignoreMouse', TYPE, !over); }
+});
+document.addEventListener('mouseleave', () => { if (barHover) { barHover = false; window.api.invoke('overlays:ignoreMouse', TYPE, true); } });
+// Draing i redigeringsmodus skal ikke starte fra verktøylinja (den har egne kontroller)
+dpBar.addEventListener('pointerdown', (e) => e.stopPropagation());
 
 // ---------- DPS-måler ----------
 function fmtK(n) { n = Math.round(n || 0); return n >= 100000 ? Math.round(n / 1000) + 'k' : n >= 10000 ? (n / 1000).toFixed(1) + 'k' : String(n); }
