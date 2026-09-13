@@ -233,6 +233,21 @@ test('sc 18 (buff initial): buffen legges på den som har den, max er varigheten
   await until((x) => !buff(x, 'Fire Attunement'), 'ryddet');
 });
 
+test('målbytte slik ArcDPS faktisk sender det: ev null, src.elite 1, dst null (README.txt)', async () => {
+  await send({ t: 'agent', s: 'area', src: { id: 2114, name: '', prof: 0, elite: 1, self: 0, team: 0 }, dst: null, name: '' });
+  await until((x) => x.target?.id === 2114, 'target satt fra elite 1');
+});
+
+test('klokkeavvik settes fra local-kanalen, ikke fra forsinkede area-hendelser', async () => {
+  const t0 = Date.now() - 100000;
+  await send(ev({ s: 'local', time: t0, sc: 1, src: SELF }));
+  await until(() => Math.abs(live.offset - 100000) < 1500, 'offset fra local');
+  const before = live.offset;
+  await send(ev({ s: 'area', time: t0 - 3000, sc: 1, src: SELF }));
+  await until((x) => x.inCombat, 'area-hendelsen mottatt');
+  assert.equal(live.offset, before);
+});
+
 test('målbytte: agent-melding med src.elite 0xffffffff og dst null setter target, id 0 ignoreres', async () => {
   // ArcDPS sender dst = null og bare id i src; navnet kommer med første hendelse som treffer agenten
   await send({ t: 'agent', s: 'local', src: { id: 300, name: '', prof: 0, elite: 0xffffffff, self: 0, team: 0 }, dst: null, name: '' });

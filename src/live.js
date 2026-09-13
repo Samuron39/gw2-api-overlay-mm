@@ -79,8 +79,8 @@ class Live extends EventEmitter {
     this.stats.events++;
     this.trackSeq(m);
     if (m.t === 'agent') {
-      // Målbytte: src.elite = 0xffffffff og src.id = det nye målet. ArcDPS sender dst = null her (eldre bro: dst.self = 1).
-      if (m.src && m.src.elite === NPC_ELITE && m.src.id > 0 && (m.dst == null || m.dst.self === 1)) {
+      // Målbytte: ev == null og src.elite == 1 (README.txt), src.id = det nye målet, dst = null. Eldre bro sendte 0xffffffff.
+      if (m.src && (m.src.elite === 1 || m.src.elite === NPC_ELITE) && m.src.id > 0 && (m.dst == null || m.dst.self === 1)) {
         if (!this.agents.has(m.src.id)) this.agents.set(m.src.id, { id: m.src.id, name: m.src.name || '', prof: m.src.prof, elite: m.src.elite, self: 0 });
         if (this.targetId !== m.src.id) { this.targetId = m.src.id; this.dirty = true; }
         return;
@@ -96,7 +96,10 @@ class Live extends EventEmitter {
       return;
     }
     if (m.t !== 'ev' || this.isDuplicate(m)) return;
-    this.offset = Date.now() - m.time;
+    // Klokkeavvik mot arcdps-tid settes bare fra chatbox-kanalen (sanntid). Evtc-kanalen (area) kommer 2–3 s forsinket,
+    // og ville skjøvet alle nedtellinger tilsvarende. Nedtellingene regnes fra hendelsens egen tid, så en forsinket
+    // påføring starter riktig sted i tida.
+    if (m.s !== 'area' || this.offset == null) this.offset = Date.now() - m.time;
     const srcSelf = m.src?.self === 1;
     if (m.src?.name) this.agents.set(m.src.id, { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite, self: m.src.self });
     if (m.dst?.name) this.agents.set(m.dst.id, { id: m.dst.id, name: m.dst.name, prof: m.dst.prof, elite: m.dst.elite, self: m.dst.self });

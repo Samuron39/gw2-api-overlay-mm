@@ -20,12 +20,17 @@
 //! "n" er broens egen løpende teller for sendte linjer (hello unntatt). Hopp i "n" hos mottakeren betyr
 //! tapte datagram. "id" er ArcDPS sin hendelses-id og får hull fordi broen filtrerer.
 //!
+//! De to kanalene i ArcDPS (fra README.txt i API-et, målt i praksis 13. sept 2026):
+//! - combat_local ("chatbox events"): sanntid, men bare det kampvinduet i spillet viser: skadetreff, condition-ticks
+//!                (buff == 1 med buff_dmg != 0, value == 0), kamp inn/ut (sc 1/2) og logg start/slutt (sc 9/10).
+//!                Ingen buff-påføringer, buff-fjerninger, aktiveringer eller BUFFINITIAL kommer her.
+//! - combat (area): hele evtc-strømmen, også alt som gjelder deg selv, men "delayed by ~2-3 seconds".
+//!                Dette er eneste kilde til buffs, cooldowns og våpenbytte, så forsinkelsen må vi leve med.
+//!
 //! Filtrering før sending:
-//! - area  (combat):       alt der du selv er src eller dst droppes (local dekker det, ellers kom det dobbelt).
-//!                         Ellers bare statechange-hendelser, og buff-påføring (buff == 1 uten buff_dmg) eller
-//!                         buff-fjerning der src eller dst er NPC. Buffs mellom andre spillere, condition-ticks
-//!                         og skadetreff droppes.
-//! - local (combat_local): alt, unntatt rene skadetreff (ikke statechange/aktivering/buff) fra andre enn deg.
+//! - local: statechange-hendelser og egne skadetreff (sanntid: kampstatus og hva vi sist traff). Buff-ticks droppes.
+//! - area:  buff-påføring (buff == 1 uten buff_dmg), buff-fjerning, aktiveringer, statechange og agent-hendelser,
+//!          for alle parter. Rene skadetreff og condition-ticks droppes (de er statistikk, ikke overlay-data).
 
 use arcdps::{helpers, Agent, ArcDpsExport, CombatEvent, RawAgent};
 use std::ffi::{c_char, c_void, CString};
@@ -37,7 +42,6 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 const PORT: u16 = 47500;
-const NPC_ELITE: u32 = 0xffff_ffff;
 
 // Batching-grenser: det første som inntreffer utløser sending
 const BATCH_BYTES: usize = 1200;
@@ -244,35 +248,30 @@ fn is_self(a: &Option<Agent>) -> bool {
     a.as_ref().map_or(false, |a| a.self_ == 1)
 }
 
-fn is_npc(a: &Option<Agent>) -> bool {
-    a.as_ref().map_or(false, |a| a.elite == NPC_ELITE)
-}
-
-/// Lokale hendelser: alt som gjelder spilleren selv (buffs på deg, dine aktiveringer, dine treff).
-/// Rene skadetreff fra andre enn deg droppes, de brukes ikke i overlayen.
+/// Chatbox-kanalen (sanntid): statechange (kamp inn/ut, logg start/slutt) og egne skadetreff, som overlayen bruker til
+/// kampstatus og til å vite hva vi sist traff. Condition-ticks og andres treff droppes.
 fn combat_local(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>, skill_name: Option<&'static str>, id: u64, _revision: u64) {
     if let Some(e) = ev {
-        let plain_hit = e.is_statechange == 0 && e.is_activation == 0 && e.is_buff_remove == 0 && e.buff == 0;
-        if plain_hit && !is_self(&src) {
-            return;
+        if e.is_statechange == 0 {
+            let plain_hit = e.is_activation == 0 && e.is_buff_remove == 0 && e.buff == 0;
+            if !plain_hit || !is_self(&src) {
+                return;
+            }
         }
+    } else {
+        return; // agent- og målhendelser kommer også på area
     }
     forward("local", ev, src, dst, skill_name, id);
 }
 
-/// Områdehendelser: brukes til target-tilstand (buffs/conditions på fiender fra hvem som helst) og kampstart/-slutt.
-/// Alt der du selv er part droppes: combat_local leverer de samme hendelsene, og to leveringer ga doble stacks.
-/// Ellers bare statechange, og buff-påføring (buff == 1 uten buff_dmg) eller buff-fjerning der en NPC er part.
-/// Condition-ticks (buff_dmg != 0), buffs mellom andre spillere og skadetreff droppes.
+/// Evtc-kanalen (2–3 s forsinket): eneste kilde til buff-påføring/-fjerning, aktiveringer, BUFFINITIAL (sc 18),
+/// våpenbytte (sc 11) og agent-/målhendelser (ev == None). Rene skadetreff og condition-ticks droppes.
 fn combat_area(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>, skill_name: Option<&'static str>, id: u64, _revision: u64) {
     if let Some(e) = ev {
-        if is_self(&src) || is_self(&dst) {
-            return;
-        }
-        if e.is_statechange == 0 {
-            let buff_event = (e.buff == 1 && e.buff_dmg == 0) || e.is_buff_remove != 0;
-            let relevant = is_npc(&src) || is_npc(&dst);
-            if !buff_event || !relevant {
+        if e.is_statechange == 0 && e.is_activation == 0 && e.is_buff_remove == 0 {
+            let plain_hit = e.buff == 0;
+            let buff_tick = e.buff == 1 && e.buff_dmg != 0;
+            if plain_hit || buff_tick {
                 return;
             }
         }
