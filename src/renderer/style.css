@@ -111,8 +111,11 @@ td.where { color: var(--muted); font-size: 12px; }
 ::-webkit-scrollbar-corner { background: transparent; }
 
 /* ---------- Panel-ramme ---------- */
-#grip { height: 10px; flex: 0 0 10px; -webkit-app-region: drag; cursor: move; background: var(--panel) repeating-linear-gradient(90deg, transparent 0 4px, #3a404a 4px 6px) center / 60px 4px no-repeat; border-bottom: 1px solid var(--line); }
-#grip:hover { background-color: #22262d; }
+/* Gripet øverst: en tydelig linje med tekst, så det er lett å se at panelet kan dras */
+#grip { height: 22px; flex: 0 0 22px; -webkit-app-region: drag; cursor: move; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 11px; letter-spacing: .3px; color: var(--muted); background: #1b1f26; border-bottom: 1px solid var(--line); user-select: none; }
+#grip::before, #grip::after { content: '⋮⋮⋮'; letter-spacing: -2px; color: #4a515c; }
+#grip:hover { background: #262b34; color: var(--text); }
+#grip:hover::before, #grip:hover::after { color: var(--accent); }
 header .drag { -webkit-app-region: drag; }
 header { flex-wrap: nowrap; min-width: 0; }
 header nav { flex-shrink: 1; min-width: 0; flex-wrap: wrap; row-gap: 2px; } /* fanene bryter til ny linje når de ikke får plass */

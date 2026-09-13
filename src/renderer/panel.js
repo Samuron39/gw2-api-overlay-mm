@@ -61,6 +61,7 @@ const Panel = (() => {
   function applyStatic() {
     document.title = T.t('panel.title');
     $('#grip').title = T.t('panel.dragToMove');
+    $('#grip').textContent = T.t('panel.dragToMove');
     $('#pinnedLbl').textContent = T.t('panel.pinned');
     $('#pinnedWrap').title = T.t('panel.pinnedTitle');
     $('#opacityWrap').title = T.t('panel.opacity');
