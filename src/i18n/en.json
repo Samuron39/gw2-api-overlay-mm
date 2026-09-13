@@ -720,5 +720,10 @@
   "live.period.session": "Whole session",
   "dps.live.session": "Session: {fights} fights · {dur} in combat · {total} damage · avg {dps} DPS",
   "dps.live.resetSession": "Reset session",
-  "dps.live.sessionReset": "Session reset."
+  "dps.live.sessionReset": "Session reset.",
+  "live.group.content": "What is shown",
+  "live.group.look": "Appearance",
+  "live.state.off": "off",
+  "live.state.edit": "unlocked, movable",
+  "live.state.locked": "locked"
 }

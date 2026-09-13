@@ -10,10 +10,12 @@
     <div class="settings">
       <label>${t('settings.language')} <select id="language">${T.languages.map((l) => `<option value="${esc(l.id)}" ${l.id === T.language ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></label>
 
+      <section class="card">
       <h3>${t('settings.gw2')}</h3>
       <label>${t('settings.apiKey')} <input id="apiKey" type="password" placeholder="${esc(t('settings.apiKeyPlaceholder'))}" /></label>
       <p class="muted">${t('settings.apiKeyHelp', { link: `<a href="#" id="apiLink">${esc(t('settings.apiLink'))}</a>` })}</p>
-
+      </section>
+      <section class="card">
       <h3>${t('settings.ai')}</h3>
       <label>${t('settings.aiProvider')} <select id="aiProvider"></select></label>
       <p class="muted small" id="aiProviderHelp"></p>
@@ -26,12 +28,14 @@
       </div>
       <label>${t('settings.lmModel')} <span class="row"><select id="lmModel"></select><button id="modelsBtn" type="button">${t('settings.fetchModels')}</button></span></label>
       <p class="muted" id="aiHelp">${t('settings.aiHelp')}</p>
-
+      </section>
+      <section class="card">
       <h3>${t('settings.rules')}</h3>
       <label>${t('settings.materialCap')} <input id="materialCap" type="number" min="250" step="250" /></label>
       <label>${t('settings.minTp')} <input id="minTp" type="number" min="0" step="10" /></label>
       <label>${t('settings.keepList')} <textarea id="keepList" rows="8"></textarea></label>
-
+      </section>
+      <section class="card">
       <h3>${t('settings.game')}</h3>
       <label>${t('settings.gw2Dir')}
         <span class="row"><input id="gw2Dir" type="text" placeholder="C:\\Guild Wars 2" /><button id="gw2Detect" type="button">${t('settings.detect')}</button><button id="gw2Pick" type="button">${t('settings.pickDir')}</button></span>
@@ -40,18 +44,21 @@
       <label class="inline"><input type="checkbox" id="followGame" /> ${t('settings.followGame')}</label>
       <label>${t('settings.dpsLogDir')} <input id="dpsLogDir" type="text" placeholder="" /></label>
       <p class="muted">${t('settings.dpsLogDirHelp1')} <span id="dpsDefault"></span>. ${t('settings.dpsLogDirHelp2')}</p>
-
+      </section>
+      <section class="card">
       <h3>${t('settings.modules')}</h3>
       <div id="modList" class="dy-list"></div>
       <p class="muted small">${t('settings.modulesHelp')}</p>
-
+      </section>
+      <section class="card">
       <h3>${t('settings.overlay')}</h3>
       <label>${t('settings.uiScale')} <span class="row"><input id="uiScale" type="range" min="0.6" max="2.2" step="0.1" style="width:60%" /><span id="uiScaleVal" class="muted"></span></span></label>
       <label>${t('settings.wheelSize')} <input id="wheelSize" type="number" min="140" max="320" step="10" /></label>
       <label class="inline"><input type="checkbox" id="autoHide" /> ${t('settings.autoHide')}</label>
       <label class="inline"><input type="checkbox" id="launchAtStartup" /> ${t('settings.launchAtStartup')}</label>
       <p class="muted small">${t('settings.overlayHelp')}</p>
-
+      </section>
+      <section class="card">
       <h3>${t('settings.update')}</h3>
       <p class="muted">${t('settings.installedVersion')} <b id="updVersion"></b></p>
       <label class="inline"><input type="checkbox" id="autoUpdate" /> ${t('settings.autoUpdate')}</label>
@@ -68,13 +75,15 @@
         <button id="quitBtn">${t('settings.quit')}</button>
       </div>
       <p class="muted small">${t('settings.configStored')} <span id="cfgPath"></span>. <span id="cfgErr" class="status error"></span></p>
-
+      </section>
+      <section class="card">
       <h3>${t('settings.debug')}</h3>
       <div class="row">
         <button id="logOpenBtn" type="button">${t('settings.openLog')}</button>
         <button id="logReportBtn" type="button">${t('settings.copyReport')}</button>
       </div>
       <p class="muted small">${t('settings.debugHelp')}</p>
+      </section>
     </div>`;
 
   function fillModels(list, selected) {

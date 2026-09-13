@@ -64,7 +64,9 @@ td.where { color: var(--muted); font-size: 12px; }
 .chat-form { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line); }
 .chat-form input { flex: 1; }
 .settings { padding: 12px 16px; overflow: auto; max-width: 720px; }
-.settings h3 { margin: 16px 0 8px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.settings h3 { margin: 0 0 10px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.settings section.card { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 12px 14px; margin: 10px 0; }
+.settings section.card > label:last-child, .settings section.card > p:last-child { margin-bottom: 0; }
 .settings label { display: block; margin-bottom: 10px; color: var(--muted); }
 .settings label input, .settings label select, .settings label textarea { display: block; width: 100%; margin-top: 4px; color: var(--text); }
 .settings .row { display: flex; gap: 8px; margin-top: 4px; }
@@ -209,10 +211,36 @@ button.wp { position: relative; font-size: 11px; padding: 2px 8px; border-radius
 .gl-motd { white-space: pre-wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 12px; }
 
 /* ---------- Live ---------- */
-.lv-win { border-top: 1px solid var(--line); padding: 6px 0; }
-.lv-win .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.lv-opts { margin-top: 4px; font-size: 12px; color: var(--muted); }
-.lv-opts input[type=number], .lv-opts select { padding: 2px 6px; }
+/* Overlay-vinduer på Live-fanen: ett kort per vindu, overskrift med status, felt gruppert med etikett over kontrollen */
+.lv-win { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); margin: 8px 0; }
+.lv-win.on { border-color: #3d4658; }
+.lv-win > summary { list-style: none; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; padding: 8px 10px; cursor: pointer; border-radius: 8px; }
+.lv-title b { white-space: nowrap; }
+.lv-win > summary::-webkit-details-marker { display: none; }
+.lv-win > summary::before { content: '▸'; color: var(--muted); font-size: 11px; width: 10px; }
+.lv-win[open] > summary::before { content: '▾'; }
+.lv-win > summary:hover { background: var(--panel); }
+.lv-title { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.lv-title input { width: 16px; height: 16px; }
+.lv-state { font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); }
+.lv-state.locked { color: #ffd166; border-color: #6b5a2a; }
+.lv-state.edit { color: #8fb4ff; border-color: #35508a; }
+.lv-body { padding: 4px 10px 10px 30px; border-top: 1px solid var(--line); }
+.lv-group { margin-top: 8px; }
+.lv-gt { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin: 6px 0 4px; }
+.lv-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 14px; }
+.fld { display: flex; flex-direction: column; gap: 3px; }
+.fld .fl { font-size: 11px; color: var(--muted); }
+.fld select, .fld input[type=number] { width: 100%; padding: 4px 6px; color: var(--text); }
+.fld .num { display: flex; align-items: center; gap: 4px; }
+.fld .num input { flex: 1; min-width: 0; }
+.fld .unit { font-size: 11px; color: var(--muted); }
+.fld input[type=range] { width: 100%; }
+.lv-checks { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); cursor: pointer; font-size: 12px; color: var(--muted); }
+.chip.on { color: var(--text); border-color: #4a5570; }
+.chip input { width: 14px; height: 14px; margin: 0; }
+.lv-win .spacer { flex: 1; }
 .lv-icons { display: flex; flex-wrap: wrap; gap: 3px; margin: 6px 0; }
 .lv-icons img { width: 28px; height: 28px; border-radius: 4px; border: 1px solid var(--line); }
 .lv-rot { padding-left: 22px; margin: 6px 0; }

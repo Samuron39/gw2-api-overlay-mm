@@ -85,45 +85,82 @@
   function renderWindows() {
     if (!root || !overlays) return;
     const opt = (k, val, cur, label) => `<option value="${val}" ${cur === val ? 'selected' : ''}>${esc(t(label))}</option>`;
+    // Ett felt: etikett over kontrollen, så det er lett å se hva som hører til hva
+    const fld = (label, control, title) => `<div class="fld" ${title ? `title="${esc(title)}"` : ''}><span class="fl">${esc(label)}</span>${control}</div>`;
+    const sel = (k, cur, opts) => `<select data-k="${k}">${opts.map(([v, l]) => opt(k, v, cur, l)).join('')}</select>`;
+    const num = (k, val, min, max, step, unit) => `<span class="num"><input type="number" data-k="${k}" value="${val}" min="${min}" max="${max}" step="${step}" />${unit ? `<span class="unit">${unit}</span>` : ''}</span>`;
+    const chk = (k, on, label, title) => `<label class="chip ${on ? 'on' : ''}" ${title ? `title="${esc(title)}"` : ''}><input type="checkbox" data-k="${k}" ${on ? 'checked' : ''} /> ${esc(label)}</label>`;
+    const group = (title, inner) => `<div class="lv-group"><div class="lv-gt">${esc(title)}</div>${inner}</div>`;
     $('#lvWindows', root).innerHTML = `<h3>${esc(t('live.windows'))}</h3><p class="muted small">${esc(t('live.windowsHelp'))}</p>` + WIN.map((id) => {
       const c = overlays[id];
       const isSb = id === 'skillbar';
       const isDps = id.startsWith('dps');
-      return `<div class="lv-win" data-id="${id}">
-        <div class="row"><label class="inline"><input type="checkbox" data-k="enabled" ${c.enabled ? 'checked' : ''} /> <b>${esc(t('live.win.' + id))}</b></label>
-          <label class="inline"><input type="checkbox" data-k="locked" ${c.locked ? 'checked' : ''} /> ${esc(t('live.locked'))}</label>
-          <button data-reset="${id}" class="small">${esc(t('live.resetPos'))}</button></div>
-        <div class="row lv-opts">
-          ${isDps ? `<label class="inline">${esc(t('live.view'))} <select data-k="view">${opt('view', 'all', c.view || 'all', 'live.view.all')}${opt('view', 'damage', c.view, 'live.view.damage')}${opt('view', 'squad', c.view, 'live.view.squad')}${opt('view', 'taken', c.view, 'live.view.taken')}${opt('view', 'healing', c.view, 'live.view.healing')}</select></label>
-                    <label class="inline">${esc(t('live.period'))} <select data-k="period">${opt('period', 'fight', c.period || 'fight', 'live.period.fight')}${opt('period', 'last', c.period, 'live.period.last')}${opt('period', 'session', c.period, 'live.period.session')}</select></label>
-                    <label class="inline">${esc(t('live.fontSize'))} <input type="number" data-k="fontSize" value="${c.fontSize ?? 14}" min="10" max="40" step="1" style="width:64px" /> px</label>
-                    <label class="inline">${esc(t('live.showSkills'))} <input type="number" data-k="showSkills" value="${c.showSkills ?? 3}" min="0" max="8" step="1" style="width:56px" /></label>
-                    <label class="inline"><input type="checkbox" data-k="showTaken" ${c.showTaken !== false ? 'checked' : ''} /> ${esc(t('live.showTaken'))}</label>
-                    <label class="inline">${esc(t('live.takenRows'))} <input type="number" data-k="takenRows" value="${c.takenRows ?? 3}" min="0" max="5" step="1" style="width:56px" /></label>
-                    <label class="inline"><input type="checkbox" data-k="showLast" ${c.showLast !== false ? 'checked' : ''} /> ${esc(t('live.showLast'))}</label>
-                    <label class="inline"><input type="checkbox" data-k="showSquad" ${c.showSquad !== false ? 'checked' : ''} /> ${esc(t('live.showSquad'))}</label>
-                    <label class="inline">${esc(t('live.squadRows'))} <input type="number" data-k="squadRows" value="${c.squadRows ?? 5}" min="1" max="10" step="1" style="width:56px" /></label>
-                    <label class="inline"><input type="checkbox" data-k="showHealing" ${c.showHealing !== false ? 'checked' : ''} /> ${esc(t('live.showHealing'))}</label>`
-          : `<label class="inline">${esc(t('live.icon'))} <input type="number" data-k="iconSize" value="${c.iconSize}" min="20" max="96" step="2" style="width:64px" /> px</label>
-          <label class="inline">${esc(t('live.time'))} <select data-k="mode">${opt('mode', 'number', c.mode, 'live.number')}${opt('mode', 'clock', c.mode, 'live.shade')}${opt('mode', 'both', c.mode, 'live.both')}</select></label>`}
-          ${isDps ? '' : isSb ? `<label class="inline"><input type="checkbox" data-k="showNext" ${c.showNext ? 'checked' : ''} /> ${esc(t('live.showNext'))}</label>
-                    <label class="inline"><input type="checkbox" data-k="showCooldown" ${c.showCooldown ? 'checked' : ''} /> ${esc(t('live.showCooldown'))}</label>
-                    <label class="inline" title="${esc(t('live.delayHelp'))}">${esc(t('live.delay'))} <input type="number" data-k="delayMs" value="${c.delayMs ?? 3000}" min="0" max="10000" step="250" style="width:72px" /> ms</label>`
-                 : `<label class="inline">${esc(t('live.layout'))} <select data-k="layout">${opt('layout', 'grid', c.layout, 'live.grid')}${opt('layout', 'list', c.layout, 'live.list')}</select></label>
-                    <label class="inline">${esc(t('live.sort'))} <select data-k="sort">${opt('sort', 'timeAsc', c.sort, 'live.timeAsc')}${opt('sort', 'timeDesc', c.sort, 'live.timeDesc')}${opt('sort', 'stacks', c.sort, 'live.stacks')}${opt('sort', 'name', c.sort, 'live.name')}</select></label>
-                    <label class="inline">${esc(t('live.content'))} <select data-k="filter">${opt('filter', 'boons', c.filter, 'live.boons')}${opt('filter', 'conditions', c.filter, 'live.conditions')}${opt('filter', 'other', c.filter, 'live.other')}${opt('filter', 'all', c.filter, 'live.all')}</select></label>
-                    <label class="inline">${esc(t('live.direction'))} <select data-k="direction">${opt('direction', 'row', c.direction, 'live.row')}${opt('direction', 'col', c.direction, 'live.col')}</select></label>
-                    <label class="inline"><input type="checkbox" data-k="showNames" ${c.showNames ? 'checked' : ''} /> ${esc(t('live.showNames'))}</label>
-                    <label class="inline"><input type="checkbox" data-k="showIcons" ${c.showIcons !== false ? 'checked' : ''} /> ${esc(t('live.showIcons'))}</label>`}
-          <label class="inline">${esc(t('live.opacity'))} <input type="range" data-k="opacity" min="0.3" max="1" step="0.05" value="${c.opacity}" /></label>
-        </div></div>`;
+      let body;
+      if (isDps) {
+        body = group(t('live.group.content'), `<div class="lv-fields">
+            ${fld(t('live.view'), sel('view', c.view || 'all', [['all', 'live.view.all'], ['damage', 'live.view.damage'], ['squad', 'live.view.squad'], ['taken', 'live.view.taken'], ['healing', 'live.view.healing']]))}
+            ${fld(t('live.period'), sel('period', c.period || 'fight', [['fight', 'live.period.fight'], ['last', 'live.period.last'], ['session', 'live.period.session']]))}
+            ${fld(t('live.showSkills'), num('showSkills', c.showSkills ?? 3, 0, 8, 1))}
+            ${fld(t('live.takenRows'), num('takenRows', c.takenRows ?? 3, 0, 5, 1))}
+            ${fld(t('live.squadRows'), num('squadRows', c.squadRows ?? 5, 1, 10, 1))}
+          </div><div class="lv-checks">
+            ${chk('showTaken', c.showTaken !== false, t('live.showTaken'))}
+            ${chk('showSquad', c.showSquad !== false, t('live.showSquad'))}
+            ${chk('showHealing', c.showHealing !== false, t('live.showHealing'))}
+            ${chk('showLast', c.showLast !== false, t('live.showLast'))}
+          </div>`)
+          + group(t('live.group.look'), `<div class="lv-fields">
+            ${fld(t('live.fontSize'), num('fontSize', c.fontSize ?? 14, 10, 40, 1, 'px'))}
+            ${fld(t('live.opacity'), `<input type="range" data-k="opacity" min="0.3" max="1" step="0.05" value="${c.opacity}" />`)}
+          </div>`);
+      } else if (isSb) {
+        body = group(t('live.group.content'), `<div class="lv-checks">
+            ${chk('showNext', c.showNext, t('live.showNext'))}
+            ${chk('showCooldown', c.showCooldown, t('live.showCooldown'))}
+          </div><div class="lv-fields">
+            ${fld(t('live.delay'), num('delayMs', c.delayMs ?? 3000, 0, 10000, 250, 'ms'), t('live.delayHelp'))}
+          </div>`)
+          + group(t('live.group.look'), `<div class="lv-fields">
+            ${fld(t('live.icon'), num('iconSize', c.iconSize, 20, 96, 2, 'px'))}
+            ${fld(t('live.time'), sel('mode', c.mode, [['number', 'live.number'], ['clock', 'live.shade'], ['both', 'live.both']]))}
+            ${fld(t('live.opacity'), `<input type="range" data-k="opacity" min="0.3" max="1" step="0.05" value="${c.opacity}" />`)}
+          </div>`);
+      } else {
+        body = group(t('live.group.content'), `<div class="lv-fields">
+            ${fld(t('live.content'), sel('filter', c.filter, [['boons', 'live.boons'], ['conditions', 'live.conditions'], ['other', 'live.other'], ['all', 'live.all']]))}
+            ${fld(t('live.sort'), sel('sort', c.sort, [['timeAsc', 'live.timeAsc'], ['timeDesc', 'live.timeDesc'], ['stacks', 'live.stacks'], ['name', 'live.name']]))}
+          </div>`)
+          + group(t('live.group.look'), `<div class="lv-fields">
+            ${fld(t('live.layout'), sel('layout', c.layout, [['grid', 'live.grid'], ['list', 'live.list']]))}
+            ${fld(t('live.direction'), sel('direction', c.direction, [['row', 'live.row'], ['col', 'live.col']]))}
+            ${fld(t('live.icon'), num('iconSize', c.iconSize, 20, 96, 2, 'px'))}
+            ${fld(t('live.time'), sel('mode', c.mode, [['number', 'live.number'], ['clock', 'live.shade'], ['both', 'live.both']]))}
+            ${fld(t('live.opacity'), `<input type="range" data-k="opacity" min="0.3" max="1" step="0.05" value="${c.opacity}" />`)}
+          </div><div class="lv-checks">
+            ${chk('showIcons', c.showIcons !== false, t('live.showIcons'))}
+            ${chk('showNames', !!c.showNames, t('live.showNames'))}
+          </div>`);
+      }
+      return `<details class="lv-win ${c.enabled ? 'on' : ''}" data-id="${id}" ${c.enabled ? 'open' : ''}>
+        <summary>
+          <label class="lv-title"><input type="checkbox" data-k="enabled" ${c.enabled ? 'checked' : ''} /><b>${esc(t('live.win.' + id))}</b></label>
+          <span class="lv-state ${c.enabled ? (c.locked ? 'locked' : 'edit') : 'off'}">${esc(t(c.enabled ? (c.locked ? 'live.state.locked' : 'live.state.edit') : 'live.state.off'))}</span>
+          <span class="spacer"></span>
+          <label class="chip ${c.locked ? 'on' : ''}"><input type="checkbox" data-k="locked" ${c.locked ? 'checked' : ''} /> ${esc(t('live.locked'))}</label>
+          <button data-reset="${id}" class="small">${esc(t('live.resetPos'))}</button>
+        </summary>
+        <div class="lv-body">${body}</div>
+      </details>`;
     }).join('');
     root.querySelectorAll('.lv-win').forEach((box) => {
       const id = box.dataset.id;
+      // Klikk på avkryssinger og knapper i overskriften skal ikke folde kortet sammen/ut
+      box.querySelectorAll('summary label, summary button, summary input').forEach((el) => el.addEventListener('click', (e) => e.stopPropagation()));
       box.querySelectorAll('[data-k]').forEach((inp) => inp.addEventListener('change', async () => {
         const k = inp.dataset.k;
         const v = inp.type === 'checkbox' ? inp.checked : inp.type === 'number' || inp.type === 'range' ? Number(inp.value) : inp.value;
         overlays[id] = await window.api.invoke('overlays:set', id, { [k]: v });
+        if (inp.type === 'checkbox') renderWindows(); // status og chips i overskriften følger med
       }));
       box.querySelector('[data-reset]').addEventListener('click', async () => { overlays[id] = await window.api.invoke('overlays:set', id, { x: null, y: null }); setStatus(t('live.posReset')); });
     });

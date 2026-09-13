@@ -720,5 +720,10 @@
   "live.period.session": "Hele økta",
   "dps.live.session": "Økta: {fights} kamper · {dur} i kamp · {total} skade · snitt {dps} DPS",
   "dps.live.resetSession": "Nullstill økta",
-  "dps.live.sessionReset": "Økta er nullstilt."
+  "dps.live.sessionReset": "Økta er nullstilt.",
+  "live.group.content": "Hva som vises",
+  "live.group.look": "Utseende",
+  "live.state.off": "av",
+  "live.state.edit": "ulåst, kan flyttes",
+  "live.state.locked": "låst"
 }
