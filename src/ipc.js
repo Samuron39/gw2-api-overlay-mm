@@ -14,6 +14,7 @@ const tp = require('./modules/tp');
 const characters = require('./modules/characters');
 const guild = require('./modules/guild');
 const arcdps = require('./modules/arcdps');
+const setup = require('./modules/setup');
 const live = require('./live');
 const overlays = require('./overlays');
 const skills = require('./modules/skills');
@@ -91,6 +92,19 @@ function register() {
     if (!dir) throw new Error(t('main.pickGameDirFirst'));
     return arcdps.installBridge(dir);
   });
+
+  // ---------- Kom i gang-veiviseren ----------
+  handle('setup:check', () => setup.check(cfg.config, { gw2, arcdps, dps, ai, mumble }));
+  // ArcDPS og broen i ett: samme knapp i veiviseren
+  handle('setup:installArc', async () => {
+    const dir = arcdps.isGameDir(cfg.config.gw2Dir) ? cfg.config.gw2Dir : await arcdps.detectDir();
+    if (!dir) throw new Error(t('main.pickGameDirFirst'));
+    if (!cfg.config.gw2Dir) { cfg.config.gw2Dir = dir; cfg.saveConfig(); }
+    const arc = await arcdps.install(dir);
+    const bridge = await arcdps.installBridge(dir);
+    return { arc, bridge };
+  });
+  handle('setup:done', (_e, done) => { cfg.config.setupDone = done !== false; cfg.saveConfig(); return cfg.config.setupDone; });
 
   // ---------- Live, overlay-vinduer, skill-bar ----------
   handle('live:get', () => live.snapshot());

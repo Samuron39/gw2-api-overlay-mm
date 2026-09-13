@@ -35,7 +35,7 @@ const Panel = (() => {
   function renderTabs() {
     const nav = $('#tabs');
     const enabled = config?.wheelModules;
-    const visible = order.filter((id) => id === 'settings' || id === current || !enabled || enabled.includes(id));
+    const visible = order.filter((id) => id === 'settings' || id === 'setup' || id === current || !enabled || enabled.includes(id));
     nav.innerHTML = visible.map((id) => `<button class="tab ${id === current ? 'active' : ''}" data-id="${id}" title="${esc(titleOf(modules[id]))}">${esc(modules[id].icon)} <span class="tab-label">${esc(titleOf(modules[id]))}</span></button>`).join('');
     nav.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => window.api.invoke('panel:show', b.dataset.id)));
   }

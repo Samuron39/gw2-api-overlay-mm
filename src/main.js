@@ -68,10 +68,11 @@ app.whenReady().then(async () => {
   win.createTray();
   await win.startFollowGame();
 
-  // Første gang: åpne innstillinger og finn spillmappa
+  // Første gang: finn spillmappa og åpne Kom i gang-veiviseren
   if (!TEST_MODE && !DEMO) {
     if (!config.gw2Dir) { const d = await arcdps.detectDir(); if (d) { config.gw2Dir = d; cfg.saveConfig(); log.info('app', 'Fant spillmappa', d); } }
-    if (!config.apiKey) win.openModule('settings', { toggle: false });
+    if (!config.setupDone) win.openModule('setup', { toggle: false });
+    else if (!config.apiKey) win.openModule('settings', { toggle: false });
   }
 
   if (process.env.GW2_SHOT) {

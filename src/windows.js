@@ -166,6 +166,7 @@ function setTrayMenu() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: t('tray.showWheel'), click: () => { wheelWin?.show(); } },
     { label: t('tray.openPanel'), click: () => openModule(currentModule || 'inventory', { toggle: false }) },
+    { label: t('tray.setup'), click: () => openModule('setup', { toggle: false }) },
     { label: t('tray.settings'), click: () => openModule('settings', { toggle: false }) },
     { type: 'separator' },
     { label: t('tray.quit'), click: () => { quitting = true; app.quit(); } },

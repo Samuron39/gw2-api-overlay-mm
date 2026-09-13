@@ -74,6 +74,27 @@ td.where { color: var(--muted); font-size: 12px; }
 .settings .dy-item.inline input[type=checkbox] { margin: 0; }
 .settings .row select { flex: 1; }
 .settings #updStatus.error { color: #ff7b7b; }
+/* Kom i gang-veiviseren: ett kort per steg, farget kant etter status */
+.setup { max-width: 820px; }
+.setup-intro { margin: 4px 0 12px; }
+.setup-tools { margin-bottom: 12px; }
+.setup-steps { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-direction: column; gap: 10px; }
+.setup-step { border: 1px solid var(--line); border-left: 4px solid #555b66; border-radius: 8px; padding: 10px 12px; background: var(--bg); }
+.setup-step.ok { border-left-color: #4caf50; }
+.setup-step.warn { border-left-color: #e0a537; }
+.setup-step.bad { border-left-color: #ff5f5f; }
+.setup-step.wait { opacity: .85; }
+.setup-head { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 14px; margin-bottom: 4px; }
+.setup-body { color: var(--muted); margin-bottom: 6px; }
+.setup-body .row { margin-top: 8px; }
+.setup-body label.inline { margin-bottom: 4px; }
+.setup-howto { margin: 0 0 4px; padding-left: 20px; }
+.setup-howto li { margin-bottom: 2px; }
+.setup-status { color: var(--text); font-size: 13px; min-height: 16px; }
+.setup-step.bad .setup-status { color: #ff9b9b; }
+.setup-step.warn .setup-status { color: #f0c26b; }
+.setup-actions { margin-top: 8px; }
+.setup .row input[type=password], .setup .row input[type=text] { flex: 1; min-width: 0; }
 .muted { color: var(--muted); }
 .settings a { color: var(--accent); }
 .empty { padding: 40px; text-align: center; color: var(--muted); }
@@ -91,7 +112,7 @@ td.where { color: var(--muted); font-size: 12px; }
 #grip:hover { background-color: #22262d; }
 header .drag { -webkit-app-region: drag; }
 header { flex-wrap: nowrap; min-width: 0; }
-header nav { flex-shrink: 1; min-width: 0; overflow: hidden; }
+header nav { flex-shrink: 1; min-width: 0; flex-wrap: wrap; row-gap: 2px; } /* fanene bryter til ny linje når de ikke får plass */
 header nav .tab { white-space: nowrap; }
 @media (max-width: 760px) {
   header nav .tab .tab-label { display: none; }

@@ -13,6 +13,7 @@ const INVOKE = new Set([
   'clipboard:write', 'game:paste', 'open:wiki', 'open:url',
   'panel:open', 'panel:show', 'panel:close', 'panel:state', 'wheel:setLocked', 'app:quit', 'app:hide',
   'log:open', 'log:report',
+  'setup:check', 'setup:installArc', 'setup:done',
   'update:check', 'update:install',
 ]);
 const EVENTS = new Set([

@@ -30,6 +30,7 @@ const DEFAULT_CONFIG = {
   overlays: {}, // per overlay-vindu (buffs, debuffs, target, skillbar): posisjon, størrelse, utseende
   rotations: {}, // anbefalt rotasjon per karakter/spec: { "<nøkkel>": [{ skill, note }] }
   autoUpdate: true, // sjekk GitHub Releases for ny versjon ved oppstart og hver 6. time (bare pakket app)
+  setupDone: false, // Kom i gang-veiviseren åpnes ved oppstart til brukeren huker av «ikke vis igjen»
   language: i18n.DEFAULT_LANGUAGE, // språk i UI-et, én JSON-fil per språk i src/i18n/
 };
 
