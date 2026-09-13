@@ -82,7 +82,10 @@
     const head = d?.current ? t('dps.live.now', { dps: k(d.current.dps10) }) : t('dps.live.lastTitle');
     const body = f ? t('dps.live.line', { dur: fmtDur(f.durationMs), avg: k(f.dps), total: k(f.total), taken: k(f.taken), target: f.target || '–' }) : t('dps.live.noFight');
     const skills = f?.skills?.length ? ' · ' + f.skills.slice(0, 3).map((s) => `${esc(s.name || s.skill)} ${s.pct}%`).join(', ') : '';
-    el.innerHTML = `<b class="${d?.current ? 'up' : ''}">${esc(head)}</b> <span class="muted">${esc(body)}${skills}</span> <button id="dpsLiveWin" class="small">${esc(t('dps.live.window'))}</button>`;
+    // Healing (HPS) når broen leverer det og noe er healet: «healing 12.3k (HPS 890)». Nå-verdi i kamp, snitt etterpå.
+    const h = f?.healing;
+    const healing = h?.available && h.done ? ' · ' + esc(t('dps.live.healing', { total: k(h.done), hps: k(d?.current ? h.hps10 : h.hps) })) : '';
+    el.innerHTML = `<b class="${d?.current ? 'up' : ''}">${esc(head)}</b> <span class="muted">${esc(body)}${skills}${healing}</span> <button id="dpsLiveWin" class="small">${esc(t('dps.live.window'))}</button>`;
   }
 
   async function arcStatus() {

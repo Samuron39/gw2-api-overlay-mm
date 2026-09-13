@@ -74,7 +74,7 @@ function renderDps() {
   const d = snap?.dps || {};
   const edit = document.body.classList.contains('edit');
   let cur = d.current, last = d.last, sample = false;
-  if (!cur && !last && edit) { sample = true; cur = { active: true, dps10: 18420, dps: 15980, total: 287640, durationMs: 18000, taken: 9120, target: 'Legendary Destroyer', skills: [{ name: 'Arc Divider', dmg: 98000, pct: 34 }, { name: 'Decapitate', dmg: 61000, pct: 21 }, { name: 'Bleeding', dmg: 40000, pct: 14 }] }; }
+  if (!cur && !last && edit) { sample = true; cur = { active: true, dps10: 18420, dps: 15980, total: 287640, durationMs: 18000, taken: 9120, target: 'Legendary Destroyer', skills: [{ name: 'Arc Divider', dmg: 98000, pct: 34 }, { name: 'Decapitate', dmg: 61000, pct: 21 }, { name: 'Bleeding', dmg: 40000, pct: 14 }], healing: { available: true, done: 41200, barrier: 6000, hps: 2290, hps10: 3120, received: 12800, bySkill: [{ name: 'Healing Spring', heal: 18000, pct: 44 }, { name: 'Regeneration', heal: 12000, pct: 29 }, { name: 'Blast Finisher', heal: 6000, pct: 15 }], bySource: [] } }; }
   const show = cur || (cfg.showLast !== false ? last : null);
   if (!show) { dp.innerHTML = `<div class="top"><span class="big idle">–</span><span class="lbl">DPS</span></div><div class="sub">${esc(T.t('overlay.dps.noFight'))}</div>`; return; }
   const active = !!cur;
@@ -84,6 +84,15 @@ function renderDps() {
   rows.push(`<div class="sub">${esc(T.t('overlay.dps.line', { dur: fmtDur(show.durationMs), avg: fmtK(show.dps), total: fmtK(show.total) }))}${show.target ? ' · ' + esc(show.target) : ''}${cfg.showTaken !== false && show.taken ? ` · <span class="tk">${esc(T.t('overlay.dps.taken', { n: fmtK(show.taken) }))}</span>` : ''}</div>`);
   const n = Number(cfg.showSkills ?? 3);
   for (const s of (show.skills || []).slice(0, n)) rows.push(`<div class="sk"><span class="bar" style="--w:${s.pct || 0}%"></span><span class="n">${esc(s.name || s.skill)}</span><span class="v">${fmtK(s.dmg)} · ${s.pct || 0}%</span></div>`);
+  // Healing (HPS): egen healing fra chatbox-kanalen via broen, se docs/healing-api.md. available = broen har meldt
+  // heal-støtte (hello.heal) eller healing er telt. Uten det: en diskret linje bare i redigeringsmodus.
+  if (cfg.showHealing !== false) {
+    const h = show.healing;
+    if (h && h.available) {
+      rows.push(`<div class="hl"><span class="hv">${fmtK(active ? h.hps10 : h.hps)}</span><span class="lbl">${esc(T.t(active ? 'overlay.dps.hpsNow' : 'overlay.dps.hps'))}</span><span class="sub">${esc(T.t('overlay.dps.healLine', { total: fmtK(h.done), received: fmtK(h.received) }))}</span></div>`);
+      for (const s of (h.bySkill || []).slice(0, Math.min(3, n))) rows.push(`<div class="sk hs"><span class="bar" style="--w:${s.pct || 0}%"></span><span class="n">${esc(s.name || s.skill)}</span><span class="v">${fmtK(s.heal)} · ${s.pct || 0}%</span></div>`);
+    } else if (edit) rows.push(`<div class="sub muted">${esc(T.t('overlay.dps.healingUnavailable'))}</div>`);
+  }
   dp.innerHTML = rows.join('');
 }
 function labelFor(type) { return T.t('overlay.label.' + type); }

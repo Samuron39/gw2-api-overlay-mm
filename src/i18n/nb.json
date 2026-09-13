@@ -674,5 +674,17 @@
   "dps.live.noFight": "ingen kamp ennå. Slå på noe, så teller den.",
   "dps.live.noBridge": "Live-DPS krever broen (Live-fanen). Loggene under kommer fra ArcDPS-filer.",
   "dps.live.window": "Vis DPS-vindu",
-  "dps.live.opened": "DPS-vinduet er på. Plasser det og lås det på Live-fanen."
+  "dps.live.opened": "DPS-vinduet er på. Plasser det og lås det på Live-fanen.",
+  "overlay.dps.hpsNow": "HPS nå",
+  "overlay.dps.hps": "HPS",
+  "overlay.dps.healLine": "healing {total} · mottatt {received}",
+  "overlay.dps.healingUnavailable": "Healing: krever oppdatert bro (Live-fanen)",
+  "live.showHealing": "Vis healing (HPS)",
+  "live.healingBridgeOk": "healing via broen",
+  "live.healingBridgeOld": "healing: oppdater broen",
+  "live.healingFound": "arcdps healing stats funnet",
+  "live.healingMissing": "arcdps healing stats ikke funnet",
+  "live.healingHelp": "Egen healing (HPS) kommer rett fra ArcDPS via broen, ingen ekstra utvidelse trengs. Utvidelsen «arcdps healing stats» er valgfri: med den (og «live stats sharing» slått på) får måleren også squad-medlemmers healing. Legg arcdps_healing_stats.dll ved siden av d3d11.dll.",
+  "live.healingLink": "Hent arcdps healing stats (GitHub)",
+  "dps.live.healing": "healing {total} (HPS {hps})"
 }

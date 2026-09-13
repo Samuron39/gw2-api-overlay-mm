@@ -8,7 +8,23 @@
 //! En enkeltlinje som er lengre enn grensa sendes alene. Hello sendes som eget datagram hvert 2. sekund.
 //!
 //! Linjetyper (felt "t"):
-//! - hello:  {"t":"hello","v":1,"arc":"<arcdps-versjon>"}        livstegn, hvert 2. sekund
+//! - hello:  {"t":"hello","v":1,"arc":"<arcdps-versjon>","heal":1,"healExt":0|1}   livstegn, hvert 2. sekund
+//!           heal = 1: denne broen sender heal-linjer (under). healExt = 1: utvidelsen «arcdps healing stats»
+//!           (arcdps_healing_stats.dll, Krappa322) er lastet i spillprosessen, eller en av dens hendelser er sett.
+//! - heal:   {"t":"heal","ch":"local"|"ext","n":<seq>,"id":<arc-id>,"time":<ms>,"srcAgent","dstAgent","skill","name":"..",
+//!            "value":<heal>,"over":0,"barrier":0|1,"buff":0|1,"iff","srcInst","dstInst","srcMaster","dstMaster",
+//!            "flags":<is_offcycle>,"src":<agent|null>,"dst":<agent|null>}
+//!           Healing-hendelse, value alltid positiv. over (overheal) finnes ikke i noen kilde og er alltid 0.
+//!           ch = "local": fra combat_local. ArcDPS har ingen egen heal-hendelse, men chatbox-kanalen viser healing som
+//!             vanlige hendelser med POSITIV value (direkte, buff == 0) eller buff_dmg (regenerasjon, buff == 1); skade er
+//!             negativ der. Reglene er de samme som «arcdps healing stats» bruker (src/Common.h, GetEventType).
+//!             barrier = is_shields != 0 (README: «is_shields: damage was partially or wholly absorbed by barrier», for
+//!             healing betyr det barrier generert). Sanntid, krever ingen ekstra utvidelse. Se docs/healing-api.md.
+//!           ch = "ext": fra healing stats-utvidelsen via ArcDPS e10 (README: «is_statechange will be set to
+//!             CBTS_EXTENSIONCOMBAT, pad61-64 will be set to sig»), signatur 0x9c9b3c99. Utvidelsen negerer value/buff_dmg
+//!             («Flip event values so healed amount is negative»); broen negerer tilbake. Kommer på combat (2–3 s forsinket)
+//!             og inneholder også squad-medlemmers healing når de deler live. flags = is_offcycle med utvidelsens bits:
+//!             bit 7 «fra kilden», bit 6 «fra mottakeren», bit 5 «målet var downed».
 //! - ev:     {"t":"ev","s":"local"|"area","n":<seq>,"id":<arc-id>,"time":<ms>,"srcAgent","dstAgent","skill",
 //!            "name","value","buffDmg","overstack","iff","buff","result","act","rem","sc",
 //!            "srcInst","dstInst","srcMaster","dstMaster","src":<agent|null>,"dst":<agent|null>}
@@ -37,6 +53,7 @@ use arcdps::{helpers, Agent, ArcDpsExport, CombatEvent, RawAgent};
 use std::ffi::{c_char, c_void, CString};
 use std::net::UdpSocket;
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, RecvTimeoutError, Sender};
 use std::sync::Mutex;
 use std::thread::{self, JoinHandle};
@@ -58,6 +75,33 @@ struct Queue {
 
 static TX: Mutex<Option<Queue>> = Mutex::new(None);
 static SENDER: Mutex<Option<JoinHandle<()>>> = Mutex::new(None);
+
+// ---------- Healing: «arcdps healing stats» (Krappa322) ----------
+// Utvidelsen har ingen egne DLL-eksporter for andre utvidelser (src/Exports.h har bare get_init_addr/get_release_addr).
+// Det den tilbyr er heal-hendelser via ArcDPS e10 med sin signatur i pad61-64 (src/AddonVersion.h:
+// HEALING_STATS_ADDON_SIGNATURE 0x9c9b3c99). De kommer tilbake til alle utvidelser i combat-callbacken.
+const HEALING_STATS_SIG: u32 = 0x9c9b_3c99;
+// Filnavnet utvidelsen har på GitHub-releases; ArcDPS laster den fra spillmappa ved siden av d3d11.dll
+const HEALING_STATS_DLL: &str = "arcdps_healing_stats.dll";
+/// Sett når en ext-hendelse med signaturen er sett, så healExt i hello også slår til om DLL-en har et annet navn
+static HEAL_EXT_SEEN: AtomicBool = AtomicBool::new(false);
+/// Siste verdi rapportert i hello, så vi logger én linje i arcdps.log når status endrer seg
+static HEAL_EXT_LOGGED: Mutex<Option<bool>> = Mutex::new(None);
+
+// kernel32 er allerede lenket av std; samme mønster som GetProcAddress i arcdps-crate-ens raw_structs.rs
+extern "system" {
+    fn GetModuleHandleW(module_name: *const u16) -> *mut c_void;
+}
+
+/// Er healing stats-utvidelsen lastet i spillprosessen? Sjekkes ved hver hello (billig), fordi ArcDPS kan laste den etter oss.
+fn healing_ext_loaded() -> bool {
+    if HEAL_EXT_SEEN.load(Ordering::Relaxed) {
+        return true;
+    }
+    let wide: Vec<u16> = HEALING_STATS_DLL.encode_utf16().chain(std::iter::once(0)).collect();
+    let h = unsafe { GetModuleHandleW(wide.as_ptr()) };
+    !h.is_null()
+}
 
 // ---------- Eksporten ArcDPS leter etter ----------
 // Skrevet for hånd i stedet for arcdps_export!-makroen: makroen oppgir imgui 1.80 (18000) i eksporttabellen, men
@@ -147,7 +191,14 @@ fn init(_swapchain: Option<NonNull<c_void>>) -> Result<(), Box<dyn std::error::E
         let mut first_at = Instant::now(); // når første linje i bufferet kom
         loop {
             if last_hello.elapsed() >= HELLO_EVERY {
-                let _ = socket.send(format!("{{\"t\":\"hello\",\"v\":1,\"arc\":\"{}\"}}\n", esc(arcdps::arcdps_version())).as_bytes());
+                let heal_ext = healing_ext_loaded();
+                if let Ok(mut logged) = HEAL_EXT_LOGGED.lock() {
+                    if *logged != Some(heal_ext) {
+                        *logged = Some(heal_ext);
+                        arc_log(if heal_ext { "GW2 Overlay Bridge: arcdps healing stats funnet, videresender dens heal-hendelser" } else { "GW2 Overlay Bridge: arcdps healing stats ikke lastet (egen healing kommer likevel fra chatbox-kanalen)" });
+                    }
+                }
+                let _ = socket.send(format!("{{\"t\":\"hello\",\"v\":1,\"arc\":\"{}\",\"heal\":1,\"healExt\":{}}}\n", esc(arcdps::arcdps_version()), heal_ext as u8).as_bytes());
                 last_hello = Instant::now();
             }
             // Vent kortere når det ligger noe i bufferet, så 30 ms-grensa holdes
@@ -263,6 +314,12 @@ fn combat_local(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>
             if !damage || !(is_self(&src) || is_self(&dst)) {
                 return;
             }
+            // Healing: positiv value/buff_dmg i chatbox-kanalen (skade er negativ). Egen linjetype, så mottakeren
+            // slipper å tolke fortegn, og får is_shields (barrier) som ev-linja ikke har.
+            if let Some(amount) = local_heal_amount(e) {
+                forward_heal("local", e, amount, src, dst, skill_name, id);
+                return;
+            }
         }
     } else {
         return; // agent- og målhendelser kommer også på area
@@ -276,6 +333,18 @@ fn combat_local(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>
 /// buff-hendelser bare der du eller en NPC er part. Rene skadetreff og condition-ticks (gamle koder) droppes.
 fn combat_area(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>, skill_name: Option<&'static str>, id: u64, _revision: u64) {
     if let Some(e) = ev {
+        // Hendelser fra healing stats-utvidelsen (e10): signaturen ligger i pad61-64 (README: «pad61-64 will be set to sig»).
+        // Sjekkes før statechange-filteret, fordi is_statechange her er CBTS_EXTENSIONCOMBAT (ordinal 49 i evtc-README, kan
+        // avvike med én slik 67–72 gjorde) og ikke 0.
+        if e.is_statechange != 0 && ext_sig(e) == HEALING_STATS_SIG {
+            HEAL_EXT_SEEN.store(true, Ordering::Relaxed);
+            // Utvidelsen negerer heal-mengden (EventProcessor.cpp: «Flip event values so healed amount is negative»)
+            let amount = if e.buff == 0 { -(e.value as i64) } else { -(e.buff_dmg as i64) };
+            if amount > 0 {
+                forward_heal("ext", e, amount, src, dst, skill_name, id);
+            }
+            return; // versjonshendelsen (e9, sig 0) og andre uten mengde er uinteressante
+        }
         match e.is_statechange {
             0 => {
                 if e.is_activation == 0 && e.is_buff_remove == 0 {
@@ -300,6 +369,55 @@ fn combat_area(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>,
         }
     }
     forward("area", ev, src, dst, skill_name, id);
+}
+
+/// Signaturen en utvidelse la i pad61-64 via e9/e10 (little-endian u32, slik healing stats leser den med memcpy)
+fn ext_sig(e: &CombatEvent) -> u32 {
+    u32::from_le_bytes([e.pad61, e.pad62, e.pad63, e.pad64])
+}
+
+/// Heal-mengde for en hendelse i chatbox-kanalen, None om det ikke er healing. Samme regler som healing stats
+/// (src/Common.h, GetEventType): sc 0, ingen aktivering/buff-fjerning; buff == 0: result må være vanlig/crit/glance
+/// (0/1/2) og value > 0; buff == 1: buff_dmg > 0. Verdien 0 er «SemiDamaging» (breakbar o.l.) og hopper vi over.
+fn local_heal_amount(e: &CombatEvent) -> Option<i64> {
+    if e.is_statechange != 0 || e.is_activation != 0 || e.is_buff_remove != 0 {
+        return None;
+    }
+    if e.buff == 0 {
+        if !matches!(e.result, 0 | 1 | 2) || e.value <= 0 {
+            return None;
+        }
+        Some(e.value as i64)
+    } else if e.buff_dmg > 0 {
+        Some(e.buff_dmg as i64)
+    } else {
+        None
+    }
+}
+
+/// Heal-linje (se protokollen øverst). amount er alltid positiv. over (overheal) finnes ikke i noen kilde, alltid 0.
+fn forward_heal(ch: &str, e: &CombatEvent, amount: i64, src: Option<Agent>, dst: Option<Agent>, skill_name: Option<&'static str>, id: u64) {
+    send(|n| {
+        format!(
+            "{{\"t\":\"heal\",\"ch\":\"{ch}\",\"n\":{n},\"id\":{id},\"time\":{},\"srcAgent\":{},\"dstAgent\":{},\"skill\":{},\"name\":\"{}\",\"value\":{},\"over\":0,\"barrier\":{},\"buff\":{},\"iff\":{},\"srcInst\":{},\"dstInst\":{},\"srcMaster\":{},\"dstMaster\":{},\"flags\":{},\"src\":{},\"dst\":{}}}\n",
+            e.time,
+            e.src_agent,
+            e.dst_agent,
+            e.skill_id,
+            esc(skill_name.unwrap_or("")),
+            amount,
+            (e.is_shields != 0) as u8,
+            e.buff,
+            e.iff,
+            e.src_instance_id,
+            e.dst_instance_id,
+            e.src_master_instance_id,
+            e.dst_master_instance_id,
+            e.is_off_cycle,
+            agent_json(&src),
+            agent_json(&dst),
+        )
+    });
 }
 
 fn forward(scope: &str, ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>, skill_name: Option<&'static str>, id: u64) {
