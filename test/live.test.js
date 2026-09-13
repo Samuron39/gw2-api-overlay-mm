@@ -367,3 +367,144 @@ test('målbytte: agent-melding med src.elite 0xffffffff og dst null setter targe
   await send(ev({ sc: 2 }));
   await until((x) => x.target === null, 'sc 2 nullstiller');
 });
+
+// ---------- Mottatt skade og dødslogg ----------
+const MINION = { id: 202, name: 'Blood Fiend', prof: 0x0999, elite: 0xffffffff, self: 0, team: 2 };
+
+test('mottatt: brutt ned på kilde og skill med pct, minion tilskrives eieren via srcMaster', async () => {
+  const t0 = Date.now();
+  await send(ev({ sc: 2, time: t0 - 10 }));
+  await until((x) => !x.dps.current, 'ingen kamp i gang');
+  // Golemen får instid 8642 gjennom en hendelse der den er dst; minionens srcMaster peker dit
+  await send(
+    ev({ time: t0, sc: 1 }),
+    ev({ time: t0 + 10, dst: GOLEM, dstInst: 8642, iff: 1, value: -100, skill: 100, name: 'Slag' }),
+    ev({ time: t0 + 100, src: GOLEM, srcInst: 8642, dst: SELF, iff: 1, value: -600, skill: 555, name: 'Bitt', result: 1 }),
+    ev({ time: t0 + 200, src: TRASH, srcInst: 7300, dst: SELF, iff: 1, value: -300, skill: 556, name: 'Kloring' }),
+    ev({ time: t0 + 300, src: GOLEM, srcInst: 8642, dst: SELF, iff: 1, buff: 1, buffDmg: 100, skill: 737, name: 'Burning', result: 14 }),
+    ev({ time: t0 + 400, src: MINION, srcInst: 9001, srcMaster: 8642, dst: SELF, iff: 1, value: -200, skill: 557, name: 'Fiend Bite' }),
+    ev({ time: t0 + 500, src: TRASH, srcInst: 7300, dst: SELF, iff: 1, value: -999, skill: 556, name: 'Kloring', result: 3 }), // blokkert
+  );
+  const s = await until((x) => x.dps.current?.taken === 1200, 'mottatt 1200');
+  const bySrc = s.dps.current.takenBySource;
+  assert.equal(bySrc.length, 2, 'to kilder: minionens skade ligger på eieren');
+  assert.deepEqual(bySrc[0], { id: GOLEM.id, name: 'Golem', prof: GOLEM.prof, elite: GOLEM.elite, dmg: 900, hits: 3, pct: 75 });
+  assert.deepEqual(bySrc[1], { id: TRASH.id, name: 'Trash', prof: TRASH.prof, elite: TRASH.elite, dmg: 300, hits: 1, pct: 25 });
+  const bySkill = s.dps.current.takenBySkill;
+  assert.deepEqual(bySkill.map((k) => [k.name, k.dmg, k.hits, k.pct]), [['Bitt', 600, 1, 50], ['Kloring', 300, 1, 25], ['Fiend Bite', 200, 1, 17], ['Burning', 100, 1, 8]]);
+  // ringbufferen: nyeste sist, strike/cond skilles, minion-treffet står med eierens navn
+  const hits = s.dps.lastHits;
+  assert.equal(hits.length, 4);
+  assert.deepEqual(hits[0], { time: t0 + 100, skill: 555, name: 'Bitt', source: 'Golem', amount: 600, kind: 'strike' });
+  assert.equal(hits[2].kind, 'cond'); assert.equal(hits[2].amount, 100);
+  assert.equal(hits[3].source, 'Golem'); assert.equal(hits[3].name, 'Fiend Bite');
+  assert.equal(s.dps.death, null);
+  // kampslutt: listene følger med i forrige kamp
+  await send(ev({ sc: 2, time: t0 + 3000 }));
+  const s2 = await until((x) => !x.dps.current && x.dps.last?.taken === 1200, 'forrige kamp med mottatt');
+  assert.equal(s2.dps.last.takenBySource[0].name, 'Golem');
+  assert.equal(s2.dps.lastHits.length, 4, 'ringbufferen beholdes etter kampslutt');
+});
+
+test('ringbufferen holder de siste 10 treffene, og tømmes ved neste kampstart', async () => {
+  const t0 = Date.now();
+  await send(ev({ sc: 2, time: t0 - 10 }));
+  await until((x) => !x.dps.current, 'ingen kamp i gang');
+  await send(ev({ time: t0, sc: 1 }));
+  await until((x) => x.dps.lastHits.length === 0, 'tømt ved kampstart');
+  const msgs = [];
+  for (let i = 1; i <= 12; i++) msgs.push(ev({ time: t0 + i * 10, src: GOLEM, dst: SELF, iff: 1, value: -i, skill: 555, name: 'Bitt' }));
+  await send(...msgs);
+  const s = await until((x) => x.dps.current?.taken === 78, 'alle 12 telt (1 til 12)');
+  assert.equal(s.dps.lastHits.length, 10);
+  assert.deepEqual(s.dps.lastHits.map((h) => h.amount), [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  await send(ev({ sc: 2, time: t0 + 2000 }));
+  await until((x) => !x.dps.current, 'kamp slutt');
+  assert.equal(live.snapshot().dps.lastHits.length, 10, 'beholdes til neste kamp');
+  await send(ev({ time: t0 + 5000, sc: 1 }));
+  await until((x) => x.dps.current && x.dps.lastHits.length === 0, 'tømt ved ny kampstart');
+  await send(ev({ sc: 2, time: t0 + 6000 }));
+  await until((x) => !x.dps.current, 'kamp slutt');
+});
+
+test('dødslogg: CHANGEDEAD (sc 4) og result 8 på samme død dedupliseres, killer er kilden til dødsstøtet', async () => {
+  const t0 = Date.now();
+  await send(ev({ sc: 2, time: t0 - 10 }));
+  await until((x) => !x.dps.current, 'ingen kamp i gang');
+  await send(
+    ev({ time: t0, sc: 1 }),
+    ev({ time: t0 + 100, src: TRASH, dst: SELF, iff: 1, value: -300, skill: 556, name: 'Kloring' }),
+    ev({ time: t0 + 200, src: GOLEM, dst: SELF, iff: 1, value: -4200, skill: 555, name: 'Flame Burst', result: 1 }),
+    // dødsstøtet kommer som egen hendelse med value 0 (slik våre egne dødsstøt gjør i opptaket)
+    ev({ time: t0 + 220, src: GOLEM, dst: SELF, iff: 1, value: 0, skill: 555, name: 'Flame Burst', result: 8 }),
+    // CHANGEDEAD for deg selv, på chatbox-kanalen ...
+    ev({ time: t0 + 230, sc: 4, src: SELF }),
+  );
+  let s = await until((x) => x.dps.death, 'død registrert');
+  const d = s.dps.death;
+  assert.equal(d.downed, false);
+  assert.equal(d.killer, 'Golem');
+  assert.equal(d.skill, 'Flame Burst'); assert.equal(d.amount, 4200);
+  assert.equal(d.time, t0 + 220);
+  assert.ok(Math.abs(d.at - (t0 + 220)) < 1500, 'veggklokke-tid, fikk ' + d.at);
+  assert.deepEqual(d.hits.map((h) => [h.name, h.amount]), [['Kloring', 300], ['Flame Burst', 4200]]);
+  assert.equal(live.deathSeen.length, 1, 'result 8 og sc 4 er samme død');
+  // ... og forsinket på evtc-kanalen med samme hendelsestid: fortsatt én død, kopien urørt
+  await send(ev({ s: 'area', time: t0 + 230, sc: 4, src: SELF }));
+  await new Promise((r) => setTimeout(r, 60));
+  s = live.snapshot();
+  assert.equal(live.deathSeen.length, 1);
+  assert.equal(s.dps.death.hits.length, 2);
+  // treff etter døden (f.eks. mot liket) endrer ikke den frosne kopien
+  await send(ev({ time: t0 + 900, src: TRASH, dst: SELF, iff: 1, value: -50, skill: 556, name: 'Kloring' }));
+  await until((x) => x.dps.lastHits.length === 3, 'nytt treff i bufferen');
+  assert.equal(live.snapshot().dps.death.hits.length, 2, 'dødsloggen er frosset');
+  // kampslutt beholder dødsloggen, neste kampstart nullstiller
+  await send(ev({ sc: 2, time: t0 + 3000 }));
+  await until((x) => !x.dps.current, 'kamp slutt');
+  assert.ok(live.snapshot().dps.death, 'beholdes etter kampslutt');
+  await send(ev({ time: t0 + 9000, sc: 1 }));
+  await until((x) => x.dps.current && !x.dps.death, 'nullstilt ved ny kamp');
+  await send(ev({ sc: 2, time: t0 + 9500 }));
+  await until((x) => !x.dps.current, 'kamp slutt');
+});
+
+test('dødslogg: nedkjempet (sc 5 / result 9) og død (sc 4) skilles, CHANGEDOWN uten treff bruker siste treff i bufferen', async () => {
+  const t0 = Date.now();
+  await send(ev({ sc: 2, time: t0 - 10 }));
+  await until((x) => !x.dps.current, 'ingen kamp i gang');
+  await send(
+    ev({ time: t0, sc: 1 }),
+    ev({ time: t0 + 100, src: GOLEM, dst: SELF, iff: 1, value: -2000, skill: 555, name: 'Smash' }),
+    ev({ time: t0 + 200, sc: 5, src: SELF }), // CHANGEDOWN først, uten result-hendelse
+  );
+  let s = await until((x) => x.dps.death, 'nedkjempet registrert');
+  assert.equal(s.dps.death.downed, true);
+  assert.equal(s.dps.death.killer, 'Golem', 'kilden til siste treff');
+  assert.equal(s.dps.death.skill, 'Smash'); assert.equal(s.dps.death.amount, 2000);
+  // result 9 (CBTR_DOWNED) noen ms etter for samme nedkjempelse: ingen ny post
+  await send(ev({ time: t0 + 190, src: GOLEM, dst: SELF, iff: 1, value: 0, skill: 555, name: 'Smash', result: 9 }));
+  await new Promise((r) => setTimeout(r, 60));
+  assert.equal(live.deathSeen.length, 1);
+  // så dør du i downstate: ny post med downed false og de nye treffene
+  await send(
+    ev({ time: t0 + 5000, src: TRASH, dst: SELF, iff: 1, value: -800, skill: 556, name: 'Stomp' }),
+    ev({ time: t0 + 5010, src: TRASH, dst: SELF, iff: 1, value: 0, skill: 556, name: 'Stomp', result: 8 }),
+    ev({ time: t0 + 5020, sc: 4, src: SELF }),
+  );
+  s = await until((x) => x.dps.death?.downed === false, 'død etter nedkjempelse');
+  assert.equal(s.dps.death.killer, 'Trash');
+  assert.equal(s.dps.death.skill, 'Stomp'); assert.equal(s.dps.death.amount, 800);
+  assert.equal(s.dps.death.hits.length, 2);
+  assert.equal(live.deathSeen.length, 2, 'nedkjempet og død er to signaler');
+  // en forsinket CHANGEDOWN-kopi fra evtc-kanalen skal ikke gjøre den døde til nedkjempet igjen
+  await send(ev({ s: 'area', time: t0 + 200, sc: 5, src: SELF }));
+  await new Promise((r) => setTimeout(r, 60));
+  assert.equal(live.snapshot().dps.death.downed, false);
+  // andres død rører ikke vår dødslogg
+  await send(ev({ time: t0 + 6000, sc: 4, src: OTHER }));
+  await new Promise((r) => setTimeout(r, 60));
+  assert.equal(live.deathSeen.length, 2);
+  await send(ev({ sc: 2, time: t0 + 7000 }));
+  await until((x) => !x.dps.current, 'kamp slutt');
+});

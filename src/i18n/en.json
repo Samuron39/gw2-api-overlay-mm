@@ -674,5 +674,14 @@
   "dps.live.noFight": "no fight yet. Hit something and it counts.",
   "dps.live.noBridge": "Live DPS needs the bridge (Live tab). The logs below come from ArcDPS files.",
   "dps.live.window": "Show DPS window",
-  "dps.live.opened": "The DPS window is on. Place and lock it on the Live tab."
+  "dps.live.opened": "The DPS window is on. Place and lock it on the Live tab.",
+  "overlay.dps.takenTitle": "Taken",
+  "overlay.dps.downedBy": "Downed by {killer}",
+  "overlay.dps.killedBy": "Killed by {killer}",
+  "overlay.dps.lastHit": "last: {skill} {amount}",
+  "live.takenRows": "Sources in taken list",
+  "dps.live.takenBy": "taken: {list}",
+  "dps.live.downedAt": "Downed {when}",
+  "dps.live.diedAt": "Died {when}",
+  "dps.live.lastHits": "last hits: {hits}"
 }

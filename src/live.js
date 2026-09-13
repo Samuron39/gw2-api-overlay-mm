@@ -10,6 +10,8 @@ const NPC_ELITE = 0xffffffff;
 const MAX_TARGETS = 40;
 const DEDUPE_KEEP = 512; // hvor mange (scope, arcdps-id) vi husker for å avvise dobbeltleverte hendelser
 const MAX_STACKS = 25;
+const LAST_HITS = 10; // ringbuffer med siste treff mot deg
+const DEATH_DEDUPE_MS = 2000; // samme ned/død-signal fra begge kanaler og begge veier (statechange og result) innen dette regnes som ett
 
 class Live extends EventEmitter {
   constructor() {
@@ -30,9 +32,19 @@ class Live extends EventEmitter {
     this.nextExpiry = null; // arcdps-tid for første utløp blant buffs i siste snapshot; da sendes ny tilstand
     this.rec = null; // { stream, file, until } mens den rå strømmen tas opp til fil (feilsøking)
     // DPS: pågående kamp og forrige kamp, regnet fra egne treff og condition-ticks i chatbox-kanalen (sanntid)
-    this.fight = null; // { start, last, total, taken, targets: Map, skills: Map }
+    this.fight = null; // { start, last, total, taken, targets: Map, skills: Map, takenSrc: Map, takenSkills: Map }
     this.lastFight = null; // ferdig oppsummert
     this.dmgWindow = []; // [arcdps-tid, skade] de siste 10 s, for "DPS nå"
+    // ---------- Mottatt skade og dødslogg ----------
+    // Ringbuffer med de siste LAST_HITS treffene mot deg (nyeste sist), uavhengig av kamp; tømmes ved kampstart.
+    this.lastHits = []; // { time, skill, name, source, amount, kind: 'strike'|'cond' }
+    // Frosset kopi av ringbufferen da du gikk ned eller døde; beholdes til neste kampstart
+    this.death = null; // { time, at, downed, hits, killer, skill, amount }
+    this.deathSeen = []; // [{ downed, time }] signaler vi alt har registrert (dedupe mellom kanaler og veier)
+    // instid -> agent-id. cbtevent.src_instid er "id of agent as appears in game at time of event", og
+    // src_master_instid "if src_agent has a master (eg. is minion), will be equal to instid of master" (evtc-README).
+    // Brukes til å tilskrive minion-skade til eieren.
+    this.instIds = new Map();
     this.lastDpsEmit = 0;
     this.timer = null;
     this.dirty = false;
@@ -140,6 +152,8 @@ class Live extends EventEmitter {
       } else if (m.src && m.src.name && m.dst) {
         this.agents.set(m.src.id, { id: m.src.id, name: m.src.name, prof: m.dst.prof, elite: m.dst.elite, self: m.dst.self });
       }
+      // API-README: ved agent-registrering er "dst->id = instance id on map". Husk instid -> agent for minion-eiere.
+      if (m.src && m.dst && m.src.name && m.dst.id > 0) this.instIds.set(m.dst.id, m.src.id);
       return;
     }
     if (m.t !== 'ev' || this.isDuplicate(m)) return;
@@ -156,6 +170,17 @@ class Live extends EventEmitter {
     if (m.src?.name) this.agents.set(m.src.id, { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite, self: m.src.self });
     if (m.dst?.name) this.agents.set(m.dst.id, { id: m.dst.id, name: m.dst.name, prof: m.dst.prof, elite: m.dst.elite, self: m.dst.self });
     if (srcSelf && !this.self) this.self = { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite };
+    // instid -> agent-id fra hendelsene (evtc-README: "src_instid - id of agent as appears in game at time of event")
+    if (m.srcInst > 0 && m.src?.id > 0) this.instIds.set(m.srcInst, m.src.id);
+    if (m.dstInst > 0 && m.dst?.id > 0) this.instIds.set(m.dstInst, m.dst.id);
+
+    // ---------- Dødslogg: nedkjempet/død for deg selv via statechange ----------
+    // evtc-README, enum cbtstatechange i rekkefølge: CBTS_COMBAT = 0, ENTERCOMBAT (1), EXITCOMBAT (2), CHANGEUP (3),
+    // CHANGEDEAD (4) "agent is dead at time of event", CHANGEDOWN (5) "agent is down at time of event"; "src_agent: relates
+    // to agent", "realtime: limited to squad" (du er alltid i din egen squad, så de kommer på chatbox-kanalen også).
+    // Vi legger ordinalen til grunn (4 og 5): de lave kodene 1, 2, 9, 10, 11 og 18 er målt å stemme med ordinalen, det er
+    // bare de nyeste (67–72) som ligger én under README. Ikke verifisert i spillet ennå, se sluttrapporten.
+    if ((m.sc === 4 || m.sc === 5) && srcSelf) { this.recordDeath(m.sc === 5, m.time, null); return; }
 
     if (m.sc === 1 && srcSelf) { this.inCombat = true; if (m.s !== 'area') this.startFight(m.time); this.dirty = true; return; }
     // Ut av kamp: målet nullstilles. ArcDPS sender ikke CHANGEDEAD for vanlige fiender i åpen verden, så død
@@ -207,8 +232,9 @@ class Live extends EventEmitter {
     // Buff påført: dst får buffen, value = varighet ms
     if (m.buff === 1 && m.value > 0) { this.applyBuff(m, true); return; }
 
-    // Skade mot oss (chatbox-kanalen): telles som mottatt i kampregnskapet
-    if (!srcSelf && m.dst?.self === 1 && (m.value !== 0 || m.buffDmg !== 0)) { this.addTaken(m); return; }
+    // Skade mot oss (chatbox-kanalen): telles som mottatt i kampregnskapet. Dødsstøt (result 8) og nedkjempet (result 9)
+    // mot oss kommer som egen hendelse med value 0 (målt for våre egne dødsstøt i opptaket), derfor slippes de også gjennom.
+    if (!srcSelf && m.dst?.self === 1 && (m.value !== 0 || m.buffDmg !== 0 || m.result === 8 || m.result === 9)) { this.addTaken(m); return; }
     // Skade fra oss mot fiende: husk målet. Chatbox-kanalen gir skade som negativt tall, derfor != 0.
     if (srcSelf && m.iff === 1 && m.dst && (m.value !== 0 || m.buffDmg !== 0)) {
       this.addDamage(m);
@@ -234,8 +260,12 @@ class Live extends EventEmitter {
   }
   startFight(t) {
     if (this.fight) return; // allerede i gang (kamp inn kommer også forsinket på evtc-kanalen)
-    this.fight = { start: t, last: t, total: 0, taken: 0, targets: new Map(), skills: new Map() };
+    this.fight = { start: t, last: t, total: 0, taken: 0, targets: new Map(), skills: new Map(), takenSrc: new Map(), takenSkills: new Map() };
     this.dmgWindow = [];
+    // Ny kamp: siste treff og dødsloggen fra forrige kamp slippes
+    this.lastHits = [];
+    this.death = null;
+    this.deathSeen = [];
     this.dirty = true;
   }
   endFight(t) {
@@ -258,17 +288,75 @@ class Live extends EventEmitter {
     this.dmgWindow.push([m.time, amt]);
     this.dirty = true;
   }
+  // ---------- Mottatt skade ----------
+  // Kilden til et treff mot deg, med minions tilskrevet eieren. evtc-README: "src_master_instid - if src_agent has a master
+  // (eg. is minion), will be equal to instid of master, zero otherwise". Eieren slås opp via instid -> agent-id (instIds);
+  // er eieren ukjent ennå, brukes minionens eget navn under eierens nøkkel, og navnet rettes når eieren dukker opp.
+  sourceOf(m) {
+    const src = m.src || {};
+    const master = Number(m.srcMaster) || 0;
+    if (master > 0) {
+      const ownerId = this.instIds.get(master);
+      const owner = ownerId != null ? this.agents.get(ownerId) : null;
+      if (owner && owner.name) return { key: 'a' + ownerId, id: ownerId, name: owner.name, prof: owner.prof, elite: owner.elite, resolved: true, master };
+      return { key: 'm' + master, id: ownerId ?? null, name: src.name || '', prof: src.prof, elite: src.elite, resolved: false, master };
+    }
+    return { key: 'a' + (src.id ?? 0), id: src.id ?? 0, name: src.name || '', prof: src.prof, elite: src.elite, resolved: true };
+  }
   addTaken(m) {
     const amt = Live.damageOf(m);
-    if (!amt || !this.fight) return;
-    this.fight.taken += amt; this.fight.last = Math.max(this.fight.last, m.time);
+    const s = this.sourceOf(m);
+    // Nedkjempet (result 9, CBTR_DOWNED "target was downed by skill") og dødsstøt (result 8, CBTR_KILLINGBLOW "target was
+    // killed by skill") mot deg: den andre veien til dødsloggen, i tillegg til CHANGEDOWN/CHANGEDEAD. Kilden er drapsmannen.
+    const fatal = m.result === 8 || m.result === 9;
+    if (!amt && !fatal) return;
+    if (amt) {
+      if (!this.fight) this.startFight(m.time); // å bli truffet er også kamp (første treff kommer før sc 1 i opptaket)
+      const f = this.fight;
+      f.taken += amt; f.last = Math.max(f.last, m.time);
+      const ts = f.takenSrc.get(s.key) || { id: s.id, name: s.name, prof: s.prof, elite: s.elite, dmg: 0, hits: 0 };
+      // Eieren ble kjent etter at minionen alt hadde truffet: flytt det som lå under den midlertidige nøkkelen over på eieren
+      if (s.resolved && s.master) { const tmp = f.takenSrc.get('m' + s.master); if (tmp) { ts.dmg += tmp.dmg; ts.hits += tmp.hits; f.takenSrc.delete('m' + s.master); } }
+      ts.dmg += amt; ts.hits++;
+      if (s.name && (!ts.name || s.resolved)) { ts.name = s.name; ts.prof = s.prof; ts.elite = s.elite; if (s.id != null) ts.id = s.id; }
+      f.takenSrc.set(s.key, ts);
+      const sk = f.takenSkills.get(m.skill) || { skill: m.skill, name: m.name || '', dmg: 0, hits: 0 };
+      sk.dmg += amt; sk.hits++; if (m.name) sk.name = m.name; f.takenSkills.set(m.skill, sk);
+      this.lastHits.push({ time: m.time, skill: m.skill, name: m.name || '', source: s.name, amount: amt, kind: m.buff === 1 ? 'cond' : 'strike' });
+      if (this.lastHits.length > LAST_HITS) this.lastHits.shift();
+    }
+    if (fatal) this.recordDeath(m.result === 9, m.time, { killer: s.name, skill: m.name || '', amount: amt });
+    this.dirty = true;
+  }
+  // Fryser ringbufferen som dødslogg. downed: nedkjempet (kan reddes), ellers død. hit: treffet som felte deg når vi vet det
+  // (result-veien), ellers brukes siste treff i bufferen. Samme signal fra begge kanaler (area kommer 2–3 s etter local, med
+  // samme hendelsestid) og begge veier (statechange og result, noen ms fra hverandre) dedupliseres på (downed, tid).
+  recordDeath(downed, time, hit) {
+    const dup = this.deathSeen.find((d) => d.downed === downed && Math.abs(d.time - time) < DEATH_DEDUPE_MS);
+    if (dup) {
+      // Statechange-veien kom først og kjenner ikke drapsmannen: fyll inn fra result-veien
+      if (hit && this.death && this.death.downed === downed && !this.death.killer) Object.assign(this.death, hit);
+      return;
+    }
+    this.deathSeen.push({ downed, time });
+    if (this.deathSeen.length > 20) this.deathSeen.shift();
+    const last = this.lastHits[this.lastHits.length - 1];
+    this.death = {
+      time, at: time + this.offset, downed, hits: this.lastHits.slice(),
+      killer: hit?.killer || last?.source || '',
+      skill: hit?.skill || last?.name || '',
+      amount: hit?.amount || last?.amount || 0,
+    };
     this.dirty = true;
   }
   summarize(f, end) {
     const durationMs = Math.max(1000, end - f.start);
     const targets = [...f.targets.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 3);
     const skills = [...f.skills.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 8).map((s) => ({ ...s, pct: f.total ? Math.round(s.dmg / f.total * 100) : 0 }));
-    return { durationMs, total: f.total, taken: f.taken, dps: Math.round(f.total / durationMs * 1000), targets, skills, target: targets[0]?.name || '' };
+    const pctTaken = (s) => ({ ...s, pct: f.taken ? Math.round(s.dmg / f.taken * 100) : 0 });
+    const takenBySource = [...f.takenSrc.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 5).map(pctTaken);
+    const takenBySkill = [...f.takenSkills.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 5).map(pctTaken);
+    return { durationMs, total: f.total, taken: f.taken, dps: Math.round(f.total / durationMs * 1000), targets, skills, target: targets[0]?.name || '', takenBySource, takenBySkill };
   }
   dpsSnapshot(now) {
     const f = this.fight;
@@ -282,7 +370,8 @@ class Live extends EventEmitter {
       cur.dps10 = Math.round(sum / span * 1000);
       cur.active = true;
     }
-    return { current: cur, last: this.lastFight };
+    // lastHits: de siste treffene mot deg (nyeste sist). death: frosset kopi da du gikk ned/døde. Begge beholdes til neste kampstart.
+    return { current: cur, last: this.lastFight, lastHits: this.lastHits.slice(), death: this.death };
   }
 
   // Samme arcdps-id i samme scope to ganger = samme hendelse levert to ganger. Husker de siste DEDUPE_KEEP.
