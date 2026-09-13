@@ -318,7 +318,20 @@ function renderSkillbar() {
   sbStatus.textContent = `${skillbar.character} · ${skillbar.specName || skillbar.professionName}${setTxt}${modeTxt} · ${rot.length ? T.t('overlay.rotation', { pos: rotationPos + 1, total: rot.length }) : T.t('overlay.noRotation')}${snap?.connected ? '' : ' · ' + T.t('overlay.noLive')}`;
 }
 
-function render() { if (TYPE === 'skillbar') renderSkillbar(); else if (KIND === 'dps') renderDps(); else renderBuffs(); }
+// Tegnefeil skal ikke stoppe vinduet stille: de logges (havner i app.log via console-message) og neste tegning prøver igjen
+let renderErrors = 0;
+function render() {
+  try { if (TYPE === 'skillbar') renderSkillbar(); else if (KIND === 'dps') renderDps(); else renderBuffs(); }
+  catch (e) { if (renderErrors++ < 5) console.error('overlay ' + TYPE + ' render: ' + (e.stack || e.message)); }
+}
+// Diagnose til feilrapporten (ipc.js log:report kjører denne i hvert overlay-vindu)
+window.__diag = () => ({
+  type: TYPE, kind: KIND, cfg: cfg && { view: cfg.view, period: cfg.period, locked: cfg.locked, enabled: cfg.enabled, w: cfg.w, h: cfg.h, fontSize: cfg.fontSize },
+  edit: document.body.classList.contains('edit'), size: [innerWidth, innerHeight], zoom: devicePixelRatio,
+  dpsHidden: dp.hidden, dpsText: (dp.innerText || '').replace(/\n/g, ' | ').slice(0, 160), gridHidden: grid.hidden,
+  snap: !!snap, dps: snap?.dps ? { cur: !!snap.dps.current, last: !!snap.dps.last, fights: snap.dps.session?.fights } : null,
+  renderErrors, lang: T.language,
+});
 
 // Skill-bar hentes fra API-et via skills:get. Én lasting om gangen (sbLoading), og MumbleLink-tilstanden som kommer
 // hvert 500 ms utløser bare ny lasting når karakter eller spec faktisk har endret seg (sbTrigger). Feilet lasting

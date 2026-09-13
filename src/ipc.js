@@ -174,8 +174,16 @@ function register() {
 
   // ---------- Feilsøking: loggmappe og feilrapport (uten hemmeligheter) til utklippstavla ----------
   handle('log:open', async () => { const r = await shell.openPath(log.path()); if (r) throw new Error(r); return log.path(); });
-  handle('log:report', () => {
+  handle('log:report', async () => {
     const os = require('os');
+    // Tilstanden i hvert overlay-vindu (window.__diag i overlay.js): hva vinduet selv tror det viser
+    const diag = [];
+    for (const type of Object.keys(overlays.DEFAULTS)) {
+      const w = overlays.get(type);
+      if (!w || w.isDestroyed()) continue;
+      try { diag.push(type + ': ' + JSON.stringify(await w.webContents.executeJavaScript('window.__diag ? window.__diag() : "ingen __diag"'))); }
+      catch (e) { diag.push(type + ': feil ' + e.message); }
+    }
     const config = cfg.config;
     const SECRET = /key|token|secret|passw/i; // nøkler i konfigen som aldri skal med i rapporten
     const safe = JSON.parse(JSON.stringify(config, (k, v) => (k && SECRET.test(k) ? undefined : v)));
@@ -200,6 +208,10 @@ function register() {
       'Bro: ' + JSON.stringify(bridge),
       'Live: connected=' + snap.connected + ', arcVersion=' + (snap.arcVersion || '-') + ', inCombat=' + snap.inCombat,
       'MumbleLink: running=' + !!mumble.state?.running + (mumble.state?.error ? ', feil=' + mumble.state.error : ''),
+      'DPS: ' + JSON.stringify({ current: !!snap.dps?.current, last: snap.dps?.last ? { total: snap.dps.last.total, dps: snap.dps.last.dps } : null, session: snap.dps?.session ? { fights: snap.dps.session.fights, total: snap.dps.session.total } : null }),
+      '',
+      '--- Overlay-vinduer ---',
+      ...(diag.length ? diag : ['(ingen vinduer åpne)']),
       '',
       '--- Konfig (uten hemmeligheter) ---',
       JSON.stringify(safe, null, 2),
