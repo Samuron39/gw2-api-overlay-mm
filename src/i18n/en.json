@@ -106,7 +106,7 @@
   "settings.overlayHelp": "The wheel lets clicks pass through its transparent areas, so it does not steal clicks from the game. Ctrl+Shift+G shows or hides the panel.",
   "settings.update": "Updates",
   "settings.installedVersion": "Installed version:",
-  "settings.autoUpdate": "Check automatically at startup and every 6 hours",
+  "settings.autoUpdate": "Check automatically at startup, when the game starts, and every 6 hours",
   "settings.updateHelp": "A new version is downloaded in the background and installed when you quit the overlay, or right away with the button below.",
   "settings.updCheck": "Check for updates",
   "settings.updInstall": "Install and restart",
@@ -725,5 +725,7 @@
   "live.group.look": "Appearance",
   "live.state.off": "off",
   "live.state.edit": "unlocked, movable",
-  "live.state.locked": "locked"
+  "live.state.locked": "locked",
+  "update.readyTitle": "GW2 Overlay: new version ready",
+  "update.readyBody": "Version {v} has been downloaded. Click here, or open Settings, to install."
 }

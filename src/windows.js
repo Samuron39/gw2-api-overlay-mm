@@ -4,6 +4,7 @@
 const { app, BrowserWindow, screen, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const cfg = require('./config');
+const log = require('./log');
 const dps = require('./modules/dps');
 const mumble = require('./mumble');
 const arcdps = require('./modules/arcdps');
@@ -179,22 +180,33 @@ function createTray() {
     tray.setToolTip('GW2 Overlay');
     setTrayMenu();
     tray.on('click', () => { if (wheelWin?.isVisible()) wheelWin.hide(); else wheelWin?.show(); });
+    tray.on('balloon-click', () => openModule('settings', { toggle: false }));
   } catch (e) { console.error('Tray:', e.message); }
 }
 
-// Følg spillet: vis hjulet når Gw2-64.exe kjører, skjul når det avsluttes
-async function startFollowGame() {
+// Følg spillet: vis hjulet når Gw2-64.exe kjører, skjul når det avsluttes. Spillstart meldes til onGameStart
+// (oppdateringssjekk) uansett om «følg spillet» er på.
+async function startFollowGame({ onGameStart } = {}) {
   let gameWasRunning = null;
   const pollGame = async () => {
-    if (!cfg.config.followGame || TEST_MODE) return;
+    if (TEST_MODE) return;
     const running = await arcdps.gameRunning();
     if (running === gameWasRunning) return;
+    const wasKnown = gameWasRunning != null;
     gameWasRunning = running;
+    if (running && wasKnown) { try { onGameStart?.(); } catch (e) { log.warn('app', 'onGameStart: ' + e.message); } }
+    if (!cfg.config.followGame) return;
     if (running) { wheelWin?.showInactive(); }
     else { wheelWin?.hide(); panelWin?.hide(); }
   };
-  if (cfg.config.followGame && !TEST_MODE) { if (!(await arcdps.gameRunning())) { wheelWin?.hide(); gameWasRunning = false; } else gameWasRunning = true; }
+  if (!TEST_MODE) { gameWasRunning = await arcdps.gameRunning(); if (cfg.config.followGame && !gameWasRunning) wheelWin?.hide(); }
   setInterval(pollGame, 5000);
+}
+
+// Liten popup fra systemstatusfeltet (Windows-ballong). Klikk åpner Innstillinger.
+function showBalloon(title, content) {
+  if (!tray) return;
+  try { tray.displayBalloon({ title, content, iconType: 'info' }); } catch (e) { log.warn('app', 'Ballong: ' + e.message); }
 }
 
 function setQuitting() { quitting = true; }
@@ -202,7 +214,7 @@ function setQuitting() { quitting = true; }
 module.exports = {
   webPreferences, APP_ICON,
   createWheel, createPanel, openModule, closePanel, panelState, broadcast, clampToScreen, applyConfig, startDpsWatch,
-  setupAutoHide, createTray, startFollowGame, setQuitting, applyScale,
+  setupAutoHide, createTray, startFollowGame, setQuitting, applyScale, showBalloon,
   get wheelWin() { return wheelWin; },
   get panelWin() { return panelWin; },
   get currentModule() { return currentModule; },

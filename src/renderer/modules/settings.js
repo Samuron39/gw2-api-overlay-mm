@@ -9,6 +9,19 @@
   const template = () => `
     <div class="settings">
       <label>${t('settings.language')} <select id="language">${T.languages.map((l) => `<option value="${esc(l.id)}" ${l.id === T.language ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></label>
+      <section class="card" id="updCard">
+      <h3>${t('settings.update')}</h3>
+      <p class="muted">${t('settings.installedVersion')} <b id="updVersion"></b></p>
+      <label class="inline"><input type="checkbox" id="autoUpdate" /> ${t('settings.autoUpdate')}</label>
+      <p class="muted small">${t('settings.updateHelp')}</p>
+      <div class="row">
+        <button id="updCheck" type="button">${t('settings.updCheck')}</button>
+        <button id="updInstall" type="button" class="primary" style="display:none">${t('settings.updInstall')}</button>
+        <span id="updStatus" class="muted small"></span>
+      </div>
+      <p class="muted small">${t('settings.updateSource')}</p>
+
+      </section>
 
       <section class="card">
       <h3>${t('settings.gw2')}</h3>
@@ -58,24 +71,12 @@
       <label class="inline"><input type="checkbox" id="launchAtStartup" /> ${t('settings.launchAtStartup')}</label>
       <p class="muted small">${t('settings.overlayHelp')}</p>
       </section>
-      <section class="card">
-      <h3>${t('settings.update')}</h3>
-      <p class="muted">${t('settings.installedVersion')} <b id="updVersion"></b></p>
-      <label class="inline"><input type="checkbox" id="autoUpdate" /> ${t('settings.autoUpdate')}</label>
-      <p class="muted small">${t('settings.updateHelp')}</p>
-      <div class="row">
-        <button id="updCheck" type="button">${t('settings.updCheck')}</button>
-        <button id="updInstall" type="button" class="primary" style="display:none">${t('settings.updInstall')}</button>
-        <span id="updStatus" class="muted small"></span>
-      </div>
-      <p class="muted small">${t('settings.updateSource')}</p>
-
       <div class="row">
         <button id="saveBtn" class="primary">${t('settings.save')}</button>
         <button id="quitBtn">${t('settings.quit')}</button>
       </div>
       <p class="muted small">${t('settings.configStored')} <span id="cfgPath"></span>. <span id="cfgErr" class="status error"></span></p>
-      </section>
+
       <section class="card">
       <h3>${t('settings.debug')}</h3>
       <div class="row">
@@ -171,6 +172,7 @@
     el.classList.toggle('error', s.status === 'error');
     $('#updInstall', root).style.display = s.status === 'downloaded' ? '' : 'none';
     $('#updCheck', root).disabled = s.status === 'checking' || s.status === 'downloading';
+    $('#updCard', root)?.classList.toggle('highlight', ['available', 'downloading', 'downloaded'].includes(s.status));
   }
 
   async function mount(el) {

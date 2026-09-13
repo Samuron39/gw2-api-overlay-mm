@@ -15,6 +15,7 @@ const overlays = require('./overlays');
 const updater = require('./updater');
 const mumble = require('./mumble');
 const log = require('./log');
+const { t } = require('./i18n');
 
 // Feil i hovedprosessen logges i stedet for å ta ned appen
 process.on('uncaughtException', (e) => log.error('main', 'uncaughtException', e));
@@ -63,10 +64,19 @@ app.whenReady().then(async () => {
   // Automatisk oppdatering fra GitHub Releases (bare pakket app, aldri i testmodus). electron-updater logger til app.log med scope "update".
   const short = (x) => String(x?.message || x).split(String.fromCharCode(10))[0].split(String.fromCharCode(13)).join('').split(' Headers:')[0].slice(0, 300);
   const updLog = Object.fromEntries(['info', 'warn', 'error', 'debug'].map((lvl) => [lvl, (msg) => log[lvl]('update', short(msg))]));
-  updater.init({ app, config, testMode: TEST_MODE, log: updLog, onStatus: (s) => win.broadcast('update:status', s) });
+  // Ny versjon lastet ned: popup fra systemstatusfeltet og Innstillinger åpnes (oppdateringskortet ligger øverst). Én gang per versjon.
+  let notifiedVersion = null;
+  const notifyUpdate = (s) => {
+    if (s.status !== 'downloaded' || !s.version || notifiedVersion === s.version) return;
+    notifiedVersion = s.version;
+    win.showBalloon(t('update.readyTitle'), t('update.readyBody', { v: s.version }));
+    win.openModule('settings', { toggle: false });
+  };
+  updater.init({ app, config, testMode: TEST_MODE, log: updLog, onStatus: (s) => { win.broadcast('update:status', s); notifyUpdate(s); } });
 
   win.createTray();
-  await win.startFollowGame();
+  // Sjekk for ny versjon hver gang spillet startes (i tillegg til ved oppstart og hver 6. time)
+  await win.startFollowGame({ onGameStart: () => { if (config.autoUpdate !== false) { log.info('update', 'Spillet startet, sjekker for ny versjon'); updater.check().catch(() => {}); } } });
 
   // Første gang: finn spillmappa og åpne Kom i gang-veiviseren
   if (!TEST_MODE && !DEMO) {

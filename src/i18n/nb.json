@@ -106,7 +106,7 @@
   "settings.overlayHelp": "Hjulet slipper klikk gjennom de gjennomsiktige områdene, så det stjeler ikke klikk fra spillet. Ctrl+Shift+G viser eller skjuler panelet.",
   "settings.update": "Oppdatering",
   "settings.installedVersion": "Installert versjon:",
-  "settings.autoUpdate": "Sjekk automatisk ved oppstart og hver 6. time",
+  "settings.autoUpdate": "Sjekk automatisk ved oppstart, når spillet starter, og hver 6. time",
   "settings.updateHelp": "Ny versjon lastes ned i bakgrunnen og installeres når du avslutter overlayen, eller med en gang med knappen under.",
   "settings.updCheck": "Sjekk for oppdatering",
   "settings.updInstall": "Installer og start på nytt",
@@ -725,5 +725,7 @@
   "live.group.look": "Utseende",
   "live.state.off": "av",
   "live.state.edit": "ulåst, kan flyttes",
-  "live.state.locked": "låst"
+  "live.state.locked": "låst",
+  "update.readyTitle": "GW2 Overlay: ny versjon klar",
+  "update.readyBody": "Versjon {v} er lastet ned. Klikk her, eller åpne Innstillinger, for å installere."
 }
