@@ -371,7 +371,7 @@ test('målbytte: agent-melding med src.elite 0xffffffff og dst null setter targe
 // ---------- Squad-DPS ----------
 // Andres skade kommer på evtc-kanalen (area). Spillere har elite != 0xffffffff; minioner er NPC-agenter med srcMaster
 // = eierens instans-id (instans-id -> agent-id læres fra srcInst på hendelsene). Egen skade telles bare fra local.
-test('Squad-DPS: andres treff og minion-skade fra area rangeres, egen skade telles ikke dobbelt, NPC og egne minioner utenom', async () => {
+test('Squad-DPS: andres treff og minion-skade fra area rangeres, egen skade telles ikke dobbelt, NPC utenom, egen minion på egen total', async () => {
   const t0 = Date.now();
   const GAMMA = { id: 102, name: 'Gamma Langtnavn Overflyt', prof: 3, elite: 0, self: 0, team: 1 };
   const PET = { id: 300, name: 'Juvenile Jaguar', prof: 0x2222, elite: 0xffffffff, self: 0, team: 1 };
@@ -390,16 +390,16 @@ test('Squad-DPS: andres treff og minion-skade fra area rangeres, egen skade tell
     a({ time: t0 + 350, src: OTHER, srcInst: 7101, value: 999, skill: 200, result: 3 }), // blokkert: teller ikke
     a({ time: t0 + 400, src: TRASH, srcInst: 7201, value: 5000, skill: 500, name: 'NPC-slag' }), // NPC mot NPC: ikke squad
     a({ time: t0 + 450, src: OTHER, srcInst: 7101, dst: SELF, value: 400, skill: 200 }), // mot oss: hverken squad eller mottatt
-    a({ time: t0 + 500, src: PET, srcInst: 7301, srcMaster: 5400, value: 123, skill: 300 }), // egen minion: hoppes over
+    a({ time: t0 + 500, src: PET, srcInst: 7301, srcMaster: 5400, value: 123, skill: 300 }), // egen minion: på egen total, ikke egen squad-rad
     a({ time: t0 + 550, src: PET, srcInst: 7302, srcMaster: 9999, value: 321, skill: 300 }), // ukjent eier: hoppes over
   );
   let s = await until((x) => x.dps.current?.squad?.length === 3 && x.dps.current.squad[2].dmg === 800, 'squad med tre rader');
   const sq = s.dps.current.squad;
-  assert.deepEqual(sq.map((p) => [p.name, p.dmg, p.self]), [['Beta', 4200, false], ['Alfa', 1000, true], ['Gamma Langtnavn Overflyt', 800, false]]);
-  assert.deepEqual(sq.map((p) => p.pct), [70, 17, 13]);
+  assert.deepEqual(sq.map((p) => [p.name, p.dmg, p.self]), [['Beta', 4200, false], ['Alfa', 1123, true], ['Gamma Langtnavn Overflyt', 800, false]]);
+  assert.deepEqual(sq.map((p) => p.pct), [69, 18, 13]);
   assert.equal(sq[1].id, SELF.id);
   assert.ok(sq[0].dps > 0 && sq[0].dps >= sq[1].dps && sq[1].dps >= sq[2].dps, 'dps synkende');
-  assert.equal(s.dps.current.total, 1000, 'egen skade bare fra local');
+  assert.equal(s.dps.current.total, 1123, 'egen skade fra local pluss egen minion fra area');
   assert.equal(s.dps.current.taken, 0, 'area-skade mot oss telles ikke som mottatt');
   assert.equal(live.fight.squad.get(OTHER.id).hits, 3);
   // Kampslutt: forsinket area-treff (2–3 s etterslep) legges på forrige kamp, treff etter fristen ikke
@@ -413,6 +413,24 @@ test('Squad-DPS: andres treff og minion-skade fra area rangeres, egen skade tell
   await new Promise((r) => setTimeout(r, 50));
   assert.equal(live.snapshot().dps.last.squad[0].dmg, 4300, 'treff lenge etter kampslutt ignoreres');
   assert.equal(live.snapshot().dps.current, null, 'starter ikke ny kamp');
+});
+
+test('Squad-DPS: egen minion (srcMaster = din instans-id) telles i din egen DPS fra area, ikke som squad-medlem', async () => {
+  const t0 = Date.now();
+  await send(ev({ sc: 2, time: t0 - 10 }));
+  await until((x) => !x.dps.current, 'ingen kamp');
+  await send(ev({ sc: 1, time: t0, srcInst: 5400 }));
+  await until((x) => x.dps.current?.active, 'kamp');
+  await send(ev({ time: t0 + 100, srcInst: 5400, dst: GOLEM, iff: 1, value: -400, skill: 100, name: 'Slag' }));
+  await until((x) => x.dps.current?.total === 400, 'eget treff');
+  const PET = { id: 777, name: 'Jacaranda', prof: 0x0aaa, elite: 0xffffffff, self: 0, team: 1 };
+  await send(ev({ s: 'area', time: t0 + 300, src: PET, srcInst: 7777, srcMaster: 5400, dst: GOLEM, iff: 1, value: 250, skill: 900, name: 'Bite' }));
+  const s = await until((x) => x.dps.current?.total === 650, 'minion-skade lagt på egen total');
+  assert.ok(s.dps.current.skills.some((k) => k.name === 'Jacaranda: Bite' && k.dmg === 250));
+  assert.equal(s.dps.current.squad.length, 1, 'ingen ekstra squad-rad for egen minion');
+  assert.equal(s.dps.current.squad[0].dmg, 650);
+  await send(ev({ sc: 2, time: t0 + 2000 }));
+  await until((x) => !x.dps.current, 'kamp avsluttet');
 });
 
 test('Squad-DPS: alene i kampen gir én rad (deg), og kontonavn/instans-id fra agent-registrering brukes for minioner', async () => {

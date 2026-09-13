@@ -373,10 +373,12 @@ class Live extends EventEmitter {
     if (!amt) return;
     let owner = m.src;
     if (m.srcMaster > 0) {
-      if (m.srcMaster === this.selfInst) return; // egen minion
       const ownerId = this.inst.get(m.srcMaster);
       owner = ownerId != null ? this.agents.get(ownerId) : null;
-      if (!owner || owner.self === 1) return; // ukjent eier, eller egen minion
+      // Egen minion (pet, klone, mech, spirit): chatbox-kanalen har den ikke, så skaden legges på din egen DPS herfra,
+      // med minionens skill-navn. Kommer 2–3 s forsinket som alt annet på evtc-kanalen.
+      if (m.srcMaster === this.selfInst || owner?.self === 1) { this.addOwnMinionDamage(m, amt); return; }
+      if (!owner) return; // ukjent eier
     }
     if (owner.elite === NPC_ELITE || !(owner.id > 0)) return; // NPC (eller NPC sin minion)
     let f = this.fight;
@@ -393,6 +395,25 @@ class Live extends EventEmitter {
     if (f === this.lastRaw) this.lastFight = this.summarize(f, f.end);
     this.dirty = true;
   }
+  // Egen minions skade (fra evtc-kanalen) inn i eget regnskap: total, skills, mål. Etter kampslutt legges den på forrige kamp.
+  addOwnMinionDamage(m, amt) {
+    let f = this.fight;
+    if (!f) {
+      const r = this.lastRaw;
+      if (!r || m.time < r.start || m.time > r.end + 1000) return;
+      f = r;
+    } else if (m.time < f.start - 1000) return;
+    f.total += amt;
+    const tg = f.targets.get(m.dst.id) || { id: m.dst.id, name: m.dst.name || '', dmg: 0 };
+    tg.dmg += amt; if (m.dst.name) tg.name = m.dst.name; f.targets.set(m.dst.id, tg);
+    const label = (m.src?.name ? m.src.name + ': ' : '') + (m.name || m.skill);
+    const sk = f.skills.get(m.skill) || { skill: m.skill, name: label, dmg: 0, hits: 0 };
+    sk.dmg += amt; sk.hits++; f.skills.set(m.skill, sk);
+    if (f === this.fight) this.dmgWindow.push([m.time, amt]);
+    if (f === this.lastRaw) this.lastFight = this.summarize(f, f.end);
+    this.dirty = true;
+  }
+
   // Rangert liste: deg (fra f.total, chatbox-kanalen) og de andre i squaden, synkende. Maks 10 rader, men du er alltid med.
   // pct = andel av squadens samlede skade. Alene i kampen gir dette én rad (din egen).
   squadList(f, durationMs) {

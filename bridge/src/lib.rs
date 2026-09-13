@@ -33,8 +33,8 @@
 //! - area:  buff-påføring (buff == 1 uten buff_dmg), buff-fjerning, aktiveringer, statechange og agent-hendelser,
 //!          for alle parter. Rene skadetreff og condition-ticks droppes, MED UNNTAK av squad-skade: treff og ticks fra
 //!          andre spillere (og deres minions, src_master_instid != 0) mot fiender (iff == IFF_FOE) slippes gjennom til
-//!          squad-DPS-lista. Egne treff, egne minioner og skade mot deg droppes her (de går på local i sanntid),
-//!          og NPC mot NPC droppes.
+//!          squad-DPS-lista. Egne treff og skade mot deg droppes her (de går på local i sanntid), egne minioner
+//!          slippes gjennom (de er ikke i chatbox-kanalen) og telles i din egen DPS, og NPC mot NPC droppes.
 
 use arcdps::{helpers, Agent, ArcDpsExport, CombatEvent, RawAgent};
 use std::ffi::{c_char, c_void, CString};
@@ -293,10 +293,9 @@ fn squad_damage(e: &CombatEvent, src: &Option<Agent>, dst: &Option<Agent>) -> bo
     if amount == 0 {
         return false;
     }
+    // Egne minioner (pets, kloner, mech, spirits) slippes også gjennom: chatbox-kanalen har dem ikke (du er ikke part),
+    // så de telles inn i din egen skade fra evtc-kanalen (live.js, addSquadDamage).
     let minion = e.src_master_instance_id != 0;
-    if minion && e.src_master_instance_id == SELF_INST.load(Ordering::Relaxed) {
-        return false; // egen minion (egen skade regnes uten minioner, se live.js)
-    }
     let src_player = src.as_ref().map_or(false, |a| a.elite != NPC_ELITE);
     src_player || minion
 }
