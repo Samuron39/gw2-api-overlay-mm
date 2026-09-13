@@ -46,6 +46,7 @@ app.whenReady().then(async () => {
   cfg.loadConfig();
   const config = cfg.config;
   gw2.init(app.getPath('userData'));
+  require('./modules/guides').init(app.getPath('userData')); // cache for AI-utdrag: <userData>/guides/<id>.json
   win.createWheel();
   win.createPanel();
   win.setupAutoHide();

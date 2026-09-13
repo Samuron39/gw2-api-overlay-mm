@@ -21,6 +21,15 @@
   }
   const timelines = new Map();
 
+  // Guider: «Strategi»-knapp per boss. Lista hentes én gang (data/guides.json); oppføringen finnes når event-nøkkelen
+  // stemmer og navnet er bossen selv, et alias (segmentnavn) eller hele metaen. Valget gis til Guider via sessionStorage.
+  let guides = null;
+  function guideFor(key, e, seg) {
+    if (!guides || !seg?.name) return null;
+    return guides.find((g) => g.event === key && (g.name === seg.name || (g.aliases || []).includes(seg.name))) || guides.find((g) => g.event === key && g.name === e.name) || null;
+  }
+  const strategyBtn = (key, e, seg) => { const g = guideFor(key, e, seg); return g ? ` <button class="gd-strat" data-guide="${esc(g.id)}" title="${esc(t('timers.strategyTitle'))}">📖 ${esc(t('timers.strategy'))}</button>` : ''; };
+
   const FILLER = (name) => !name || name.startsWith('(') || /^(Reset|Downtime|Nothing|Idle|Pause|Break)$/i.test(name);
 
   function timeline(e) {
@@ -103,6 +112,7 @@
     mumble = await window.api.invoke('mumble:get').catch(() => mumble);
     offMumble = window.api.on('mumble:state', (s) => { mumble = s; });
     loadDone().then(render);
+    if (!guides) window.api.invoke('guides:list').then((g) => { guides = g.groups?.worldbosses || []; render(); }).catch(() => {}); // uten guider vises bare ikke knappen
     doneTimer = setInterval(loadDone, 5 * 60e3);
     render();
     tick = setInterval(render, 1000);
@@ -133,10 +143,10 @@
         <div class="tm-head"><b>${esc(r.e.name)}</b><span class="muted"> ${esc(r.e.category)}</span>${hereNow ? `<span class="badge here">${esc(t('timers.here'))}</span>` : ''}</div>
         <div class="tm-now" style="background:${bg(r.cur)}">
           <div class="tm-bar" style="width:${Math.round(r.progress * 100)}%"></div>
-          <span class="tm-txt">${r.curFiller ? `<span class="muted">${esc(t('timers.nothingNow'))}</span>` : `${esc(t('timers.now'))} <b>${esc(r.cur?.name)}</b>${killed(r.cur)}`} · ${esc(countdown)}</span>
+          <span class="tm-txt">${r.curFiller ? `<span class="muted">${esc(t('timers.nothingNow'))}</span>` : `${esc(t('timers.now'))} <b>${esc(r.cur?.name)}</b>${killed(r.cur)}${strategyBtn(r.key, r.e, r.cur)}`} · ${esc(countdown)}</span>
           ${!r.curFiller && r.cur?.chatlink ? `<button class="wp" data-link="${esc(r.cur.chatlink)}" title="${esc(t('timers.pasteWp'))}">${place(curWp, r.cur)} ⧉</button>` : ''}
         </div>
-        ${r.next ? `<div class="tm-next">${esc(t('timers.next'))} <b>${esc(r.next.name)}</b>${killed(r.next)} ${esc(t('timers.inTime', { t: fmt(r.nextIn) }))}
+        ${r.next ? `<div class="tm-next">${esc(t('timers.next'))} <b>${esc(r.next.name)}</b>${killed(r.next)}${strategyBtn(r.key, r.e, r.next)} ${esc(t('timers.inTime', { t: fmt(r.nextIn) }))}
           ${r.next.chatlink ? `<button class="wp" data-link="${esc(r.next.chatlink)}" title="${esc(t('timers.pasteWp'))}">${place(nextWp, r.next)} ⧉</button>` : ''}</div>` : ''}
       </div>`;
     }).join('') || `<div class="empty">${esc(t('timers.empty'))}</div>`;
@@ -147,6 +157,10 @@
       else if (r.reason === 'NOGAME') setStatus(t('timers.noGame', { link }));
       else if (r.reason === 'NOHELPER') setStatus(t('timers.noHelper', { link }));
       else setStatus(t('timers.noFocus', { link, reason: r.reason }));
+    }));
+    root.querySelectorAll('button.gd-strat').forEach((b) => b.addEventListener('click', () => {
+      try { sessionStorage.setItem('guides.select', b.dataset.guide); } catch { /* Guider viser da bare lista */ }
+      window.api.invoke('panel:show', 'guides');
     }));
     root.querySelectorAll('.tm-toggle input').forEach((cb) => cb.addEventListener('change', async () => {
       if (cb.checked) hidden.delete(cb.dataset.key); else hidden.add(cb.dataset.key);

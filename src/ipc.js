@@ -18,6 +18,7 @@ const setup = require('./modules/setup');
 const live = require('./live');
 const overlays = require('./overlays');
 const skills = require('./modules/skills');
+const guides = require('./modules/guides');
 const updater = require('./updater');
 const mumble = require('./mumble');
 const ai = require('./ai');
@@ -70,6 +71,10 @@ function register() {
   handle('daily:get', (_e, force) => { if (force) daily.invalidate(); return daily.fetchDaily(cfg.config.apiKey); });
   handle('gw2:maps', (_e, ids) => gw2.fetchMaps(ids));
   handle('mumble:get', () => mumble.state);
+
+  // ---------- Guider: bossliste og AI-utdrag fra wikien (chat-linjer limes inn via game:paste, lenka åpnes via open:url) ----------
+  handle('guides:list', () => guides.list());
+  handle('guides:get', (_e, id, refresh) => guides.get(cfg.config, id, { refresh: !!refresh, onProgress: progress }));
 
   // ---------- DPS ----------
   handle('dps:list', () => { const dir = cfg.config.dpsLogDir || dps.DEFAULT_DIR; return { dir, exists: fs.existsSync(dir), logs: dps.listLogs(dir) }; });

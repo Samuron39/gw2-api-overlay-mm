@@ -1,0 +1,1961 @@
+{
+ "source": "https://wiki.guildwars2.com",
+ "license": "CC BY-SA 3.0",
+ "built": "2026-09-13",
+ "groups": {
+  "worldbosses": [
+   {
+    "id": "wb-admiral-taidha-covington",
+    "name": "Admiral Taidha Covington",
+    "where": "World bosses",
+    "page": "Admiral Taidha Covington",
+    "map": 73,
+    "category": "Core Tyria",
+    "event": "core-wb",
+    "aliases": [],
+    "location": "Bloodtide Coast",
+    "waypoint": {
+     "name": "Laughing Gull Waypoint",
+     "code": "[&BKgBAAA=]"
+    }
+   },
+   {
+    "id": "wb-svanir-shaman-chief",
+    "name": "Svanir Shaman Chief",
+    "where": "World bosses",
+    "page": "Champion Svanir Shaman Chief",
+    "map": 28,
+    "category": "Core Tyria",
+    "event": "core-wb",
+    "aliases": [],
+    "location": "Wayfarer Foothills",
+    "waypoint": {
+     "name": "Krennak's Homestead Waypoint",
+     "code": "[&BMIDAAA=]"
+    }
+   },
+   {
+    "id": "wb-megadestroyer",
+    "name": "Megadestroyer",
+    "where": "World bosses",
+    "page": "Megadestroyer",
+    "map": 39,
+    "category": "Core Tyria",
+    "event": "core-wb",
+    "aliases": [],
+    "location": "Mount Maelstrom",
+    "waypoint": {
+     "name": "Maelstrom's Waypoint",
+     "code": "[&BM0CAAA=]"
+    }
+   },
+   {
+    "id": "wb-fire-elemental",
+    "name": "Fire Elemental",
+    "where": "World bosses",
+    "page": "Fire Elemental",
+    "map": 35,
+    "category": "Core Tyria",
+    "event": "core-wb",
+    "aliases": [],
+    "location": "Metrica Province",
+    "waypoint": {
+     "name": "Muridian Waypoint",
+     "code": "[&BEcAAAA=]"
+    }
+   },
+   {
+    "id": "wb-the-shatterer",
+    "name": "The Shatterer",
+    "where": "World bosses",
+    "page": "The Shatterer",
+    "map": 20,
+    "category": "Core Tyria",
+    "event": "core-wb",
+    "aliases": [],
+    "location": "Blazeridge Steppes",
+    "waypoint": {
+     "name": "Lowland Burns Waypoint",
+     "code": "[&BE4DAAA=]"
+    }
+   },
+   {
+    "id": "wb-great-jungle-wurm",
+    "name": "Great Jungle Wurm",
+    "where": "World bosses",
+    "page": "Great Jungle Wurm",
+    "map": 34,
+    "category": "Core Tyria",
+    "event": "core-wb",
+    "aliases": [],
+    "location": "Caledon Forest",
+    "waypoint": {
+     "name": "Twilight Arbor Waypoint",
+     "code": "[&BEEFAAA=]"
+    }
+   },
+   {
+    "id": "wb-modniir-ulgoth",
+    "name": "Modniir Ulgoth",
+    "where": "World bosses",
+    "page": "Modniir Ulgoth",
+    "map": 17,
+    "category": "Core Tyria",
+    "event": "core-wb",
+    "aliases": [],
+    "location": "Harathi Hinterlands",
+    "waypoint": {
+     "name": "Junction Camp Waypoint",
+     "code": "[&BLAAAAA=]"
+    }
+   },
+   {
+    "id": "wb-shadow-behemoth",
+    "name": "Shadow Behemoth",
+    "where": "World bosses",
+    "page": "Shadow Behemoth",
+    "map": 15,
+    "category": "Core Tyria",
+    "event": "core-wb",
+    "aliases": [],
+    "location": "Queensdale",
+    "waypoint": {
+     "name": "Swamplost Haven Waypoint",
+     "code": "[&BPcAAAA=]"
+    }
+   },
+   {
+    "id": "wb-claw-of-jormag",
+    "name": "Claw of Jormag",
+    "where": "World bosses",
+    "page": "Claw of Jormag",
+    "map": 30,
+    "category": "Core Tyria",
+    "event": "core-wb",
+    "aliases": [],
+    "location": "Frostgorge Sound",
+    "waypoint": {
+     "name": "Earthshake Waypoint",
+     "code": "[&BHoCAAA=]"
+    }
+   },
+   {
+    "id": "wb-golem-mark-ii",
+    "name": "Golem Mark II",
+    "where": "World bosses",
+    "page": "Inquest Golem Mark II",
+    "map": 39,
+    "category": "Core Tyria",
+    "event": "core-wb",
+    "aliases": [],
+    "location": "Mount Maelstrom",
+    "waypoint": {
+     "name": "Old Sledge Site Waypoint",
+     "code": "[&BNQCAAA=]"
+    }
+   },
+   {
+    "id": "wb-triple-trouble",
+    "name": "Triple Trouble",
+    "where": "Hard world bosses",
+    "page": "Triple Trouble",
+    "map": 73,
+    "category": "Core Tyria",
+    "event": "core-hwb",
+    "aliases": [],
+    "location": "Bloodtide Coast",
+    "waypoint": {
+     "name": "Firthside Vigil Waypoint",
+     "code": "[&BKoBAAA=]"
+    }
+   },
+   {
+    "id": "wb-karka-queen",
+    "name": "Karka Queen",
+    "where": "Hard world bosses",
+    "page": "Legendary Karka Queen",
+    "map": 873,
+    "category": "Core Tyria",
+    "event": "core-hwb",
+    "aliases": [],
+    "location": "Southsun Cove",
+    "waypoint": {
+     "name": "Pearl Islet Waypoint",
+     "code": "[&BNUGAAA=]"
+    }
+   },
+   {
+    "id": "wb-tequatl-the-sunless",
+    "name": "Tequatl the Sunless",
+    "where": "Hard world bosses",
+    "page": "Tequatl the Sunless",
+    "map": 53,
+    "category": "Core Tyria",
+    "event": "core-hwb",
+    "aliases": [],
+    "location": "Sparkfly Fen",
+    "waypoint": {
+     "name": "Splintered Coast Waypoint",
+     "code": "[&BNABAAA=]"
+    }
+   },
+   {
+    "id": "wb-core-la",
+    "name": "Ley-Line Anomaly",
+    "where": "Ley-Line Anomaly",
+    "page": "Defeat the Ley-Line Anomaly to disperse its destructive energy before it overloads",
+    "map": 29,
+    "category": "Core Tyria",
+    "event": "core-la",
+    "aliases": [
+     "Timberline Falls",
+     "Iron Marches",
+     "Gendarran Fields"
+    ],
+    "location": "Timberline Falls",
+    "waypoint": {
+     "name": "Valance Tutory Waypoint",
+     "code": "[&BEwCAAA=]"
+    }
+   },
+   {
+    "id": "wb-awakened-invasion",
+    "name": "Awakened Invasion",
+    "where": "Invasions",
+    "page": "Defeat the invading Awakened",
+    "map": null,
+    "category": "Core Tyria",
+    "event": "core-in",
+    "aliases": [],
+    "location": "Gendarran Fields",
+    "waypoint": {
+     "name": "Provern Shore Waypoint",
+     "code": "[&BOQAAAA=]"
+    }
+   },
+   {
+    "id": "wb-defeat-scarlets-minions",
+    "name": "Defeat Scarlet's minions",
+    "where": "Invasions",
+    "page": "Defeat the invading minions of Scarlet Briar",
+    "map": 24,
+    "category": "Core Tyria",
+    "event": "core-in",
+    "aliases": [],
+    "location": "Gendarran Fields",
+    "waypoint": {
+     "name": "Provern Shore Waypoint",
+     "code": "[&BOQAAAA=]"
+    }
+   },
+   {
+    "id": "wb-core-fi",
+    "name": "Fractal Incursions",
+    "where": "Fractal Incursions",
+    "page": "Defeat the enemy spawned by the fractal incursion",
+    "map": 32,
+    "category": "Core Tyria",
+    "event": "core-fi",
+    "aliases": [
+     "Diessa Plateau",
+     "Brisban Wildlands",
+     "Snowden Drifts",
+     "Kessex Hills"
+    ],
+    "location": "Diessa Plateau",
+    "waypoint": {
+     "name": "Nageling Waypoint",
+     "code": "[&BN0AAAA=]"
+    }
+   },
+   {
+    "id": "wb-crash-site",
+    "name": "Crash Site",
+    "where": "Dry Top",
+    "page": "Crash Site (meta event)",
+    "map": null,
+    "category": "Living World Season 2",
+    "event": "lws2-dt",
+    "aliases": [],
+    "location": "Dry Top",
+    "waypoint": {
+     "name": "Dry Top Entry Waypoint",
+     "code": "[&BIAHAAA=]"
+    }
+   },
+   {
+    "id": "wb-sandstorm",
+    "name": "Sandstorm",
+    "where": "Dry Top",
+    "page": "Sandstorm!",
+    "map": 988,
+    "category": "Living World Season 2",
+    "event": "lws2-dt",
+    "aliases": [],
+    "location": "Dry Top",
+    "waypoint": {
+     "name": "Dry Top Entry Waypoint",
+     "code": "[&BIAHAAA=]"
+    }
+   },
+   {
+    "id": "wb-day-securing-verdant-brink",
+    "name": "Day: Securing Verdant Brink",
+    "where": "Verdant Brink",
+    "page": "Securing Verdant Brink",
+    "map": null,
+    "category": "Heart of Thorns",
+    "event": "hot-vb",
+    "aliases": [],
+    "location": "Verdant Brink",
+    "waypoint": {
+     "name": "Pact Encampment Waypoint",
+     "code": "[&BAgIAAA=]"
+    }
+   },
+   {
+    "id": "wb-hot-vb",
+    "name": "Verdant Brink",
+    "where": "Verdant Brink",
+    "page": "Night and the Enemy",
+    "map": 1052,
+    "category": "Heart of Thorns",
+    "event": "hot-vb",
+    "aliases": [
+     "Night: Night and the Enemy",
+     "Night Bosses"
+    ],
+    "location": "Verdant Brink",
+    "waypoint": {
+     "name": "Pact Encampment Waypoint",
+     "code": "[&BAgIAAA=]"
+    }
+   },
+   {
+    "id": "wb-pylons",
+    "name": "Pylons",
+    "where": "Auric Basin",
+    "page": "Defending Tarir",
+    "map": 1043,
+    "category": "Heart of Thorns",
+    "event": "hot-ab",
+    "aliases": [],
+    "location": "Auric Basin",
+    "waypoint": {
+     "name": "Northwatch Waypoint",
+     "code": "[&BN0HAAA=]"
+    }
+   },
+   {
+    "id": "wb-hot-ab",
+    "name": "Auric Basin",
+    "where": "Auric Basin",
+    "page": "Battle in Tarir",
+    "map": 1043,
+    "category": "Heart of Thorns",
+    "event": "hot-ab",
+    "aliases": [
+     "Challenges",
+     "Octovine"
+    ],
+    "location": "Auric Basin",
+    "waypoint": {
+     "name": "Eastwatch Waypoint",
+     "code": "[&BGwIAAA=]"
+    }
+   },
+   {
+    "id": "wb-help-the-outposts",
+    "name": "Help the Outposts",
+    "where": "Tangled Depths",
+    "page": "Advancing Across Tangled Roots",
+    "map": null,
+    "category": "Heart of Thorns",
+    "event": "hot-td",
+    "aliases": [],
+    "location": "Tangled Depths",
+    "waypoint": {
+     "name": "Ley-Line Confluence Waypoint",
+     "code": "[&BPUHAAA=]"
+    }
+   },
+   {
+    "id": "wb-chak-gerent",
+    "name": "Chak Gerent",
+    "where": "Tangled Depths",
+    "page": "King of the Jungle",
+    "map": 1045,
+    "category": "Heart of Thorns",
+    "event": "hot-td",
+    "aliases": [],
+    "location": "Tangled Depths",
+    "waypoint": {
+     "name": "Ley-Line Confluence Waypoint",
+     "code": "[&BPUHAAA=]"
+    }
+   },
+   {
+    "id": "wb-start-advancing-on-the-blighting-towers",
+    "name": "Start advancing on the Blighting Towers",
+    "where": "Dragon's Stand",
+    "page": "Advancing on the Blighting Towers",
+    "map": 1041,
+    "category": "Heart of Thorns",
+    "event": "hot-ds",
+    "aliases": [],
+    "location": "Dragon's Stand",
+    "waypoint": {
+     "name": "Pact Base Camp Waypoint",
+     "code": "[&BBAIAAA=]"
+    }
+   },
+   {
+    "id": "wb-saidras-haven",
+    "name": "Saidra's Haven",
+    "where": "Lake Doric",
+    "page": "White Mantle Control: Saidra's Haven",
+    "map": 1185,
+    "category": "Living World Season 3",
+    "event": "lws3-ld",
+    "aliases": [],
+    "location": "Lake Doric",
+    "waypoint": {
+     "name": "Doric's Landing Waypoint",
+     "code": "[&BK0JAAA=]"
+    }
+   },
+   {
+    "id": "wb-new-loamhurst",
+    "name": "New Loamhurst",
+    "where": "Lake Doric",
+    "page": "White Mantle Control: New Loamhurst",
+    "map": 1185,
+    "category": "Living World Season 3",
+    "event": "lws3-ld",
+    "aliases": [],
+    "location": "Lake Doric",
+    "waypoint": {
+     "name": "Lakeside Bazaar Waypoint",
+     "code": "[&BLQJAAA=]"
+    }
+   },
+   {
+    "id": "wb-norans-homestead",
+    "name": "Noran's Homestead",
+    "where": "Lake Doric",
+    "page": "White Mantle Control: Noran's Homestead",
+    "map": 1185,
+    "category": "Living World Season 3",
+    "event": "lws3-ld",
+    "aliases": [],
+    "location": "Lake Doric",
+    "waypoint": {
+     "name": "Red Leaf Retreat Waypoint",
+     "code": "[&BK8JAAA=]"
+    }
+   },
+   {
+    "id": "wb-pof-co",
+    "name": "Crystal Oasis",
+    "where": "Crystal Oasis",
+    "page": "Casino Blitz",
+    "map": 1210,
+    "category": "Path of Fire",
+    "event": "pof-co",
+    "aliases": [
+     "Rounds 1 to 3",
+     "Pinata/Reset"
+    ],
+    "location": "Free City of Amnoon",
+    "waypoint": {
+     "name": "Amnoon Waypoint",
+     "code": "[&BLsKAAA=]"
+    }
+   },
+   {
+    "id": "wb-buried-treasure",
+    "name": "Buried Treasure",
+    "where": "Desert Highlands",
+    "page": "The Search for Buried Treasure",
+    "map": null,
+    "category": "Path of Fire",
+    "event": "pof-dh",
+    "aliases": [],
+    "location": "Desert Highlands",
+    "waypoint": null
+   },
+   {
+    "id": "wb-pof-er",
+    "name": "Elon Riverlands",
+    "where": "Elon Riverlands",
+    "page": "The Path to Ascension",
+    "map": null,
+    "category": "Path of Fire",
+    "event": "pof-er",
+    "aliases": [
+     "The Path to Ascension: Augury Rock",
+     "Doppelganger"
+    ],
+    "location": "Elon Riverlands",
+    "waypoint": null
+   },
+   {
+    "id": "wb-maws-of-torment",
+    "name": "Maws of Torment",
+    "where": "The Desolation",
+    "page": "Maws of Torment",
+    "map": 1226,
+    "category": "Path of Fire",
+    "event": "pof-td",
+    "aliases": [],
+    "location": "The Darklands",
+    "waypoint": {
+     "name": "The Darklands Waypoint",
+     "code": "[&BKMKAAA=]"
+    }
+   },
+   {
+    "id": "wb-junundu-rising",
+    "name": "Junundu Rising",
+    "where": "The Desolation",
+    "page": "Junundu Rising",
+    "map": 1226,
+    "category": "Path of Fire",
+    "event": "pof-td",
+    "aliases": [],
+    "location": "Lair of the Forgotten",
+    "waypoint": {
+     "name": "Lair of the Forgotten Waypoint",
+     "code": "[&BMEKAAA=]"
+    }
+   },
+   {
+    "id": "wb-serpents-ire",
+    "name": "Serpents' Ire",
+    "where": "Domain of Vabbi",
+    "page": "Serpents' Ire",
+    "map": null,
+    "category": "Path of Fire",
+    "event": "pof-dv",
+    "aliases": [],
+    "location": "Domain of Vabbi",
+    "waypoint": null
+   },
+   {
+    "id": "wb-forged-with-fire",
+    "name": "Forged with Fire",
+    "where": "Domain of Vabbi",
+    "page": "Forged with Fire",
+    "map": null,
+    "category": "Path of Fire",
+    "event": "pof-dv",
+    "aliases": [],
+    "location": "Domain of Vabbi",
+    "waypoint": null
+   },
+   {
+    "id": "wb-palawadan",
+    "name": "Palawadan",
+    "where": "Domain of Istan",
+    "page": "Palawadan, Jewel of Istan (meta event)",
+    "map": 1263,
+    "category": "Living World Season 4",
+    "event": "lws4-di",
+    "aliases": [],
+    "location": "Domain of Istan",
+    "waypoint": {
+     "name": "Chalon Docks Waypoint",
+     "code": "[&BAkLAAA=]"
+    }
+   },
+   {
+    "id": "wb-escorts",
+    "name": "Escorts",
+    "where": "Jahai Bluffs",
+    "page": "Dangerous Prey",
+    "map": null,
+    "category": "Living World Season 4",
+    "event": "lws4-jb",
+    "aliases": [],
+    "location": "Jahai Bluffs",
+    "waypoint": null
+   },
+   {
+    "id": "wb-death-branded-shatterer",
+    "name": "Death-Branded Shatterer",
+    "where": "Jahai Bluffs",
+    "page": "Destroy the Death-Branded Shatterer",
+    "map": null,
+    "category": "Living World Season 4",
+    "event": "lws4-jb",
+    "aliases": [],
+    "location": "Jahai Bluffs",
+    "waypoint": null
+   },
+   {
+    "id": "wb-thunderhead-keep",
+    "name": "Thunderhead Keep",
+    "where": "Thunderhead Peaks",
+    "page": "Thunderhead Keep (meta event)",
+    "map": 1310,
+    "category": "Living World Season 4",
+    "event": "lws4-tp",
+    "aliases": [],
+    "location": "Thunderhead Peaks",
+    "waypoint": {
+     "name": "History's End Waypoint",
+     "code": "[&BLsLAAA=]"
+    }
+   },
+   {
+    "id": "wb-the-oil-floes",
+    "name": "The Oil Floes",
+    "where": "Thunderhead Peaks",
+    "page": "The Oil Floes",
+    "map": 1310,
+    "category": "Living World Season 4",
+    "event": "lws4-tp",
+    "aliases": [],
+    "location": "Thunderhead Peaks",
+    "waypoint": {
+     "name": "Revolution's Heart Waypoint",
+     "code": "[&BKYLAAA=]"
+    }
+   },
+   {
+    "id": "wb-effigy",
+    "name": "Effigy",
+    "where": "Grothmar Valley",
+    "page": "Ceremony of the Sacred Flame",
+    "map": 1330,
+    "category": "The Icebrood Saga",
+    "event": "lws5-gv",
+    "aliases": [],
+    "location": "Grothmar Valley",
+    "waypoint": {
+     "name": "Dalada Forest Waypoint",
+     "code": "[&BA4MAAA=]"
+    }
+   },
+   {
+    "id": "wb-doomlore-shrine",
+    "name": "Doomlore Shrine",
+    "where": "Grothmar Valley",
+    "page": "The Haunting of Doomlore Shrine",
+    "map": 1330,
+    "category": "The Icebrood Saga",
+    "event": "lws5-gv",
+    "aliases": [],
+    "location": "Grothmar Valley",
+    "waypoint": {
+     "name": "Dalada Forest Waypoint",
+     "code": "[&BA4MAAA=]"
+    }
+   },
+   {
+    "id": "wb-ooze-pits",
+    "name": "Ooze Pits",
+    "where": "Grothmar Valley",
+    "page": "The Ooze Pit Trials",
+    "map": 1330,
+    "category": "The Icebrood Saga",
+    "event": "lws5-gv",
+    "aliases": [],
+    "location": "Grothmar Valley",
+    "waypoint": {
+     "name": "Wardowns Waypoint",
+     "code": "[&BPgLAAA=]"
+    }
+   },
+   {
+    "id": "wb-metal-concert",
+    "name": "Metal Concert",
+    "where": "Grothmar Valley",
+    "page": "A Concert for the Ages",
+    "map": 1330,
+    "category": "The Icebrood Saga",
+    "event": "lws5-gv",
+    "aliases": [],
+    "location": "Grothmar Valley",
+    "waypoint": {
+     "name": "Wardowns Waypoint",
+     "code": "[&BPgLAAA=]"
+    }
+   },
+   {
+    "id": "wb-drakkar-and-spirits-of-the-wild",
+    "name": "Drakkar and Spirits of the Wild",
+    "where": "Bjora Marches",
+    "page": "Champion of the Ice Dragon",
+    "map": 1343,
+    "category": "The Icebrood Saga",
+    "event": "lws5-bm",
+    "aliases": [],
+    "location": "Bjora Marches",
+    "waypoint": {
+     "name": "Still Waters Speaking Waypoint",
+     "code": "[&BDkMAAA=]"
+    }
+   },
+   {
+    "id": "wb-lws5-bm",
+    "name": "Bjora Marches",
+    "where": "Bjora Marches",
+    "page": "Storms of Winter",
+    "map": 1343,
+    "category": "The Icebrood Saga",
+    "event": "lws5-bm",
+    "aliases": [
+     "Defend Jora's Keep",
+     "Shards and Construct",
+     "Icebrood Champions"
+    ],
+    "location": "Bjora Marches",
+    "waypoint": {
+     "name": "Jora's Keep Waypoint",
+     "code": "[&BCcMAAA=]"
+    }
+   },
+   {
+    "id": "wb-aetherblade-assault",
+    "name": "Aetherblade Assault",
+    "where": "Seitung Province",
+    "page": "Aetherblade Assault",
+    "map": 1442,
+    "category": "End of Dragons",
+    "event": "eod-sp",
+    "aliases": [],
+    "location": "Seitung Province",
+    "waypoint": {
+     "name": "Daigo Ward Waypoint",
+     "code": "[&BGUNAAA=]"
+    }
+   },
+   {
+    "id": "wb-kaineng-blackout",
+    "name": "Kaineng Blackout",
+    "where": "New Kaineng City",
+    "page": "Kaineng Blackout",
+    "map": 1438,
+    "category": "End of Dragons",
+    "event": "eod-nkc",
+    "aliases": [],
+    "location": "New Kaineng City",
+    "waypoint": {
+     "name": "Ministry Ward Waypoint",
+     "code": "[&BBkNAAA=]"
+    }
+   },
+   {
+    "id": "wb-gang-war",
+    "name": "Gang War",
+    "where": "The Echovald Wilds",
+    "page": "The Gang War of Echovald",
+    "map": 1452,
+    "category": "End of Dragons",
+    "event": "eod-ew",
+    "aliases": [],
+    "location": "The Echovald Wilds",
+    "waypoint": {
+     "name": "Kropa Waypoint",
+     "code": "[&BMwMAAA=]"
+    }
+   },
+   {
+    "id": "wb-aspenwood",
+    "name": "Aspenwood",
+    "where": "The Echovald Wilds",
+    "page": "Use the siege turtles to destroy the shield generators as you fight through the fort",
+    "map": 1452,
+    "category": "End of Dragons",
+    "event": "eod-ew",
+    "aliases": [],
+    "location": "The Echovald Wilds",
+    "waypoint": {
+     "name": "Jade Gate Waypoint",
+     "code": "[&BPkMAAA=]"
+    }
+   },
+   {
+    "id": "wb-jade-maw",
+    "name": "Jade Maw",
+    "where": "Dragon's End",
+    "page": "Defeat the Void-corrupted Jade Maw",
+    "map": 1422,
+    "category": "End of Dragons",
+    "event": "eod-de",
+    "aliases": [],
+    "location": "Dragon's End",
+    "waypoint": {
+     "name": "Jade Quarry Waypoint",
+     "code": "[&BKIMAAA=]"
+    }
+   },
+   {
+    "id": "wb-the-battle-for-the-jade-sea",
+    "name": "The Battle for the Jade Sea",
+    "where": "Dragon's End",
+    "page": "The Battle for the Jade Sea",
+    "map": 1422,
+    "category": "End of Dragons",
+    "event": "eod-de",
+    "aliases": [],
+    "location": "Dragon's End",
+    "waypoint": {
+     "name": "Jade Quarry Waypoint",
+     "code": "[&BKIMAAA=]"
+    }
+   },
+   {
+    "id": "wb-unlocking-the-wizards-tower",
+    "name": "Unlocking the Wizard's Tower",
+    "where": "Skywatch Archipelago",
+    "page": "Unlocking the Wizard's Tower",
+    "map": 1510,
+    "category": "Secrets of the Obscure",
+    "event": "soto-sa",
+    "aliases": [],
+    "location": "Skywatch Archipelago",
+    "waypoint": {
+     "name": "Droknar's Light Waypoint",
+     "code": "[&BL4NAAA=]"
+    }
+   },
+   {
+    "id": "wb-defense-of-amnytas",
+    "name": "Defense of Amnytas",
+    "where": "Amnytas",
+    "page": "The Defense of Amnytas",
+    "map": 1517,
+    "category": "Secrets of the Obscure",
+    "event": "soto-am",
+    "aliases": [],
+    "location": "Amnytas",
+    "waypoint": {
+     "name": "Bastion of the Natural Waypoint",
+     "code": "[&BDQOAAA=]"
+    }
+   },
+   {
+    "id": "wb-of-mists-and-monsters",
+    "name": "Of Mists and Monsters",
+    "where": "Janthir Syntri",
+    "page": "Of Mists and Monsters",
+    "map": 1554,
+    "category": "Janthir Wilds",
+    "event": "jw-js",
+    "aliases": [],
+    "location": "Janthir Syntri",
+    "waypoint": {
+     "name": "Stricken Plains Waypoint",
+     "code": "[&BCoPAAA=]"
+    }
+   },
+   {
+    "id": "wb-a-titanic-voyage",
+    "name": "A Titanic Voyage",
+    "where": "Bava Nisos",
+    "page": "A Titanic Voyage",
+    "map": 1574,
+    "category": "Janthir Wilds",
+    "event": "jw-bn",
+    "aliases": [],
+    "location": "Bava Nisos",
+    "waypoint": {
+     "name": "Mantle's Arrival Waypoint",
+     "code": "[&BGEPAAA=]"
+    }
+   },
+   {
+    "id": "wb-hammerhart-rumble",
+    "name": "Hammerhart Rumble!",
+    "where": "Shipwreck Strand",
+    "page": "Hammerhart Rumble!",
+    "map": 1595,
+    "category": "Visions of Eternity",
+    "event": "voe-ss",
+    "aliases": [],
+    "location": "Shipwreck Strand",
+    "waypoint": {
+     "name": "Pub Canach Waypoint",
+     "code": "[&BJEPAAA=]"
+    }
+   },
+   {
+    "id": "wb-secrets-of-the-weald",
+    "name": "Secrets of the Weald",
+    "where": "Starlit Weald",
+    "page": "Secrets of the Weald",
+    "map": 1593,
+    "category": "Visions of Eternity",
+    "event": "voe-sw",
+    "aliases": [],
+    "location": "Starlit Weald",
+    "waypoint": {
+     "name": "Priory Expedition Waypoint",
+     "code": "[&BJ4PAAA=]"
+    }
+   },
+   {
+    "id": "wb-shackles-of-the-ancients",
+    "name": "Shackles of the Ancients",
+    "where": "Eternity's Garden",
+    "page": "Shackles of the Ancients",
+    "map": 1622,
+    "category": "Visions of Eternity",
+    "event": "voe-eg",
+    "aliases": [],
+    "location": "Eternity's Garden",
+    "waypoint": {
+     "name": "Pilgrim's Rest Waypoint",
+     "code": "[&BPwPAAA=]"
+    }
+   },
+   {
+    "id": "wb-twisted-marionette",
+    "name": "Twisted Marionette",
+    "where": "Eye of the North",
+    "page": "The Twisted Marionette",
+    "map": 1370,
+    "category": "Public Instances",
+    "event": "public-eotn",
+    "aliases": [],
+    "location": "Eye of the North",
+    "waypoint": {
+     "name": "Eye of the North Waypoint",
+     "code": "[&BAkMAAA=]"
+    }
+   },
+   {
+    "id": "wb-battle-for-lions-arch",
+    "name": "Battle For Lion's Arch",
+    "where": "Eye of the North",
+    "page": "The Battle For Lion's Arch",
+    "map": 1370,
+    "category": "Public Instances",
+    "event": "public-eotn",
+    "aliases": [],
+    "location": "Eye of the North",
+    "waypoint": {
+     "name": "Eye of the North Waypoint",
+     "code": "[&BAkMAAA=]"
+    }
+   },
+   {
+    "id": "wb-dragonstorm",
+    "name": "Dragonstorm",
+    "where": "Eye of the North",
+    "page": "Dragonstorm",
+    "map": 1370,
+    "category": "Public Instances",
+    "event": "public-eotn",
+    "aliases": [],
+    "location": "Eye of the North",
+    "waypoint": {
+     "name": "Eye of the North Waypoint",
+     "code": "[&BAkMAAA=]"
+    }
+   },
+   {
+    "id": "wb-tower-of-nightmares",
+    "name": "Tower of Nightmares",
+    "where": "Eye of the North",
+    "page": "The Tower of Nightmares (meta event)",
+    "map": 1370,
+    "category": "Public Instances",
+    "event": "public-eotn",
+    "aliases": [],
+    "location": "Eye of the North",
+    "waypoint": {
+     "name": "Eye of the North Waypoint",
+     "code": "[&BAkMAAA=]"
+    }
+   },
+   {
+    "id": "wb-mount-balrior",
+    "name": "Mount Balrior",
+    "where": "Convergence",
+    "page": "Convergence: Mount Balrior",
+    "map": 1550,
+    "category": "Public Instances",
+    "event": "public-con",
+    "aliases": [],
+    "location": "Lowland Shore",
+    "waypoint": {
+     "name": "Harvest Den Waypoint",
+     "code": "[&BK4OAAA=]"
+    }
+   },
+   {
+    "id": "wb-outer-nayos",
+    "name": "Outer Nayos",
+    "where": "Convergence",
+    "page": "Convergence: Outer Nayos",
+    "map": 1509,
+    "category": "Public Instances",
+    "event": "public-con",
+    "aliases": [],
+    "location": "The Wizard's Tower",
+    "waypoint": {
+     "name": "Tower Courtyard Waypoint",
+     "code": "[&BB8OAAA=]"
+    }
+   }
+  ],
+  "fractals": [
+   {
+    "id": "fractal-aetherblade",
+    "name": "Aetherblade Fractal",
+    "page": "Aetherblade Fractal",
+    "map": 956,
+    "bosses": [
+     "Frizz"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-aquatic-ruins",
+    "name": "Aquatic Ruins Fractal",
+    "page": "Aquatic Ruins Fractal",
+    "map": 951,
+    "bosses": [
+     "Jellyfish Beast"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-captain-mai-trin-boss",
+    "name": "Captain Mai Trin Boss Fractal",
+    "page": "Captain Mai Trin Boss Fractal",
+    "map": 960,
+    "bosses": [
+     "Captain Mai Trin",
+     "Champion First Mate Horrik"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-chaos",
+    "name": "Chaos Fractal",
+    "page": "Chaos Fractal",
+    "map": 1164,
+    "bosses": [
+     "Chaos Anomaly",
+     "Legendary Brazen Gladiator"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-cliffside",
+    "name": "Cliffside Fractal",
+    "page": "Cliffside Fractal",
+    "map": 952,
+    "bosses": [
+     "Legendary Archdiviner"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-deepstone",
+    "name": "Deepstone Fractal",
+    "page": "Deepstone Fractal",
+    "map": 1290,
+    "bosses": [
+     "The Voice",
+     "Deepstone Sentinel"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-kinfall",
+    "name": "Kinfall Fractal",
+    "page": "Kinfall Fractal",
+    "map": 1584,
+    "bosses": [
+     "Legendary Whispering Shadow"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-lonely-tower",
+    "name": "Lonely Tower Fractal",
+    "page": "Lonely Tower Fractal",
+    "map": 1538,
+    "bosses": [
+     "Astral Purifier",
+     "Cerus",
+     "Deimos",
+     "Eparch"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-molten-boss",
+    "name": "Molten Boss Fractal",
+    "page": "Molten Boss Fractal",
+    "map": 959,
+    "bosses": [
+     "Molten Berserker",
+     "Molten Firestorm"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-molten-furnace",
+    "name": "Molten Furnace Fractal",
+    "page": "Molten Furnace Fractal",
+    "map": 955,
+    "bosses": [
+     "Champion Weapons Test Engineer"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-nightmare",
+    "name": "Nightmare Fractal",
+    "page": "Nightmare Fractal",
+    "map": 1177,
+    "bosses": [
+     "MAMA",
+     "Siax the Corrupted",
+     "Ensolyss of the Endless Torment"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-shattered-observatory",
+    "name": "Shattered Observatory Fractal",
+    "page": "Shattered Observatory Fractal",
+    "map": 1205,
+    "bosses": [
+     "Skorvald the Shattered",
+     "Artsariiv",
+     "Arkk"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-silent-surf",
+    "name": "Silent Surf Fractal",
+    "page": "Silent Surf Fractal",
+    "map": 1500,
+    "bosses": [
+     "Kanaxai, Scythe of House Aurkus"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-sirens-reef",
+    "name": "Siren's Reef Fractal",
+    "page": "Siren's Reef Fractal",
+    "map": 1309,
+    "bosses": [
+     "Mad Jack Squall",
+     "First Mate Calix",
+     "Captain Crowe"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-snowblind",
+    "name": "Snowblind Fractal",
+    "page": "Snowblind Fractal",
+    "map": 948,
+    "bosses": [
+     "Legendary Shaman Lornarr Dragonseeker"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-solid-ocean",
+    "name": "Solid Ocean Fractal",
+    "page": "Solid Ocean Fractal",
+    "map": 958,
+    "bosses": [
+     "Jade Maw"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-sunqua-peak",
+    "name": "Sunqua Peak Fractal",
+    "page": "Sunqua Peak Fractal",
+    "map": 1384,
+    "bosses": [
+     "Voice of the Mountain",
+     "Fury of the Mountain",
+     "Sorrowful Spellcaster",
+     "Ai, Keeper of the Peak"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-swampland",
+    "name": "Swampland Fractal",
+    "page": "Swampland Fractal",
+    "map": 949,
+    "bosses": [
+     "The Mossman",
+     "Bloomhunger"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-thaumanova-reactor",
+    "name": "Thaumanova Reactor Fractal",
+    "page": "Thaumanova Reactor Fractal",
+    "map": 957,
+    "bosses": [
+     "Thaumanova Anomaly"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-twilight-oasis",
+    "name": "Twilight Oasis Fractal",
+    "page": "Twilight Oasis Fractal",
+    "map": 1267,
+    "bosses": [
+     "Warden Amala"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-uncategorized",
+    "name": "Uncategorized Fractal",
+    "page": "Uncategorized Fractal",
+    "map": 947,
+    "bosses": [
+     "Old Tom",
+     "Raving Asura",
+     "Champion Rabbit"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-underground-facility",
+    "name": "Underground Facility Fractal",
+    "page": "Underground Facility Fractal",
+    "map": 953,
+    "bosses": [
+     "Legendary Dredge Power Suit",
+     "Legendary Rampaging Ice Elemental"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-urban-battleground",
+    "name": "Urban Battleground Fractal",
+    "page": "Urban Battleground Fractal",
+    "map": 950,
+    "bosses": [
+     "Captain Ashym"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   },
+   {
+    "id": "fractal-volcanic",
+    "name": "Volcanic Fractal",
+    "page": "Volcanic Fractal",
+    "map": 954,
+    "bosses": [
+     "Legendary Imbued Shaman"
+    ],
+    "location": "Lion's Arch (Fractals of the Mists)",
+    "waypoint": {
+     "name": "Fort Marriner Waypoint",
+     "code": "[&BDAEAAA=]"
+    }
+   }
+  ],
+  "raids": [
+   {
+    "id": "raid-spirit-vale",
+    "name": "Spirit Vale",
+    "page": "Spirit Vale",
+    "map": 1062,
+    "bosses": [
+     "Vale Guardian",
+     "Traverse the Spirit Woods",
+     "Gorseval the Multifarious",
+     "Sabetha the Saboteur"
+    ],
+    "wing": "W1",
+    "location": "Lion's Arch Aerodrome",
+    "waypoint": {
+     "name": "Aerodrome Waypoint",
+     "code": "[&BCAJAAA=]"
+    }
+   },
+   {
+    "id": "raid-salvation-pass",
+    "name": "Salvation Pass",
+    "page": "Salvation Pass",
+    "map": 1149,
+    "bosses": [
+     "Slothasor",
+     "Protect the caged prisoners",
+     "Prison Camp",
+     "Matthias Gabrel"
+    ],
+    "wing": "W2",
+    "location": "Lion's Arch Aerodrome",
+    "waypoint": {
+     "name": "Aerodrome Waypoint",
+     "code": "[&BCAJAAA=]"
+    }
+   },
+   {
+    "id": "raid-stronghold-of-the-faithful",
+    "name": "Stronghold of the Faithful",
+    "page": "Stronghold of the Faithful",
+    "map": 1156,
+    "bosses": [
+     "Siege the Stronghold",
+     "Keep Construct",
+     "Traverse the Twisted Castle",
+     "Xera"
+    ],
+    "wing": "W3",
+    "location": "Lion's Arch Aerodrome",
+    "waypoint": {
+     "name": "Aerodrome Waypoint",
+     "code": "[&BCAJAAA=]"
+    }
+   },
+   {
+    "id": "raid-bastion-of-the-penitent",
+    "name": "Bastion of the Penitent",
+    "page": "Bastion of the Penitent",
+    "map": 1188,
+    "bosses": [
+     "Cairn the Indomitable",
+     "Mursaat Overseer",
+     "Samarog",
+     "Deimos"
+    ],
+    "wing": "W4",
+    "location": "Lion's Arch Aerodrome",
+    "waypoint": {
+     "name": "Aerodrome Waypoint",
+     "code": "[&BCAJAAA=]"
+    }
+   },
+   {
+    "id": "raid-hall-of-chains",
+    "name": "Hall of Chains",
+    "page": "Hall of Chains",
+    "map": 1264,
+    "bosses": [
+     "Soulless Horror",
+     "Traverse the River of Souls",
+     "Restore the three statues of Grenth",
+     "Dhuum"
+    ],
+    "wing": "W5",
+    "location": "Lion's Arch Aerodrome",
+    "waypoint": {
+     "name": "Aerodrome Waypoint",
+     "code": "[&BCAJAAA=]"
+    }
+   },
+   {
+    "id": "raid-mythwright-gambit",
+    "name": "Mythwright Gambit",
+    "page": "Mythwright Gambit",
+    "map": 1303,
+    "bosses": [
+     "Conjured Amalgamate",
+     "Defeat the twin largos",
+     "Nikare",
+     "Kenut",
+     "Qadim"
+    ],
+    "wing": "W6",
+    "location": "Lion's Arch Aerodrome",
+    "waypoint": {
+     "name": "Aerodrome Waypoint",
+     "code": "[&BCAJAAA=]"
+    }
+   },
+   {
+    "id": "raid-the-key-of-ahdashim",
+    "name": "The Key of Ahdashim",
+    "page": "The Key of Ahdashim",
+    "map": 1323,
+    "bosses": [
+     "Cardinal Adina",
+     "Cardinal Sabir",
+     "Qadim the Peerless"
+    ],
+    "wing": "W7",
+    "location": "Lion's Arch Aerodrome",
+    "waypoint": {
+     "name": "Aerodrome Waypoint",
+     "code": "[&BCAJAAA=]"
+    }
+   },
+   {
+    "id": "raid-mount-balrior",
+    "name": "Mount Balrior",
+    "page": "Mount Balrior",
+    "map": 1564,
+    "bosses": [
+     "Decima, the Stormsinger",
+     "Greer, the Blightbringer",
+     "Ura"
+    ],
+    "wing": "W8",
+    "location": "Lion's Arch Aerodrome",
+    "waypoint": {
+     "name": "Aerodrome Waypoint",
+     "code": "[&BCAJAAA=]"
+    }
+   },
+   {
+    "id": "raid-guardians-glade",
+    "name": "Guardian's Glade",
+    "page": "Guardian's Glade",
+    "map": null,
+    "bosses": [
+     "Kela, Seneschal of Waves"
+    ],
+    "wing": "W9",
+    "location": "Lion's Arch Aerodrome",
+    "waypoint": {
+     "name": "Aerodrome Waypoint",
+     "code": "[&BCAJAAA=]"
+    }
+   }
+  ],
+  "strikes": [
+   {
+    "id": "strike-shiverpeaks-pass",
+    "name": "Shiverpeaks Pass",
+    "page": "Shiverpeaks Pass",
+    "map": 1332,
+    "maps": [
+     1332,
+     1331
+    ],
+    "bosses": [
+     "Legendary Icebrood Construct"
+    ],
+    "expansion": "The Icebrood Saga",
+    "location": "Eye of the North",
+    "waypoint": {
+     "name": "Eye of the North Waypoint",
+     "code": "[&BAkMAAA=]"
+    }
+   },
+   {
+    "id": "strike-voice-of-the-fallen-and-claw-of-the-fallen",
+    "name": "Voice of the Fallen and Claw of the Fallen",
+    "page": "Voice of the Fallen and Claw of the Fallen",
+    "map": 1346,
+    "maps": [
+     1346,
+     1340
+    ],
+    "bosses": [
+     "Voice of the Fallen",
+     "Claw of the Fallen"
+    ],
+    "expansion": "The Icebrood Saga",
+    "location": "Eye of the North",
+    "waypoint": {
+     "name": "Eye of the North Waypoint",
+     "code": "[&BAkMAAA=]"
+    }
+   },
+   {
+    "id": "strike-fraenir-of-jormag",
+    "name": "Fraenir of Jormag",
+    "page": "Fraenir of Jormag",
+    "map": 1341,
+    "maps": [
+     1341,
+     1344
+    ],
+    "bosses": [
+     "Fraenir of Jormag (NPC)",
+     "Icebrood Construct (Sanctum Arena)"
+    ],
+    "expansion": "The Icebrood Saga",
+    "location": "Eye of the North",
+    "waypoint": {
+     "name": "Eye of the North Waypoint",
+     "code": "[&BAkMAAA=]"
+    }
+   },
+   {
+    "id": "strike-boneskinner",
+    "name": "Boneskinner",
+    "page": "Boneskinner",
+    "map": 1339,
+    "maps": [
+     1339,
+     1351
+    ],
+    "bosses": [
+     "Boneskinner (legendary)"
+    ],
+    "expansion": "The Icebrood Saga",
+    "location": "Eye of the North",
+    "waypoint": {
+     "name": "Eye of the North Waypoint",
+     "code": "[&BAkMAAA=]"
+    }
+   },
+   {
+    "id": "strike-whisper-of-jormag",
+    "name": "Whisper of Jormag",
+    "page": "Whisper of Jormag",
+    "map": 1359,
+    "maps": [
+     1359,
+     1357
+    ],
+    "bosses": [
+     "Whisper of Jormag (NPC)"
+    ],
+    "expansion": "The Icebrood Saga",
+    "location": "Eye of the North",
+    "waypoint": {
+     "name": "Eye of the North Waypoint",
+     "code": "[&BAkMAAA=]"
+    }
+   },
+   {
+    "id": "strike-cold-war",
+    "name": "Cold War",
+    "page": "Cold War",
+    "map": 1374,
+    "maps": [
+     1374,
+     1376
+    ],
+    "bosses": [
+     "Varinia Stormsounder"
+    ],
+    "expansion": "The Icebrood Saga",
+    "location": "Eye of the North",
+    "waypoint": {
+     "name": "Eye of the North Waypoint",
+     "code": "[&BAkMAAA=]"
+    }
+   },
+   {
+    "id": "strike-forging-steel",
+    "name": "Forging Steel",
+    "page": "Forging Steel",
+    "map": 1368,
+    "maps": [
+     1368,
+     1362
+    ],
+    "bosses": [
+     "Ancient Forgeman"
+    ],
+    "expansion": "The Icebrood Saga",
+    "location": "Eye of the North",
+    "waypoint": {
+     "name": "Eye of the North Waypoint",
+     "code": "[&BAkMAAA=]"
+    }
+   },
+   {
+    "id": "strike-aetherblade-hideout",
+    "name": "Aetherblade Hideout",
+    "page": "Aetherblade Hideout",
+    "map": 1432,
+    "maps": [
+     1432
+    ],
+    "bosses": [
+     "Captain Mai Trin",
+     "Echo of Scarlet Briar"
+    ],
+    "expansion": "End of Dragons",
+    "location": "Arborstone (Seitung Province)",
+    "waypoint": {
+     "name": "Arborstone Waypoint",
+     "code": "[&BGMNAAA=]"
+    }
+   },
+   {
+    "id": "strike-xunlai-jade-junkyard",
+    "name": "Xunlai Jade Junkyard",
+    "page": "Xunlai Jade Junkyard",
+    "map": 1450,
+    "maps": [
+     1450
+    ],
+    "bosses": [
+     "Ankka"
+    ],
+    "expansion": "End of Dragons",
+    "location": "Arborstone (The Echovald Wilds)",
+    "waypoint": {
+     "name": "Arborstone Waypoint",
+     "code": "[&BGMNAAA=]"
+    }
+   },
+   {
+    "id": "strike-kaineng-overlook",
+    "name": "Kaineng Overlook",
+    "page": "Kaineng Overlook",
+    "map": 1451,
+    "maps": [
+     1451
+    ],
+    "bosses": [
+     "Minister Li"
+    ],
+    "expansion": "End of Dragons",
+    "location": "Arborstone (New Kaineng City)",
+    "waypoint": {
+     "name": "Arborstone Waypoint",
+     "code": "[&BGMNAAA=]"
+    }
+   },
+   {
+    "id": "strike-harvest-temple",
+    "name": "Harvest Temple",
+    "page": "Harvest Temple",
+    "map": 1437,
+    "maps": [
+     1437
+    ],
+    "bosses": [
+     "The Dragonvoid"
+    ],
+    "expansion": "End of Dragons",
+    "location": "Arborstone (Dragon's End)",
+    "waypoint": {
+     "name": "Arborstone Waypoint",
+     "code": "[&BGMNAAA=]"
+    }
+   },
+   {
+    "id": "strike-old-lions-court",
+    "name": "Old Lion's Court",
+    "page": "Old Lion's Court",
+    "map": 1485,
+    "maps": [
+     1485
+    ],
+    "bosses": [
+     "Watchknight Triumvirate",
+     "Prototype Vermilion",
+     "Prototype Arsenite",
+     "Prototype Indigo"
+    ],
+    "expansion": "End of Dragons",
+    "location": "Lion's Arch (Lion's Court)",
+    "waypoint": {
+     "name": "Trader's Forum Waypoint",
+     "code": "[&BBAEAAA=]"
+    }
+   },
+   {
+    "id": "strike-cosmic-observatory",
+    "name": "Cosmic Observatory",
+    "page": "Cosmic Observatory",
+    "map": 1515,
+    "maps": [
+     1515
+    ],
+    "bosses": [
+     "Dagda"
+    ],
+    "expansion": "Secrets of the Obscure",
+    "location": "The Wizard's Tower (Skywatch Archipelago)",
+    "waypoint": {
+     "name": "Tower Courtyard Waypoint",
+     "code": "[&BB8OAAA=]"
+    }
+   },
+   {
+    "id": "strike-temple-of-febe",
+    "name": "Temple of Febe",
+    "page": "Temple of Febe",
+    "map": 1520,
+    "maps": [
+     1520
+    ],
+    "bosses": [
+     "Cerus"
+    ],
+    "expansion": "Secrets of the Obscure",
+    "location": "The Wizard's Tower (Nayos)",
+    "waypoint": {
+     "name": "Tower Courtyard Waypoint",
+     "code": "[&BB8OAAA=]"
+    }
+   }
+  ],
+  "dungeons": [
+   {
+    "id": "dungeon-ascalonian-catacombs",
+    "name": "Ascalonian Catacombs",
+    "page": "Ascalonian Catacombs",
+    "map": 36,
+    "maps": [
+     36,
+     33
+    ],
+    "location": "Plains of Ashford",
+    "waypoint": {
+     "name": "Ascalonian Catacombs Waypoint",
+     "code": "[&BIYBAAA=]"
+    },
+    "paths": [
+     "Story",
+     "Hodgins (path 1)",
+     "Detha (path 2)",
+     "Tzark (path 3)"
+    ]
+   },
+   {
+    "id": "dungeon-caudecuss-manor",
+    "name": "Caudecus's Manor",
+    "page": "Caudecus's Manor",
+    "map": 76,
+    "maps": [
+     76,
+     75
+    ],
+    "location": "Queensdale",
+    "waypoint": {
+     "name": "Beetletun Waypoint",
+     "code": "[&BPoAAAA=]"
+    },
+    "paths": [
+     "Story",
+     "Asura (path 1)",
+     "Seraph (path 2)",
+     "Butler (path 3)"
+    ]
+   },
+   {
+    "id": "dungeon-twilight-arbor",
+    "name": "Twilight Arbor",
+    "page": "Twilight Arbor",
+    "map": 68,
+    "maps": [
+     68,
+     67
+    ],
+    "location": "Caledon Forest",
+    "waypoint": {
+     "name": "Twilight Arbor Waypoint",
+     "code": "[&BEEFAAA=]"
+    },
+    "paths": [
+     "Story",
+     "Leurent / Forward-Up (path 1)",
+     "Vevina / Forward-Forward (path 2)",
+     "Aetherpath"
+    ]
+   },
+   {
+    "id": "dungeon-sorrows-embrace",
+    "name": "Sorrow's Embrace",
+    "page": "Sorrow's Embrace",
+    "map": 64,
+    "maps": [
+     64,
+     63
+    ],
+    "location": "Dredgehaunt Cliffs",
+    "waypoint": {
+     "name": "Sorrow's Embrace Waypoint",
+     "code": "[&BD8FAAA=]"
+    },
+    "paths": [
+     "Story",
+     "Fergg (path 1)",
+     "Rasalov (path 2)",
+     "Koptev (path 3)"
+    ]
+   },
+   {
+    "id": "dungeon-citadel-of-flame",
+    "name": "Citadel of Flame",
+    "page": "Citadel of Flame",
+    "map": 69,
+    "maps": [
+     69,
+     66
+    ],
+    "location": "Fireheart Rise",
+    "waypoint": {
+     "name": "The Citadel of Flame Waypoint",
+     "code": "[&BEAFAAA=]"
+    },
+    "paths": [
+     "Story",
+     "Ferrah (path 1)",
+     "Magg (path 2)",
+     "Rhiannon (path 3)"
+    ]
+   },
+   {
+    "id": "dungeon-honor-of-the-waves",
+    "name": "Honor of the Waves",
+    "page": "Honor of the Waves",
+    "map": 71,
+    "maps": [
+     71,
+     70
+    ],
+    "location": "Frostgorge Sound",
+    "waypoint": {
+     "name": "Honor of the Waves Waypoint",
+     "code": "[&BEMFAAA=]"
+    },
+    "paths": [
+     "Story",
+     "Butcher (path 1)",
+     "Plunderer (path 2)",
+     "Zealot (path 3)"
+    ]
+   },
+   {
+    "id": "dungeon-crucible-of-eternity",
+    "name": "Crucible of Eternity",
+    "page": "Crucible of Eternity",
+    "map": 82,
+    "maps": [
+     82,
+     81
+    ],
+    "location": "Mount Maelstrom",
+    "waypoint": {
+     "name": "Crucible of Eternity Waypoint",
+     "code": "[&BEIFAAA=]"
+    },
+    "paths": [
+     "Story",
+     "Submarine (path 1)",
+     "Teleporter (path 2)",
+     "Front Door (path 3)"
+    ]
+   },
+   {
+    "id": "dungeon-the-ruined-city-of-arah",
+    "name": "The Ruined City of Arah",
+    "page": "The Ruined City of Arah",
+    "map": 112,
+    "maps": [
+     112
+    ],
+    "location": "Cursed Shore",
+    "waypoint": {
+     "name": "Arah Waypoint",
+     "code": "[&BCADAAA=]"
+    },
+    "paths": [
+     "Story",
+     "Jotun (path 1)",
+     "Mursaat (path 2)",
+     "Forgotten (path 3)",
+     "Seer (path 4)"
+    ]
+   }
+  ]
+ }
+}

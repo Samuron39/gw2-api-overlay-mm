@@ -281,3 +281,38 @@ button.small { padding: 2px 8px; font-size: 12px; }
 .prof-Mesmer { color: #b679d5; } .prof-bg-Mesmer { background: #b679d5; }
 .prof-Necromancer { color: #52a76f; } .prof-bg-Necromancer { background: #52a76f; }
 .prof-Revenant { color: #d16e5a; } .prof-bg-Revenant { background: #d16e5a; }
+
+/* ---------- Guider ---------- */
+/* To kolonner: liste med søk og sammenleggbare grupper til venstre, valgt guide til høyre */
+.gd-wrap { flex: 1; min-height: 0; display: flex; }
+.gd-list { width: 280px; flex: 0 0 280px; overflow: auto; border-right: 1px solid var(--line); padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+.gd-list input[type=search] { width: 100%; box-sizing: border-box; margin-bottom: 4px; }
+.gd-group { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); margin-bottom: 4px; }
+.gd-group > summary { cursor: pointer; padding: 5px 8px; font-weight: 600; font-size: 13px; list-style: none; }
+.gd-group > summary::before { content: '▸ '; color: var(--muted); font-size: 11px; }
+.gd-group[open] > summary::before { content: '▾ '; }
+.gd-group > summary::-webkit-details-marker { display: none; }
+.gd-here { border: 1px solid var(--tp); border-radius: 6px; padding: 4px; margin-bottom: 4px; }
+.gd-gt { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--tp); margin: 2px 4px 4px; }
+.gd-item { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: var(--panel); border: 1px solid transparent; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin: 2px 0; cursor: pointer; box-sizing: border-box; }
+.gd-item .gd-name { flex: 1; min-width: 0; }
+.gd-item .gd-wp { display: none; gap: 4px; white-space: nowrap; }
+.gd-item:hover .gd-wp, .gd-item.active .gd-wp { display: inline-flex; }
+.gd-where { margin-top: 6px; }
+.gd-where code { font-size: 11px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 4px; }
+.gd-item:hover { border-color: var(--line); }
+.gd-item.active { border-color: var(--accent); }
+.gd-detail { flex: 1; overflow: auto; padding: 8px 12px; }
+.gd-head h3 { margin: 0 0 4px; font-size: 16px; }
+.gd-actions { margin-top: 8px; display: flex; gap: 8px; }
+.gd-detail h4 { margin: 14px 0 4px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.gd-summary { margin: 0; padding-left: 20px; line-height: 1.45; }
+.gd-summary li { margin-bottom: 3px; }
+.gd-chat { display: flex; flex-direction: column; gap: 4px; }
+.gd-line { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+.gd-line .gd-txt { flex: 1; min-width: 0; font-size: 12px; word-break: break-word; }
+.gd-error { background: rgba(255,155,155,0.12); border: 1px solid #6b3a3a; color: #ffb3b3; border-radius: 6px; padding: 8px 10px; margin-top: 10px; }
+.gd-license { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 8px; }
+.gd-license a { color: var(--accent); word-break: break-all; }
+button.gd-strat { font-size: 11px; padding: 1px 6px; border-radius: 10px; background: rgba(18,20,23,0.7); margin-left: 6px; }
+@media (max-width: 700px) { .gd-list { width: 200px; flex-basis: 200px; } }

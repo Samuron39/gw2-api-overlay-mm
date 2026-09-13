@@ -15,6 +15,7 @@ const INVOKE = new Set([
   'log:open', 'log:report',
   'setup:check', 'setup:installArc', 'setup:done',
   'update:check', 'update:install',
+  'guides:list', 'guides:get',
 ]);
 const EVENTS = new Set([
   'ai:progress', 'mumble:state', 'dps:new', 'panel:module', 'panel:visible', 'wheel:locked', 'config:changed', 'live:state', 'skills:changed', 'overlays:changed',

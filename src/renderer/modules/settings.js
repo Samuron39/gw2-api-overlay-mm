@@ -109,7 +109,7 @@
     $('#uiScaleVal', root).textContent = Math.round((c.uiScale || 1) * 100) + ' %';
     $('#autoHide', root).checked = !!c.autoHide;
     $('#launchAtStartup', root).checked = !!c.launchAtStartup;
-    const ALL = [['inventory', '🎒'], ['daily', '📅'], ['timers', '⏱️'], ['tp', '💰'], ['dps', '⚔️'], ['live', '⚡'], ['characters', '🧙'], ['guild', '🏰']];
+    const ALL = [['inventory', '🎒'], ['daily', '📅'], ['timers', '⏱️'], ['tp', '💰'], ['dps', '⚔️'], ['live', '⚡'], ['characters', '🧙'], ['guild', '🏰'], ['guides', '📖']];
     const on = c.wheelModules;
     $('#modList', root).innerHTML = ALL.map(([id, icon]) => `<label class="dy-item inline"><input type="checkbox" class="modToggle" value="${id}" ${!on || on.includes(id) ? 'checked' : ''} /> ${icon} ${esc(t('module.' + id))}</label>`).join('');
     $('#cfgPath', root).textContent = c.configPath || '';

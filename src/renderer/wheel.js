@@ -9,6 +9,7 @@ const MODULES = [
   { id: 'live', icon: '⚡' },
   { id: 'characters', icon: '🧙' },
   { id: 'guild', icon: '🏰' },
+  { id: 'guides', icon: '📖' },
   { id: 'settings', icon: '⚙️' },
 ].map((m) => ({ ...m, label: () => T.t('module.' + m.id) }));
 const size = Math.min(window.innerWidth, window.innerHeight - 34);
