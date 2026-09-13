@@ -25,7 +25,7 @@
       <section class="dy-card" id="lvSkillbar" style="grid-column: 1 / -1"></section>
     </div></div>`;
 
-  const WIN = ['buffs', 'debuffs', 'target', 'skillbar'];
+  const WIN = ['buffs', 'debuffs', 'target', 'skillbar', 'dps'];
 
   async function mount(el) {
     root = el;
@@ -79,14 +79,19 @@
     $('#lvWindows', root).innerHTML = `<h3>${esc(t('live.windows'))}</h3><p class="muted small">${esc(t('live.windowsHelp'))}</p>` + WIN.map((id) => {
       const c = overlays[id];
       const isSb = id === 'skillbar';
+      const isDps = id === 'dps';
       return `<div class="lv-win" data-id="${id}">
         <div class="row"><label class="inline"><input type="checkbox" data-k="enabled" ${c.enabled ? 'checked' : ''} /> <b>${esc(t('live.win.' + id))}</b></label>
           <label class="inline"><input type="checkbox" data-k="locked" ${c.locked ? 'checked' : ''} /> ${esc(t('live.locked'))}</label>
           <button data-reset="${id}" class="small">${esc(t('live.resetPos'))}</button></div>
         <div class="row lv-opts">
-          <label class="inline">${esc(t('live.icon'))} <input type="number" data-k="iconSize" value="${c.iconSize}" min="20" max="96" step="2" style="width:64px" /> px</label>
-          <label class="inline">${esc(t('live.time'))} <select data-k="mode">${opt('mode', 'number', c.mode, 'live.number')}${opt('mode', 'clock', c.mode, 'live.shade')}${opt('mode', 'both', c.mode, 'live.both')}</select></label>
-          ${isSb ? `<label class="inline"><input type="checkbox" data-k="showNext" ${c.showNext ? 'checked' : ''} /> ${esc(t('live.showNext'))}</label>
+          ${isDps ? `<label class="inline">${esc(t('live.fontSize'))} <input type="number" data-k="fontSize" value="${c.fontSize ?? 14}" min="10" max="40" step="1" style="width:64px" /> px</label>
+                    <label class="inline">${esc(t('live.showSkills'))} <input type="number" data-k="showSkills" value="${c.showSkills ?? 3}" min="0" max="8" step="1" style="width:56px" /></label>
+                    <label class="inline"><input type="checkbox" data-k="showTaken" ${c.showTaken !== false ? 'checked' : ''} /> ${esc(t('live.showTaken'))}</label>
+                    <label class="inline"><input type="checkbox" data-k="showLast" ${c.showLast !== false ? 'checked' : ''} /> ${esc(t('live.showLast'))}</label>`
+          : `<label class="inline">${esc(t('live.icon'))} <input type="number" data-k="iconSize" value="${c.iconSize}" min="20" max="96" step="2" style="width:64px" /> px</label>
+          <label class="inline">${esc(t('live.time'))} <select data-k="mode">${opt('mode', 'number', c.mode, 'live.number')}${opt('mode', 'clock', c.mode, 'live.shade')}${opt('mode', 'both', c.mode, 'live.both')}</select></label>`}
+          ${isDps ? '' : isSb ? `<label class="inline"><input type="checkbox" data-k="showNext" ${c.showNext ? 'checked' : ''} /> ${esc(t('live.showNext'))}</label>
                     <label class="inline"><input type="checkbox" data-k="showCooldown" ${c.showCooldown ? 'checked' : ''} /> ${esc(t('live.showCooldown'))}</label>
                     <label class="inline" title="${esc(t('live.delayHelp'))}">${esc(t('live.delay'))} <input type="number" data-k="delayMs" value="${c.delayMs ?? 3000}" min="0" max="10000" step="250" style="width:72px" /> ms</label>`
                  : `<label class="inline">${esc(t('live.layout'))} <select data-k="layout">${opt('layout', 'grid', c.layout, 'live.grid')}${opt('layout', 'list', c.layout, 'live.list')}</select></label>

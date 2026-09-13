@@ -51,6 +51,18 @@
     .s .am.none { color: #ff8a8a; }
     .gap { width: calc(var(--is) * 0.35); flex: 0 0 auto; }
     #sbStatus { position: absolute; right: 4px; top: 2px; font-size: 11px; color: #cfd3ff; background: rgba(18,20,23,0.75); padding: 1px 6px; border-radius: 6px; pointer-events: none; }
+    /* DPS-måler */
+    #dps { height: 100%; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs, 14px); background: rgba(18,20,23,0.8); border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); overflow: hidden; }
+    #dps .top { display: flex; align-items: baseline; gap: 8px; }
+    #dps .big { font-size: 200%; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000; }
+    #dps .big.idle { color: #9aa3b2; }
+    #dps .lbl { font-size: 80%; color: #cfd3ff; }
+    #dps .sub { font-size: 85%; color: #dfe3ee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+    #dps .sk { position: relative; height: 1.25em; font-size: 80%; display: flex; align-items: center; padding: 0 4px; gap: 6px; border-radius: 3px; overflow: hidden; }
+    #dps .sk .bar { position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); background: rgba(91,108,255,0.45); }
+    #dps .sk .n { position: relative; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #dps .sk .v { position: relative; font-variant-numeric: tabular-nums; }
+    #dps .tk { color: #ff9b9b; }
   </style>
 </head>
 <body>
@@ -58,6 +70,7 @@
   <div id="grid"></div>
   <div id="sb" hidden></div>
   <div id="sbStatus" hidden></div>
+  <div id="dps" hidden></div>
   <script src="i18n.js"></script>
   <script src="skillbar-logic.js"></script>
   <script src="overlay.js"></script>

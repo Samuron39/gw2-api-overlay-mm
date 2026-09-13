@@ -219,6 +219,8 @@ button.wp { position: relative; font-size: 11px; padding: 2px 8px; border-radius
 button.small { padding: 2px 8px; font-size: 12px; }
 
 /* ---------- DPS ---------- */
+.dps-live { padding: 6px 12px; border-bottom: 1px solid var(--line); font-size: 13px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dps-live .up { color: #7ddc8a; }
 .dps-info { padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); max-height: 45%; overflow: auto; }
 .dps-info h4 { margin: 4px 0 6px; }
 .dps-info ol { padding-left: 20px; margin: 6px 0; }

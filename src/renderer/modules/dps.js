@@ -7,6 +7,8 @@
   let logs = [];
   let selected = null;
   let offNew = null;
+  let offLive = null;
+  let liveSnap = null;
   let dir = '';
   let exists = false;
 
@@ -17,6 +19,7 @@
       <button id="dpsInfoBtn" title="${esc(t('dps.howTitle'))}">${esc(t('dps.how'))}</button>
       <button id="dpsRefresh">${esc(t('dps.refreshList'))}</button>
     </div>
+    <div class="dps-live" id="dpsLive"></div>
     <div id="dpsInfo" class="dps-info" hidden>
       <h4>${esc(t('dps.howTitle'))}</h4>
       <p>${t('dps.intro')}</p>
@@ -51,6 +54,13 @@
       } catch (e) { if (root) $('#arcStatus', root).textContent = t('common.error', { message: e.message }); }
       finally { if (root) btn.disabled = false; }
     });
+    offLive = window.api.on('live:state', (s) => { liveSnap = s; renderLive(); });
+    window.api.invoke('live:get').then((s) => { liveSnap = s; renderLive(); }).catch(() => {});
+    $('#dpsLive', el).addEventListener('click', async (e) => {
+      if (e.target.id !== 'dpsLiveWin') return;
+      try { await window.api.invoke('overlays:set', 'dps', { enabled: true, locked: false }); setStatus(t('dps.live.opened')); }
+      catch (err) { setStatus(t('common.error', { message: err.message }), true); }
+    });
     offNew = window.api.on('dps:new', (r) => {
       setStatus(t('dps.newFight', { boss: r.boss, dur: fmtDur(r.durationMs) }));
       selected = r;
@@ -59,7 +69,21 @@
     await refresh();
   }
 
-  function unmount() { offNew?.(); offNew = null; root = null; }
+  function unmount() { offNew?.(); offNew = null; offLive?.(); offLive = null; root = null; }
+
+  // Live-kortet: pågående kamp fra broen (sanntid), ellers forrige kamp
+  const k = (n) => { n = Math.round(n || 0); return n >= 10000 ? (n / 1000).toFixed(1) + 'k' : String(n); };
+  function renderLive() {
+    if (!root) return;
+    const el = $('#dpsLive', root);
+    const d = liveSnap?.dps;
+    if (!liveSnap?.connected) { el.innerHTML = `<span class="muted">${esc(t('dps.live.noBridge'))}</span>`; return; }
+    const f = d?.current || d?.last;
+    const head = d?.current ? t('dps.live.now', { dps: k(d.current.dps10) }) : t('dps.live.lastTitle');
+    const body = f ? t('dps.live.line', { dur: fmtDur(f.durationMs), avg: k(f.dps), total: k(f.total), taken: k(f.taken), target: f.target || '–' }) : t('dps.live.noFight');
+    const skills = f?.skills?.length ? ' · ' + f.skills.slice(0, 3).map((s) => `${esc(s.name || s.skill)} ${s.pct}%`).join(', ') : '';
+    el.innerHTML = `<b class="${d?.current ? 'up' : ''}">${esc(head)}</b> <span class="muted">${esc(body)}${skills}</span> <button id="dpsLiveWin" class="small">${esc(t('dps.live.window'))}</button>`;
+  }
 
   async function arcStatus() {
     if (!root) return;

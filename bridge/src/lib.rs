@@ -28,7 +28,8 @@
 //!                Dette er eneste kilde til buffs, cooldowns og våpenbytte, så forsinkelsen må vi leve med.
 //!
 //! Filtrering før sending:
-//! - local: statechange-hendelser og egne skadetreff (sanntid: kampstatus og hva vi sist traff). Buff-ticks droppes.
+//! - local: statechange-hendelser og all skade der du er part, treff og condition-ticks (sanntid: kampstatus,
+//!          DPS-måleren, «sist truffet» og mottatt skade). Treff mellom andre droppes.
 //! - area:  buff-påføring (buff == 1 uten buff_dmg), buff-fjerning, aktiveringer, statechange og agent-hendelser,
 //!          for alle parter. Rene skadetreff og condition-ticks droppes (de er statistikk, ikke overlay-data).
 
@@ -253,13 +254,13 @@ fn is_npc(a: &Option<Agent>) -> bool {
     a.as_ref().map_or(false, |a| a.elite == NPC_ELITE)
 }
 
-/// Chatbox-kanalen (sanntid): statechange (kamp inn/ut, logg start/slutt) og egne skadetreff, som overlayen bruker til
-/// kampstatus og til å vite hva vi sist traff. Condition-ticks og andres treff droppes.
+/// Chatbox-kanalen (sanntid): statechange (kamp inn/ut, logg start/slutt), og skade der du er part: egne treff og
+/// condition-ticks (DPS-måleren og «sist truffet») og skade mot deg (mottatt). Treff mellom andre droppes.
 fn combat_local(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>, skill_name: Option<&'static str>, id: u64, _revision: u64) {
     if let Some(e) = ev {
         if e.is_statechange == 0 {
-            let plain_hit = e.is_activation == 0 && e.is_buff_remove == 0 && e.buff == 0;
-            if !plain_hit || !is_self(&src) {
+            let damage = e.is_activation == 0 && e.is_buff_remove == 0;
+            if !damage || !(is_self(&src) || is_self(&dst)) {
                 return;
             }
         }

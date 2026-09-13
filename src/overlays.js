@@ -9,6 +9,7 @@ const DEFAULTS = {
   debuffs: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 40, mode: 'both', filter: 'conditions', showNames: false, showIcons: true, opacity: 1, direction: 'row' },
   target: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 36, mode: 'both', filter: 'conditions', showNames: false, showIcons: true, opacity: 1, direction: 'row' },
   skillbar: { enabled: false, x: null, y: null, w: 560, h: 130, locked: false, iconSize: 44, mode: 'both', showNext: true, showCooldown: true, delayMs: 3000, opacity: 1 },
+  dps: { enabled: false, x: null, y: null, w: 300, h: 120, locked: false, fontSize: 14, showTaken: true, showSkills: 3, showLast: true, opacity: 1 },
 };
 
 const wins = new Map();
@@ -32,7 +33,7 @@ function apply(type) {
 function create(type, c) {
   const disp = screen.getPrimaryDisplay().workArea;
   const x = c.x ?? Math.round(disp.x + disp.width / 2 - c.w / 2);
-  const y = c.y ?? Math.round(disp.y + disp.height - c.h - 160 - (type === 'skillbar' ? 0 : 140));
+  const y = c.y ?? Math.round(disp.y + disp.height - c.h - 160 - (type === 'skillbar' ? 0 : type === 'dps' ? 300 : 140));
   const w = new BrowserWindow({
     x, y, width: c.w, height: c.h, minWidth: 80, minHeight: 40,
     transparent: true, frame: false, alwaysOnTop: true, skipTaskbar: true, hasShadow: false, resizable: !c.locked,

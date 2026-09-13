@@ -19,6 +19,7 @@ const L = window.SkillbarLogic;
 const grid = document.getElementById('grid');
 const sb = document.getElementById('sb');
 const sbStatus = document.getElementById('sbStatus');
+const dp = document.getElementById('dps');
 const hint = document.getElementById('hint');
 
 function classify(skill) { if (BOONS[skill]) return 'boon'; if (CONDS[skill]) return 'cond'; return 'other'; }
@@ -58,9 +59,32 @@ function applyConfig(c) {
   document.documentElement.style.setProperty('--is', (c.iconSize || 40) + 'px');
   document.documentElement.style.setProperty('--ps', Math.round((c.iconSize || 40) * 0.72) + 'px');
   grid.classList.toggle('col', c.direction === 'col');
-  const isSb = TYPE === 'skillbar';
-  grid.hidden = isSb; sb.hidden = !isSb; sbStatus.hidden = !isSb;
+  const isSb = TYPE === 'skillbar', isDps = TYPE === 'dps';
+  grid.hidden = isSb || isDps; sb.hidden = !isSb; sbStatus.hidden = !isSb; dp.hidden = !isDps;
+  document.documentElement.style.setProperty('--fs', (c.fontSize || 14) + 'px');
   render();
+}
+
+// ---------- DPS-måler ----------
+function fmtK(n) { n = Math.round(n || 0); return n >= 100000 ? Math.round(n / 1000) + 'k' : n >= 10000 ? (n / 1000).toFixed(1) + 'k' : String(n); }
+function fmtDur(ms) { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch])); }
+function renderDps() {
+  if (!cfg) return;
+  const d = snap?.dps || {};
+  const edit = document.body.classList.contains('edit');
+  let cur = d.current, last = d.last, sample = false;
+  if (!cur && !last && edit) { sample = true; cur = { active: true, dps10: 18420, dps: 15980, total: 287640, durationMs: 18000, taken: 9120, target: 'Legendary Destroyer', skills: [{ name: 'Arc Divider', dmg: 98000, pct: 34 }, { name: 'Decapitate', dmg: 61000, pct: 21 }, { name: 'Bleeding', dmg: 40000, pct: 14 }] }; }
+  const show = cur || (cfg.showLast !== false ? last : null);
+  if (!show) { dp.innerHTML = `<div class="top"><span class="big idle">–</span><span class="lbl">DPS</span></div><div class="sub">${esc(T.t('overlay.dps.noFight'))}</div>`; return; }
+  const active = !!cur;
+  const main = active ? show.dps10 : show.dps;
+  const rows = [];
+  rows.push(`<div class="top"><span class="big ${active ? '' : 'idle'}">${fmtK(main)}</span><span class="lbl">${esc(active ? T.t('overlay.dps.now') : T.t('overlay.dps.last'))}</span>${sample ? `<span class="lbl">(${esc(T.t('overlay.dps.sample'))})</span>` : ''}</div>`);
+  rows.push(`<div class="sub">${esc(T.t('overlay.dps.line', { dur: fmtDur(show.durationMs), avg: fmtK(show.dps), total: fmtK(show.total) }))}${show.target ? ' · ' + esc(show.target) : ''}${cfg.showTaken !== false && show.taken ? ` · <span class="tk">${esc(T.t('overlay.dps.taken', { n: fmtK(show.taken) }))}</span>` : ''}</div>`);
+  const n = Number(cfg.showSkills ?? 3);
+  for (const s of (show.skills || []).slice(0, n)) rows.push(`<div class="sk"><span class="bar" style="--w:${s.pct || 0}%"></span><span class="n">${esc(s.name || s.skill)}</span><span class="v">${fmtK(s.dmg)} · ${s.pct || 0}%</span></div>`);
+  dp.innerHTML = rows.join('');
 }
 function labelFor(type) { return T.t('overlay.label.' + type); }
 
@@ -227,7 +251,7 @@ function renderSkillbar() {
   sbStatus.textContent = `${skillbar.character} · ${skillbar.specName || skillbar.professionName}${setTxt}${modeTxt} · ${rot.length ? T.t('overlay.rotation', { pos: rotationPos + 1, total: rot.length }) : T.t('overlay.noRotation')}${snap?.connected ? '' : ' · ' + T.t('overlay.noLive')}`;
 }
 
-function render() { if (TYPE === 'skillbar') renderSkillbar(); else renderBuffs(); }
+function render() { if (TYPE === 'skillbar') renderSkillbar(); else if (TYPE === 'dps') renderDps(); else renderBuffs(); }
 
 // Skill-bar hentes fra API-et via skills:get. Én lasting om gangen (sbLoading), og MumbleLink-tilstanden som kommer
 // hvert 500 ms utløser bare ny lasting når karakter eller spec faktisk har endret seg (sbTrigger). Feilet lasting
@@ -282,4 +306,4 @@ T.load().then(() => {
   window.api.invoke('live:get').then((s) => { snap = s; render(); });
   if (TYPE === 'skillbar') loadSkillbar();
 });
-setInterval(() => { if (snap) { const dt = 100; for (const b of snap.buffs || []) b.remainingMs -= dt; for (const b of snap.target?.buffs || []) b.remainingMs -= dt; for (const c of snap.cooldowns || []) c.sinceMs += dt; render(); } }, 100);
+setInterval(() => { if (snap) { const dt = 100; for (const b of snap.buffs || []) b.remainingMs -= dt; for (const b of snap.target?.buffs || []) b.remainingMs -= dt; for (const c of snap.cooldowns || []) c.sinceMs += dt; if (snap.dps?.current) snap.dps.current.durationMs += dt; render(); } }, 100);

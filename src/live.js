@@ -29,6 +29,11 @@ class Live extends EventEmitter {
     this.weaponSet = 'A'; // A/B på land, W1/W2 i vann. Fra ArcDPS statechange 11 (dstAgent = 4/5 land, 0/1 vann)
     this.nextExpiry = null; // arcdps-tid for første utløp blant buffs i siste snapshot; da sendes ny tilstand
     this.rec = null; // { stream, file, until } mens den rå strømmen tas opp til fil (feilsøking)
+    // DPS: pågående kamp og forrige kamp, regnet fra egne treff og condition-ticks i chatbox-kanalen (sanntid)
+    this.fight = null; // { start, last, total, taken, targets: Map, skills: Map }
+    this.lastFight = null; // ferdig oppsummert
+    this.dmgWindow = []; // [arcdps-tid, skade] de siste 10 s, for "DPS nå"
+    this.lastDpsEmit = 0;
     this.timer = null;
     this.dirty = false;
     this.lastJsonWarn = 0; // maks én JSON-advarsel per 10 s
@@ -61,6 +66,11 @@ class Live extends EventEmitter {
       // og telte videre i minus på egen hånd
       if (this.nextExpiry != null && this.now() >= this.nextExpiry) this.dirty = true;
       if (this.rec && Date.now() > this.rec.until) this.stopRecording();
+      // Pågående kamp: ny tilstand to ganger i sekundet så DPS-vinduet teller, og avslutt om kampslutt-hendelsen uteble
+      if (this.fight) {
+        if (!this.inCombat && this.now() - this.fight.last > 8000) this.endFight(this.now());
+        else if (Date.now() - this.lastDpsEmit > 500) { this.lastDpsEmit = Date.now(); this.dirty = true; }
+      }
       if (this.dirty) { this.dirty = false; this.emit('update', this.snapshot()); }
     }, 100);
   }
@@ -147,10 +157,10 @@ class Live extends EventEmitter {
     if (m.dst?.name) this.agents.set(m.dst.id, { id: m.dst.id, name: m.dst.name, prof: m.dst.prof, elite: m.dst.elite, self: m.dst.self });
     if (srcSelf && !this.self) this.self = { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite };
 
-    if (m.sc === 1 && srcSelf) { this.inCombat = true; this.dirty = true; return; }
+    if (m.sc === 1 && srcSelf) { this.inCombat = true; if (m.s !== 'area') this.startFight(m.time); this.dirty = true; return; }
     // Ut av kamp: målet nullstilles. ArcDPS sender ikke CHANGEDEAD for vanlige fiender i åpen verden, så død
     // oppdages via dødsstøtet vårt (result 8, CBTR_KILLINGBLOW, chatbox-kanalen i sanntid) og ellers ved kampslutt.
-    if (m.sc === 2 && srcSelf) { this.inCombat = false; this.clearTarget(); this.dirty = true; return; }
+    if (m.sc === 2 && srcSelf) { this.inCombat = false; if (m.s !== 'area') this.endFight(m.time); this.clearTarget(); this.dirty = true; return; }
     if (m.sc === 11 && srcSelf) { const v = Number(m.dstAgent); this.weaponSet = v === 5 ? 'B' : v === 4 ? 'A' : v === 1 ? 'W2' : v === 0 ? 'W1' : this.weaponSet; this.dirty = true; return; }
     // sc 18 (CBTS_BUFFINITIAL): buffs som allerede ligger på agenten ved oppstart eller kartbytte. Samme felt som en påføring.
     if (m.sc === 18) { this.applyBuff(m, false); return; }
@@ -197,8 +207,11 @@ class Live extends EventEmitter {
     // Buff påført: dst får buffen, value = varighet ms
     if (m.buff === 1 && m.value > 0) { this.applyBuff(m, true); return; }
 
+    // Skade mot oss (chatbox-kanalen): telles som mottatt i kampregnskapet
+    if (!srcSelf && m.dst?.self === 1 && (m.value !== 0 || m.buffDmg !== 0)) { this.addTaken(m); return; }
     // Skade fra oss mot fiende: husk målet. Chatbox-kanalen gir skade som negativt tall, derfor != 0.
     if (srcSelf && m.iff === 1 && m.dst && (m.value !== 0 || m.buffDmg !== 0)) {
+      this.addDamage(m);
       if (m.result === 8) { // CBTR_KILLINGBLOW: målet døde av dette treffet
         this.targets.delete(m.dst.id);
         if (this.targetId === m.dst.id) this.clearTarget();
@@ -210,6 +223,67 @@ class Live extends EventEmitter {
   }
 
   clearTarget() { if (this.targetId != null) { this.targetId = null; this.dirty = true; } }
+
+  // ---------- DPS ----------
+  // Skademengden i en hendelse: strike = value (negativt i chatbox-kanalen), condition-tick = buffDmg.
+  // Blokkert, unnveket, absorbert, bommet (blind), breakbar-skade og skill-signal teller ikke.
+  static damageOf(m) {
+    if ([3, 4, 6, 7, 10, 11].includes(m.result)) return 0;
+    if (m.buff === 1) return Math.abs(Number(m.buffDmg) || 0);
+    return Math.abs(Number(m.value) || 0);
+  }
+  startFight(t) {
+    if (this.fight) return; // allerede i gang (kamp inn kommer også forsinket på evtc-kanalen)
+    this.fight = { start: t, last: t, total: 0, taken: 0, targets: new Map(), skills: new Map() };
+    this.dmgWindow = [];
+    this.dirty = true;
+  }
+  endFight(t) {
+    const f = this.fight;
+    if (!f) return;
+    this.fight = null;
+    if (f.total > 0 || f.taken > 0) this.lastFight = this.summarize(f, Math.max(t, f.last));
+    this.dirty = true;
+  }
+  addDamage(m) {
+    const amt = Live.damageOf(m);
+    if (!amt) return;
+    if (!this.fight) this.startFight(m.time);
+    const f = this.fight;
+    f.total += amt; f.last = Math.max(f.last, m.time);
+    const tg = f.targets.get(m.dst.id) || { id: m.dst.id, name: m.dst.name || '', dmg: 0 };
+    tg.dmg += amt; if (m.dst.name) tg.name = m.dst.name; f.targets.set(m.dst.id, tg);
+    const sk = f.skills.get(m.skill) || { skill: m.skill, name: m.name || '', dmg: 0, hits: 0 };
+    sk.dmg += amt; sk.hits++; if (m.name) sk.name = m.name; f.skills.set(m.skill, sk);
+    this.dmgWindow.push([m.time, amt]);
+    this.dirty = true;
+  }
+  addTaken(m) {
+    const amt = Live.damageOf(m);
+    if (!amt || !this.fight) return;
+    this.fight.taken += amt; this.fight.last = Math.max(this.fight.last, m.time);
+    this.dirty = true;
+  }
+  summarize(f, end) {
+    const durationMs = Math.max(1000, end - f.start);
+    const targets = [...f.targets.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 3);
+    const skills = [...f.skills.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 8).map((s) => ({ ...s, pct: f.total ? Math.round(s.dmg / f.total * 100) : 0 }));
+    return { durationMs, total: f.total, taken: f.taken, dps: Math.round(f.total / durationMs * 1000), targets, skills, target: targets[0]?.name || '' };
+  }
+  dpsSnapshot(now) {
+    const f = this.fight;
+    let cur = null;
+    if (f) {
+      cur = this.summarize(f, now);
+      const from = now - 10000;
+      while (this.dmgWindow.length && this.dmgWindow[0][0] < from) this.dmgWindow.shift();
+      let sum = 0; for (const [, a] of this.dmgWindow) sum += a;
+      const span = Math.min(10000, Math.max(1000, now - f.start));
+      cur.dps10 = Math.round(sum / span * 1000);
+      cur.active = true;
+    }
+    return { current: cur, last: this.lastFight };
+  }
 
   // Samme arcdps-id i samme scope to ganger = samme hendelse levert to ganger. Husker de siste DEDUPE_KEEP.
   isDuplicate(m) {
@@ -306,6 +380,7 @@ class Live extends EventEmitter {
       cooldowns, arcNow: now,
       stats: { ...this.stats },
       recording: this.rec ? { file: this.rec.file, until: this.rec.until } : null,
+      dps: this.dpsSnapshot(now),
     };
   }
 }
