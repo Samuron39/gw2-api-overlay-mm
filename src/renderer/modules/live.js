@@ -20,6 +20,7 @@
         <div id="lvBridgeStatus" class="muted">${esc(t('live.checking'))}</div>
         <div class="row" style="margin-top:6px"><button id="lvInstallBridge" class="primary">${esc(t('live.installBridge'))}</button><button id="lvCheck">${esc(t('live.recheck'))}</button><button id="lvRecord" title="${esc(t('live.recordHelp'))}">${esc(t('live.record'))}</button></div>
         <p class="muted small">${esc(t('live.bridgeHelp'))}</p>
+        <p class="muted small">${esc(t('live.healingHelp'))} <a href="#" id="lvHealingLink">${esc(t('live.healingLink'))}</a></p>
       </section>
       <section class="dy-card" id="lvWindows"></section>
       <section class="dy-card" id="lvSkillbar" style="grid-column: 1 / -1"></section>
@@ -37,6 +38,8 @@
       finally { if (root) { b.disabled = false; bridgeStatus(); } }
     });
     $('#lvCheck', el).addEventListener('click', bridgeStatus);
+    // Healing stats-utvidelsen (valgfri, gir squad-healing): lenke til GitHub-siden med nedlasting
+    $('#lvHealingLink', el).addEventListener('click', (e) => { e.preventDefault(); window.api.invoke('open:url', 'https://github.com/Krappa322/arcdps_healing_stats'); });
     $('#lvRecord', el).addEventListener('click', async () => {
       try { const r = await window.api.invoke('live:record', 180000); setStatus(t('live.recording', { file: r.file })); }
       catch (e) { setStatus(t('common.error', { message: e.message }), true); }
@@ -70,7 +73,13 @@
     if (!el) return;
     if (!snap?.connected) { el.innerHTML = `<span class="down">${esc(t('live.noContact'))}</span> <span class="muted">${esc(t('live.noContactHint'))}</span>`; return; }
     const target = snap.target ? esc(snap.target.name) + ' (' + snap.target.buffs.length + ')' : esc(t('live.noTarget'));
-    el.innerHTML = `<span class="up">${esc(t('live.receiving'))}</span> <span class="muted">(ArcDPS ${esc(snap.arcVersion)})</span> · ${snap.self ? esc(snap.self.name) : esc(t('live.unknownChar'))} · ${esc(t(snap.inCombat ? 'live.inCombat' : 'live.outOfCombat'))} · ${esc(t('live.buffs', { n: snap.buffs.length }))} · ${t('live.target', { name: target })}${snap.stats ? ` · <span class="muted" title="${esc(t('live.statsTitle'))}">${esc(t('live.stats', { packets: snap.stats.packets, events: snap.stats.events, drops: snap.stats.dropsDetected }))}${snap.stats.areaLagMs != null ? ' · ' + esc(t('live.lag', { s: (snap.stats.areaLagMs / 1000).toFixed(1) })) : ''}</span>` : ''}${snap.recording ? ` · <span class="down">${esc(t('live.recordingShort', { s: Math.max(0, Math.round((snap.recording.until - Date.now()) / 1000)) }))}</span>` : ''}`;
+    el.innerHTML = `<span class="up">${esc(t('live.receiving'))}</span> <span class="muted">(ArcDPS ${esc(snap.arcVersion)})</span> · ${snap.self ? esc(snap.self.name) : esc(t('live.unknownChar'))} · ${esc(t(snap.inCombat ? 'live.inCombat' : 'live.outOfCombat'))} · ${esc(t('live.buffs', { n: snap.buffs.length }))} · ${t('live.target', { name: target })}${snap.stats ? ` · <span class="muted" title="${esc(t('live.statsTitle'))}">${esc(t('live.stats', { packets: snap.stats.packets, events: snap.stats.events, drops: snap.stats.dropsDetected }))}${snap.stats.areaLagMs != null ? ' · ' + esc(t('live.lag', { s: (snap.stats.areaLagMs / 1000).toFixed(1) })) : ''}</span>` : ''}${snap.recording ? ` · <span class="down">${esc(t('live.recordingShort', { s: Math.max(0, Math.round((snap.recording.until - Date.now()) / 1000)) }))}</span>` : ''}${healingLine()}`;
+  }
+  // Healing: om broen sender heal-linjer (egen healing, HPS) og om healing stats-utvidelsen er funnet i spillet (squad-healing)
+  function healingLine() {
+    const h = snap?.dps?.healing;
+    if (!h) return '';
+    return ` · <span class="${h.supported ? 'up' : 'down'}">${esc(t(h.supported ? 'live.healingBridgeOk' : 'live.healingBridgeOld'))}</span> · <span class="muted">${esc(t(h.ext ? 'live.healingFound' : 'live.healingMissing'))}</span>`;
   }
 
   function renderWindows() {
@@ -91,7 +100,8 @@
                     <label class="inline">${esc(t('live.takenRows'))} <input type="number" data-k="takenRows" value="${c.takenRows ?? 3}" min="0" max="5" step="1" style="width:56px" /></label>
                     <label class="inline"><input type="checkbox" data-k="showLast" ${c.showLast !== false ? 'checked' : ''} /> ${esc(t('live.showLast'))}</label>
                     <label class="inline"><input type="checkbox" data-k="showSquad" ${c.showSquad !== false ? 'checked' : ''} /> ${esc(t('live.showSquad'))}</label>
-                    <label class="inline">${esc(t('live.squadRows'))} <input type="number" data-k="squadRows" value="${c.squadRows ?? 5}" min="1" max="10" step="1" style="width:56px" /></label>`
+                    <label class="inline">${esc(t('live.squadRows'))} <input type="number" data-k="squadRows" value="${c.squadRows ?? 5}" min="1" max="10" step="1" style="width:56px" /></label>
+                    <label class="inline"><input type="checkbox" data-k="showHealing" ${c.showHealing !== false ? 'checked' : ''} /> ${esc(t('live.showHealing'))}</label>`
           : `<label class="inline">${esc(t('live.icon'))} <input type="number" data-k="iconSize" value="${c.iconSize}" min="20" max="96" step="2" style="width:64px" /> px</label>
           <label class="inline">${esc(t('live.time'))} <select data-k="mode">${opt('mode', 'number', c.mode, 'live.number')}${opt('mode', 'clock', c.mode, 'live.shade')}${opt('mode', 'both', c.mode, 'live.both')}</select></label>`}
           ${isDps ? '' : isSb ? `<label class="inline"><input type="checkbox" data-k="showNext" ${c.showNext ? 'checked' : ''} /> ${esc(t('live.showNext'))}</label>

@@ -48,6 +48,12 @@ class Live extends EventEmitter {
     // Frosset kopi av ringbufferen da du gikk ned eller døde; beholdes til neste kampstart
     this.death = null; // { time, at, downed, hits, killer, skill, amount }
     this.deathSeen = []; // [{ downed, time }] signaler vi alt har registrert (dedupe mellom kanaler og veier)
+    // Healing (se docs/healing-api.md): broen sender heal-linjer fra chatbox-kanalen (ch "local", sanntid, egen healing og
+    // healing mottatt) og fra utvidelsen «arcdps healing stats» (ch "ext", andres healing når de deler live).
+    this.healSupported = false; // hello.heal = 1: broen sender heal-linjer
+    this.healExt = false; // hello.healExt = 1: healing stats-utvidelsen er lastet i spillet
+    this.healSeen = false; // minst én heal-linje (eller positiv local-hendelse fra eldre bro) er telt
+    this.healWindow = []; // [arcdps-tid, heal] de siste 10 s, for "HPS nå"
     this.lastDpsEmit = 0;
     this.timer = null;
     this.dirty = false;
@@ -133,6 +139,17 @@ class Live extends EventEmitter {
     if (m.t === 'hello') {
       if (!this.connected) { this.connected = true; this.dirty = true; log.info('live', 'Broen koblet til', { arc: m.arc || '' }); }
       this.arcVersion = m.arc || ''; this.lastHello = Date.now();
+      const heal = m.heal === 1, ext = m.healExt === 1;
+      if (heal !== this.healSupported || ext !== this.healExt) { this.healSupported = heal; this.healExt = ext; this.dirty = true; if (heal) log.info('live', 'Broen støtter healing', { healingStats: ext }); }
+      return;
+    }
+    if (m.t === 'heal') {
+      this.stats.events++;
+      this.trackSeq(m);
+      // dedupe per kanal: samme arcdps-id kan komme både på local og (fra utvidelsen) på ext
+      if (this.isDuplicate({ s: 'heal-' + m.ch, id: m.id })) return;
+      if (m.ch !== 'ext' || this.offset == null) this.offset = Date.now() - m.time; // local er sanntid, ext er forsinket
+      this.addHeal(m);
       return;
     }
     if (m.t !== 'agent' && m.t !== 'ev') return;
@@ -242,6 +259,10 @@ class Live extends EventEmitter {
     // Squad-DPS: skade på evtc-kanalen (area) er andres treff og condition-ticks mot fiender (broen slipper dem gjennom).
     // Egen skade og skade mot oss telles fra chatbox-kanalen i sanntid og skal aldri telles igjen herfra.
     if (m.s === 'area') { this.addSquadDamage(m); return; }
+    // Healing fra en eldre bro (uten heal-linjer): i chatbox-kanalen er skade negativ og healing POSITIV (samme regel som
+    // «arcdps healing stats», src/Common.h GetEventType). Uten dette ville en heal fra en annen spiller telt som mottatt skade.
+    // iff 1 (fiende) holdes utenfor så positive testverdier mot fiender fortsatt er skade.
+    if (m.s === 'local' && m.iff !== 1 && Live.legacyHealAmount(m) > 0) { this.addHeal({ ...m, ch: 'local', value: Live.legacyHealAmount(m), barrier: 0, over: 0 }); return; }
     // Skade mot oss (chatbox-kanalen): telles som mottatt i kampregnskapet. Dødsstøt (result 8) og nedkjempet (result 9)
     // mot oss kommer som egen hendelse med value 0 (målt for våre egne dødsstøt i opptaket), derfor slippes de også gjennom.
     if (!srcSelf && m.dst?.self === 1 && (m.value !== 0 || m.buffDmg !== 0 || m.result === 8 || m.result === 9)) { this.addTaken(m); return; }
@@ -270,13 +291,71 @@ class Live extends EventEmitter {
   }
   startFight(t) {
     if (this.fight) return; // allerede i gang (kamp inn kommer også forsinket på evtc-kanalen)
-    this.fight = { start: t, last: t, total: 0, taken: 0, targets: new Map(), skills: new Map(), squad: new Map(), takenSrc: new Map(), takenSkills: new Map() };
+    this.fight = {
+      start: t, last: t, total: 0, taken: 0, targets: new Map(), skills: new Map(), squad: new Map(), takenSrc: new Map(), takenSkills: new Map(),
+      // healing: heal = egen healing gjort (inkl. barrier), barrier = barrier-delen av den, healSkills per skill,
+      // healReceived = healing mottatt (også egen), healSources per kilde, squadHeal = andres healing (ext-kanalen)
+      heal: 0, barrier: 0, healSkills: new Map(), healReceived: 0, healSources: new Map(), squadHeal: new Map(),
+    };
     this.dmgWindow = [];
+    this.healWindow = [];
     // Ny kamp: siste treff og dødsloggen fra forrige kamp slippes
     this.lastHits = [];
     this.death = null;
     this.deathSeen = [];
     this.dirty = true;
+  }
+
+  // ---------- Healing ----------
+  // Eldre bro sender healing som vanlige ev-linjer med positiv verdi i chatbox-kanalen: direkte healing i value (buff 0,
+  // result vanlig/crit/glance), regenerasjon i buffDmg (buff 1). 0 = ikke healing.
+  static legacyHealAmount(m) {
+    if (m.sc !== 0 || m.act !== 0 || m.rem !== 0) return 0;
+    if (m.buff === 1) return Number(m.buffDmg) > 0 ? Number(m.buffDmg) : 0;
+    return [0, 1, 2].includes(m.result) && Number(m.value) > 0 ? Number(m.value) : 0;
+  }
+  // En heal-linje (eller normalisert eldre hendelse). Telles bare i en pågående kamp: healing utenfor kamp (regenerasjon
+  // mens man står stille) skal ikke starte en kamp, det gjør bare kamp-inn og egne treff.
+  addHeal(h) {
+    const amt = Number(h.value) || 0;
+    if (amt <= 0 || !this.fight) return;
+    const f = this.fight;
+    const srcSelf = h.src?.self === 1 || (this.selfInst > 0 && h.srcMaster === this.selfInst);
+    const dstSelf = h.dst?.self === 1;
+    if (h.src?.name) this.agents.set(h.src.id, { id: h.src.id, name: h.src.name, prof: h.src.prof, elite: h.src.elite, self: h.src.self });
+    if (h.dst?.name) this.agents.set(h.dst.id, { id: h.dst.id, name: h.dst.name, prof: h.dst.prof, elite: h.dst.elite, self: h.dst.self });
+    if (h.ch === 'ext') {
+      // Fra healing stats-utvidelsen (2–3 s forsinket): egne hendelser er duplikater av local-kanalen og hoppes over.
+      // Andres healing (squad-medlemmer som deler live) er eneste vei til en squad-liste.
+      if (srcSelf || !h.src) return;
+      const sq = f.squadHeal.get(h.src.id) || { id: h.src.id, name: h.src.name || '', heal: 0 };
+      sq.heal += amt; if (h.src.name) sq.name = h.src.name; f.squadHeal.set(h.src.id, sq);
+      this.healSeen = true; this.dirty = true;
+      return;
+    }
+    if (!srcSelf && !dstSelf) return;
+    if (srcSelf) {
+      f.heal += amt;
+      if (h.barrier) f.barrier += amt;
+      const key = Number(h.skill) || 0;
+      const sk = f.healSkills.get(key) || { skill: key, name: h.name || '', heal: 0, hits: 0 };
+      sk.heal += amt; sk.hits++; if (h.name) sk.name = h.name; f.healSkills.set(key, sk);
+      this.healWindow.push([h.time, amt]);
+    }
+    if (dstSelf) {
+      f.healReceived += amt;
+      const sid = h.src?.id ?? 0;
+      const so = f.healSources.get(sid) || { id: sid, name: h.src?.name || '', heal: 0 };
+      so.heal += amt; if (h.src?.name) so.name = h.src.name; f.healSources.set(sid, so);
+    }
+    this.healSeen = true;
+    this.dirty = true;
+  }
+  healingSummary(f, durationMs) {
+    const bySkill = [...f.healSkills.values()].sort((a, b) => b.heal - a.heal).slice(0, 5).map((s) => ({ ...s, pct: f.heal ? Math.round(s.heal / f.heal * 100) : 0 }));
+    const bySource = [...f.healSources.values()].sort((a, b) => b.heal - a.heal).slice(0, 3).map((s) => ({ ...s, pct: f.healReceived ? Math.round(s.heal / f.healReceived * 100) : 0 }));
+    const squad = [...f.squadHeal.values()].sort((a, b) => b.heal - a.heal).slice(0, 5);
+    return { done: f.heal, barrier: f.barrier, hps: Math.round(f.heal / durationMs * 1000), hps10: 0, bySkill, received: f.healReceived, bySource, squad, available: this.healSupported || this.healSeen };
   }
   endFight(t) {
     const f = this.fight;
@@ -284,7 +363,7 @@ class Live extends EventEmitter {
     this.fight = null;
     f.end = Math.max(t, f.last);
     this.lastRaw = f; // squad-skade som kommer forsinket etter kampslutt legges til her (se addSquadDamage)
-    if (f.total > 0 || f.taken > 0 || f.squad.size) this.lastFight = this.summarize(f, f.end);
+    if (f.total > 0 || f.taken > 0 || f.squad.size || f.heal > 0 || f.healReceived > 0) this.lastFight = this.summarize(f, f.end);
     this.dirty = true;
   }
   addDamage(m) {
@@ -433,7 +512,7 @@ class Live extends EventEmitter {
     const pctTaken = (s) => ({ ...s, pct: f.taken ? Math.round(s.dmg / f.taken * 100) : 0 });
     const takenBySource = [...f.takenSrc.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 5).map(pctTaken);
     const takenBySkill = [...f.takenSkills.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 5).map(pctTaken);
-    return { durationMs, total: f.total, taken: f.taken, dps: Math.round(f.total / durationMs * 1000), targets, skills, target: targets[0]?.name || '', squad, takenBySource, takenBySkill };
+    return { durationMs, total: f.total, taken: f.taken, dps: Math.round(f.total / durationMs * 1000), targets, skills, target: targets[0]?.name || '', squad, takenBySource, takenBySkill, healing: this.healingSummary(f, durationMs) };
   }
   dpsSnapshot(now) {
     const f = this.fight;
@@ -445,10 +524,15 @@ class Live extends EventEmitter {
       let sum = 0; for (const [, a] of this.dmgWindow) sum += a;
       const span = Math.min(10000, Math.max(1000, now - f.start));
       cur.dps10 = Math.round(sum / span * 1000);
+      // HPS nå: egen healing de siste 10 s
+      while (this.healWindow.length && this.healWindow[0][0] < from) this.healWindow.shift();
+      let hsum = 0; for (const [, a] of this.healWindow) hsum += a;
+      cur.healing.hps10 = Math.round(hsum / span * 1000);
       cur.active = true;
     }
     // lastHits: de siste treffene mot deg (nyeste sist). death: frosset kopi da du gikk ned/døde. Begge beholdes til neste kampstart.
-    return { current: cur, last: this.lastFight, lastHits: this.lastHits.slice(), death: this.death };
+    // healing.supported = broen har meldt heal-støtte i hello, ext = healing stats-utvidelsen er lastet i spillet
+    return { current: cur, last: this.lastFight, lastHits: this.lastHits.slice(), death: this.death, healing: { available: this.healSupported || this.healSeen, supported: this.healSupported, ext: this.healExt } };
   }
 
   // Samme arcdps-id i samme scope to ganger = samme hendelse levert to ganger. Husker de siste DEDUPE_KEEP.

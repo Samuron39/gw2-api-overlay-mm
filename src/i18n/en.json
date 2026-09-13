@@ -687,5 +687,17 @@
   "dps.live.takenBy": "taken: {list}",
   "dps.live.downedAt": "Downed {when}",
   "dps.live.diedAt": "Died {when}",
-  "dps.live.lastHits": "last hits: {hits}"
+  "dps.live.lastHits": "last hits: {hits}",
+  "overlay.dps.hpsNow": "HPS now",
+  "overlay.dps.hps": "HPS",
+  "overlay.dps.healLine": "healing {total} · received {received}",
+  "overlay.dps.healingUnavailable": "Healing: needs the updated bridge (Live tab)",
+  "live.showHealing": "Show healing (HPS)",
+  "live.healingBridgeOk": "healing via the bridge",
+  "live.healingBridgeOld": "healing: update the bridge",
+  "live.healingFound": "arcdps healing stats found",
+  "live.healingMissing": "arcdps healing stats not found",
+  "live.healingHelp": "Your own healing (HPS) comes straight from ArcDPS through the bridge, no extra extension needed. The \"arcdps healing stats\" extension is optional: with it (and \"live stats sharing\" enabled) the meter also gets squad members' healing. Put arcdps_healing_stats.dll next to d3d11.dll.",
+  "live.healingLink": "Get arcdps healing stats (GitHub)",
+  "dps.live.healing": "healing {total} (HPS {hps})"
 }

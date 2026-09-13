@@ -82,6 +82,7 @@ function renderDps() {
       squad: [{ name: 'Kara Nightwind', self: false, dmg: 380520, dps: 21140, pct: 45 }, { name: 'Morticon Storm', self: true, dmg: 287640, dps: 15980, pct: 34 }, { name: 'Thorn Ironbark', self: false, dmg: 176300, dps: 9790, pct: 21 }],
       takenBySource: [{ name: 'Legendary Destroyer', dmg: 5200, hits: 6, pct: 57 }, { name: 'Destroyer Troll', dmg: 2900, hits: 4, pct: 32 }, { name: 'Destroyer Harpy', dmg: 1020, hits: 3, pct: 11 }] };
     death = { downed: true, killer: 'Destroyer Troll', skill: 'Flame Burst', amount: 4200, hits: [] };
+    cur.healing = { available: true, done: 41200, barrier: 6000, hps: 2290, hps10: 3120, received: 12800, bySkill: [{ name: 'Healing Spring', heal: 18000, pct: 44 }, { name: 'Regeneration', heal: 12000, pct: 29 }, { name: 'Blast Finisher', heal: 6000, pct: 15 }], bySource: [] }; // healing-eksempel
   }
   const show = cur || (cfg.showLast !== false ? last : null);
   if (!show) { dp.innerHTML = `<div class="top"><span class="big idle">–</span><span class="lbl">DPS</span></div><div class="sub">${esc(T.t('overlay.dps.noFight'))}</div>`; return; }
@@ -122,6 +123,15 @@ function renderDps() {
     const who = T.t(death.downed ? 'overlay.dps.downedBy' : 'overlay.dps.killedBy', { killer: death.killer || '?' });
     const lastHit = death.skill ? ' · ' + T.t('overlay.dps.lastHit', { skill: death.skill, amount: fmtK(death.amount) }) : '';
     rows.push(`<div class="death"><b>${esc(who)}</b>${esc(lastHit)}</div>`);
+  }
+  // Healing (HPS): egen healing fra chatbox-kanalen via broen, se docs/healing-api.md. available = broen har meldt
+  // heal-støtte (hello.heal) eller healing er telt. Uten det: en diskret linje bare i redigeringsmodus.
+  if (cfg.showHealing !== false) {
+    const h = show.healing;
+    if (h && h.available) {
+      rows.push(`<div class="hl"><span class="hv">${fmtK(active ? h.hps10 : h.hps)}</span><span class="lbl">${esc(T.t(active ? 'overlay.dps.hpsNow' : 'overlay.dps.hps'))}</span><span class="sub">${esc(T.t('overlay.dps.healLine', { total: fmtK(h.done), received: fmtK(h.received) }))}</span></div>`);
+      for (const s of (h.bySkill || []).slice(0, Math.min(3, n))) rows.push(`<div class="sk hs"><span class="bar" style="--w:${s.pct || 0}%"></span><span class="n">${esc(s.name || s.skill)}</span><span class="v">${fmtK(s.heal)} · ${s.pct || 0}%</span></div>`);
+    } else if (edit) rows.push(`<div class="sub muted">${esc(T.t('overlay.dps.healingUnavailable'))}</div>`);
   }
   dp.innerHTML = rows.join('');
 }

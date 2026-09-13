@@ -591,3 +591,80 @@ test('dødslogg: nedkjempet (sc 5 / result 9) og død (sc 4) skilles, CHANGEDOWN
   await send(ev({ sc: 2, time: t0 + 7000 }));
   await until((x) => !x.dps.current, 'kamp slutt');
 });
+// Heal-linje i broens format (protokollen øverst i bridge/src/lib.rs, bakgrunn i docs/healing-api.md)
+function heal(over = {}) {
+  return {
+    t: 'heal', ch: 'local', id: ++seq, time: Date.now(),
+    srcAgent: (over.src || SELF).id, dstAgent: (over.dst || SELF).id,
+    skill: 0, name: '', value: 0, over: 0, barrier: 0, buff: 0, iff: 0, srcInst: 0, dstInst: 0, srcMaster: 0, dstMaster: 0, flags: 0, src: SELF, dst: SELF,
+    ...over,
+  };
+}
+
+test('healing: hello melder støtte, heal-linjer telles per kamp (gjort, per skill, mottatt, per kilde, HPS), ext bare for andre', async () => {
+  const t0 = Date.now();
+  await send({ t: 'hello', arc: '20260901.1', heal: 1, healExt: 1 });
+  let s = await until((x) => x.dps.healing?.ext === true, 'healExt fra hello');
+  assert.equal(s.dps.healing.available, true);
+  assert.equal(s.dps.healing.supported, true);
+  // utenfor kamp: ingenting telles og ingen kamp startes av healing alene
+  await send(heal({ time: t0 - 10, value: 500, skill: 14413, name: 'Dolyak Signet' }));
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(live.snapshot().dps.current, null);
+  await send(ev({ sc: 1, time: t0, srcInst: 5400 }));
+  await until((x) => x.dps.current?.active, 'kamp startet');
+  await send(
+    heal({ time: t0 + 100, value: 490, skill: 14413, name: 'Dolyak Signet' }), // selv → selv
+    heal({ time: t0 + 200, value: 737, skill: 76863, name: 'Chant of Recuperation', dst: OTHER }), // selv → annen
+    heal({ time: t0 + 300, value: 1891, skill: 76782, name: 'Chant of Recuperation', dst: OTHER, barrier: 1 }), // barrier
+    heal({ time: t0 + 400, value: 300, skill: 718, name: 'Regeneration', buff: 1, src: OTHER, dst: SELF }), // annen → selv
+    heal({ time: t0 + 500, value: 200, skill: 9999, name: 'Minion Heal', src: { id: 555, name: 'Minion', prof: 0, elite: 0xffffffff, self: 0, team: 1 }, srcMaster: 5400, dst: SELF }), // vår minion → selv
+    heal({ time: t0 + 600, value: 5000, skill: 1, name: 'Ikke oss', src: OTHER, dst: { ...GOLEM } }), // andre → andre: ignoreres
+  );
+  s = await until((x) => x.dps.current?.healing.done === 3318, 'healing gjort 490+737+1891+200');
+  const h = s.dps.current.healing;
+  assert.equal(h.barrier, 1891);
+  assert.equal(h.received, 990, 'mottatt: 490 + 300 + 200');
+  assert.equal(h.bySkill.length, 4);
+  assert.equal(h.bySkill[0].name, 'Chant of Recuperation'); assert.equal(h.bySkill[0].heal, 1891); assert.equal(h.bySkill[0].pct, 57);
+  assert.equal(h.bySource.length, 3);
+  assert.equal(h.bySource[0].name, 'Alfa'); assert.equal(h.bySource[0].heal, 490);
+  assert.ok(h.hps10 > 0 && h.hps > 0, 'HPS nå og snitt');
+  assert.equal(h.available, true);
+  assert.equal(s.dps.current.total, 0, 'healing er ikke skade');
+  // ext-kanalen (healing stats-utvidelsen): egne hendelser er duplikater og ignoreres, andres går i squad-lista
+  await send(
+    { ...heal({ time: t0 + 700, value: 999, skill: 14413, name: 'Dolyak Signet' }), ch: 'ext' },
+    { ...heal({ time: t0 + 800, value: 1200, skill: 5, name: 'Healing Spring', src: OTHER, dst: OTHER }), ch: 'ext' },
+  );
+  s = await until((x) => x.dps.current?.healing.squad.length === 1, 'squad fra ext');
+  assert.equal(s.dps.current.healing.done, 3318, 'egen ext-hendelse ikke telt dobbelt');
+  assert.deepEqual(s.dps.current.healing.squad[0], { id: 101, name: 'Beta', heal: 1200 });
+  // eldre bro uten heal-linjer: positiv value i chatbox-kanalen med iff 0 er healing, ikke mottatt skade
+  await send(ev({ time: t0 + 900, src: OTHER, dst: SELF, iff: 0, value: 400, skill: 7, name: 'Gammel heal', result: 0 }));
+  s = await until((x) => x.dps.current?.healing.received === 1390, 'eldre format telt som mottatt');
+  assert.equal(s.dps.current.taken, 0, 'ikke telt som mottatt skade');
+  // kampslutt: forrige kamp har healing med, HPS = totalt / varighet
+  await send(ev({ sc: 2, time: t0 + 4000 }));
+  s = await until((x) => !x.dps.current && x.dps.last, 'kamp avsluttet');
+  assert.equal(s.dps.last.healing.done, 3318);
+  assert.equal(s.dps.last.healing.hps, Math.round(3318 / 4));
+  assert.equal(s.dps.last.healing.received, 1390);
+  assert.equal(s.dps.last.healing.hps10, 0, 'HPS nå bare for pågående kamp');
+});
+
+test('healing: eldre bro uten heal i hello gir available false til noe er telt, dedupe per kanal', async () => {
+  await send({ t: 'hello', arc: '20260901.1' });
+  await until((x) => x.dps.healing.supported === false, 'støtte av');
+  live.healSeen = false;
+  assert.equal(live.snapshot().dps.healing.available, false);
+  const t0 = Date.now();
+  await send(ev({ sc: 1, time: t0, srcInst: 5400 }));
+  await until((x) => x.dps.current?.active, 'kamp startet');
+  const m = heal({ time: t0 + 100, value: 300, skill: 14413, name: 'Dolyak Signet' });
+  await send(m, m, { ...m, ch: 'ext' }); // samme id to ganger på local = én, ext-kopien av egen heal ignoreres
+  const s = await until((x) => x.dps.current?.healing.done === 300, 'én gang telt');
+  assert.equal(s.dps.healing.available, true, 'telt healing gjør seksjonen tilgjengelig');
+  await send(ev({ sc: 2, time: t0 + 2000 }));
+  await until((x) => !x.dps.current, 'kamp avsluttet');
+});

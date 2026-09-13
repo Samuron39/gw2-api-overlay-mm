@@ -9,7 +9,7 @@ const DEFAULTS = {
   debuffs: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 40, mode: 'both', filter: 'conditions', showNames: false, showIcons: true, opacity: 1, direction: 'row' },
   target: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 36, mode: 'both', filter: 'conditions', showNames: false, showIcons: true, opacity: 1, direction: 'row' },
   skillbar: { enabled: false, x: null, y: null, w: 560, h: 130, locked: false, iconSize: 44, mode: 'both', showNext: true, showCooldown: true, delayMs: 3000, opacity: 1 },
-  dps: { enabled: false, x: null, y: null, w: 300, h: 160, locked: false, fontSize: 14, showTaken: true, showSkills: 3, takenRows: 3, showLast: true, opacity: 1, showSquad: true, squadRows: 5 },
+  dps: { enabled: false, x: null, y: null, w: 300, h: 180, locked: false, fontSize: 14, showTaken: true, showSkills: 3, takenRows: 3, showLast: true, showHealing: true, opacity: 1, showSquad: true, squadRows: 5 },
 };
 
 const wins = new Map();
