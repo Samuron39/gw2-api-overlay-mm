@@ -129,7 +129,7 @@ test('utløp sender ny tilstand til vinduene uten at noen annen hendelse kommer'
   assert.ok(last && !last.buffs.some((b) => b.name === 'Fury'), 'siste oppdatering uten Fury');
 });
 
-test('target settes fra direkte skade og condition, sist truffet vinner, sc 2 nullstiller', async () => {
+test('target settes fra direkte skade og condition, sist truffet vinner, beholdes etter kamp og død', async () => {
   await send(ev({ dst: GOLEM, iff: 1, value: 1200, skill: 100, name: 'Slag' }));
   let s = await until((x) => x.target?.id === 200, 'target fra skade');
   assert.equal(s.target.name, 'Golem');
@@ -154,8 +154,19 @@ test('target settes fra direkte skade og condition, sist truffet vinner, sc 2 nu
   await new Promise((r) => setTimeout(r, 50));
   assert.equal(live.snapshot().target.id, 200);
 
+  // ut av kamp, død (sc 4) og fjernet agent beholder målet: conditions på det løper ut i sitt eget tempo
   await send(ev({ sc: 2 }));
-  s = await until((x) => x.target === null, 'sc 2 nullstiller target');
+  await until((x) => x.inCombat === false, 'ut av kamp');
+  assert.equal(live.snapshot().target?.id, 200, 'målet beholdes etter kamp');
+  await send(ev({ sc: 4, src: GOLEM, dst: null }));
+  await send({ t: 'agent', s: 'area', src: { id: 200, name: '', prof: 0, elite: 0, self: 0, team: 0 }, dst: null, name: '' });
+  await new Promise((r) => setTimeout(r, 60));
+  s = live.snapshot();
+  assert.equal(s.target?.id, 200, 'målet beholdes etter død og fjerning');
+  assert.equal(s.target.buffs[0].name, 'Bleeding', 'conditions løper videre');
+  // nytt mål byttes ved treff
+  await send(ev({ dst: TRASH, iff: 1, value: 5, skill: 100 }));
+  await until((x) => x.target?.id === 201, 'nytt mål');
 });
 
 test('aktivering gir cooldown, fullført aktivering setter fired, avbrudd fjerner', async () => {
@@ -288,6 +299,7 @@ test('målbytte: agent-melding med src.elite 0xffffffff og dst null setter targe
   await send({ t: 'agent', s: 'local', src: { id: 200, name: 'Golem', prof: 0, elite: 0xffffffff, self: 0, team: 2 }, dst: { self: 1 }, name: '' });
   s = await until((x) => x.target?.id === 200, 'target fra eldre bro');
   assert.equal(s.self.id, 100, 'self er urørt');
-  await send(ev({ sc: 2 }));
-  await until((x) => x.target === null, 'sc 2 nullstiller');
+  await send(ev({ sc: 4, src: GOLEM, dst: null }));
+  await new Promise((r) => setTimeout(r, 60));
+  assert.equal(live.snapshot().target?.id, 200, 'død nullstiller ikke målet');
 });

@@ -89,6 +89,8 @@ class Live extends EventEmitter {
         if (this.targetId !== m.src.id) { this.targetId = m.src.id; this.dirty = true; }
         return;
       }
+      // Agent fjernet (ev == null, src.prof == 0): ingenting å gjøre, målet beholdes til et nytt velges
+      if (m.src && !m.src.prof && m.dst == null) return;
       // Agent-registrering: src har id og navn, dst har prof, elite, self og kontonavn
       if (m.src && m.dst && m.dst.self === 1 && m.src.name) {
         this.self = { id: m.src.id, name: m.src.name, prof: m.dst.prof, elite: m.dst.elite, account: m.dst.name };
@@ -115,7 +117,9 @@ class Live extends EventEmitter {
     if (srcSelf && !this.self) this.self = { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite };
 
     if (m.sc === 1 && srcSelf) { this.inCombat = true; this.dirty = true; return; }
-    if (m.sc === 2 && srcSelf) { this.inCombat = false; this.targetId = null; this.dirty = true; return; }
+    // Ut av kamp, og også når målet dør eller forsvinner: målet beholdes med conditions som løper ut i sitt eget tempo.
+    // Det byttes bare når du treffer eller velger et nytt mål.
+    if (m.sc === 2 && srcSelf) { this.inCombat = false; this.dirty = true; return; }
     if (m.sc === 11 && srcSelf) { const v = Number(m.dstAgent); this.weaponSet = v === 5 ? 'B' : v === 4 ? 'A' : v === 1 ? 'W2' : v === 0 ? 'W1' : this.weaponSet; this.dirty = true; return; }
     // sc 18 (CBTS_BUFFINITIAL): buffs som allerede ligger på agenten ved oppstart eller kartbytte. Samme felt som en påføring.
     if (m.sc === 18) { this.applyBuff(m, false); return; }
