@@ -6,6 +6,7 @@ const BOONS = { 740: 'MGT', 725: 'FUR', 1187: 'QCK', 30328: 'ALA', 717: 'PRO', 7
 const CONDS = { 736: 'BLD', 737: 'BRN', 861: 'CNF', 723: 'PSN', 19426: 'TRM', 720: 'BLN', 722: 'CHL', 721: 'CRP', 791: 'FER', 727: 'IMM', 26766: 'SLW', 27705: 'TNT', 742: 'WKN', 738: 'VLN' };
 let cfg = null;
 let snap = null;
+let dragging = false; // manuell draing pågår (se nederst)
 let skillbar = null;
 let rotationPos = 0;
 let lastFiredId = 0;
@@ -66,6 +67,9 @@ function applyConfig(c) {
   hint.style.display = isDps ? 'none' : ''; // DPS-vinduet har verktøylinja med låseknapp; hintet ville dekket den
   document.documentElement.style.setProperty('--fs', (c.fontSize || 14) + 'px');
   if (isDps) renderDpsBar();
+  // Hovedprosessen setter klikk-gjennom på nytt ved hver innstillingsendring; glem hover-tilstanden så neste
+  // musebevegelse over verktøylinja ber om klikk igjen (ellers virket bare første klikk)
+  barHover = false;
   render();
 }
 
@@ -88,6 +92,7 @@ function renderDpsBar() {
 let barHover = false;
 document.addEventListener('mousemove', (e) => {
   if (KIND !== 'dps' || !cfg?.locked) return;
+  if (dragging) return;
   const over = !!(e.target && e.target.closest && e.target.closest('#dpsbar'));
   if (over !== barHover) { barHover = over; window.api.invoke('overlays:ignoreMouse', TYPE, !over); }
 });
@@ -350,6 +355,7 @@ function renderSkillbar() {
 // Tegnefeil skal ikke stoppe vinduet stille: de logges (havner i app.log via console-message) og neste tegning prøver igjen
 let renderErrors = 0;
 function render() {
+  if (dragging) return; // ingen ny tegning mens vinduet dras: elementet under pekeren skal ikke byttes ut midt i draget
   try { if (TYPE === 'skillbar') renderSkillbar(); else if (KIND === 'dps') renderDps(); else renderBuffs(); }
   catch (e) { if (renderErrors++ < 5) console.error('overlay ' + TYPE + ' render: ' + (e.stack || e.message)); }
 }
@@ -381,7 +387,6 @@ function loadSkillbar() {
 }
 
 // Manuell draing i redigeringsmodus (se wheel.js for hvorfor CSS-drag ikke brukes). Strekking i kantene håndteres av Electron.
-let dragging = false;
 document.body.addEventListener('pointerdown', (e) => {
   if (!document.body.classList.contains('edit') || e.button !== 0) return;
   dragging = true; document.body.setPointerCapture(e.pointerId);
