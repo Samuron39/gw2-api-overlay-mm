@@ -16,10 +16,16 @@ test('ukjent leverandør faller tilbake til lokal', () => {
 
 test('Gemini bruker fast adresse, standardmodell og Bearer-nøkkel', () => {
   const r = providers.resolve({ aiProvider: 'gemini', aiProviders: { gemini: { apiKey: 'k1' } } });
-  assert.match(r.url, /generativelanguage\.googleapis\.com/); assert.equal(r.model, 'gemini-2.5-flash');
+  assert.match(r.url, /generativelanguage\.googleapis\.com/); assert.equal(r.model, 'gemini-3.6-flash');
   assert.equal(providers.headers(r).Authorization, 'Bearer k1');
   const body = providers.buildBody(r, [{ role: 'user', content: 'hei' }], { jsonSchema: { name: 'x', schema: { type: 'object' } }, maxTokens: 500 });
   assert.equal(body.response_format.type, 'json_schema'); assert.equal(body.max_tokens, 500); assert.equal(body.temperature, 0.3); assert.equal(body.stream, true);
+});
+
+test('pensjonert Gemini-modell i konfigen byttes til standardmodellen', () => {
+  const r = providers.resolve({ aiProvider: 'gemini', aiProviders: { gemini: { apiKey: 'k', model: 'gemini-2.5-flash' } } });
+  assert.equal(r.model, 'gemini-3.6-flash');
+  assert.equal(providers.resolve({ aiProvider: 'gemini', aiProviders: { gemini: { apiKey: 'k', model: 'gemini-3.6-pro' } } }).model, 'gemini-3.6-pro');
 });
 
 test('OpenAI sender max_completion_tokens og ingen temperatur', () => {

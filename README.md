@@ -114,7 +114,7 @@ Standard er LM Studio lokalt, da forlater ingen data maskinen. Under *Innstillin
 
 | Leverandør | Nøkkel fra | Pris | Standardmodell |
 |---|---|---|---|
-| Google Gemini | aistudio.google.com/apikey | Gratis nivå (grense per minutt og dag), holder til appen | gemini-2.5-flash |
+| Google Gemini | aistudio.google.com/apikey | Gratis nivå (grense per minutt og dag), holder til appen | gemini-3.6-flash |
 | OpenAI | platform.openai.com/api-keys | Per bruk | gpt-5-mini |
 | Anthropic Claude | console.anthropic.com | Per bruk | claude-sonnet-5 |
 | DeepSeek | platform.deepseek.com | Per bruk, svært billig | deepseek-chat |

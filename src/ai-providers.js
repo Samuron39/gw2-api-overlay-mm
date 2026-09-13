@@ -14,7 +14,8 @@ const PROVIDERS = {
     name: 'Google Gemini', needsKey: true, free: true,
     url: 'https://generativelanguage.googleapis.com/v1beta/openai',
     keyUrl: 'https://aistudio.google.com/apikey',
-    defaultModel: 'gemini-2.5-flash',
+    defaultModel: 'gemini-3.6-flash',
+    retired: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'], // stengt for nye brukere, byttes stille til standardmodellen
     json: 'schema',
   },
   openai: {
@@ -70,7 +71,7 @@ function resolve(cfg) {
   let url, model;
   if (id === 'local') { url = cfg.lmUrl || 'http://localhost:1234/v1'; model = cfg.lmModel || ''; }
   else if (id === 'custom') { url = saved.url || ''; model = saved.model || ''; }
-  else { url = p.url; model = saved.model || p.defaultModel; }
+  else { url = p.url; model = saved.model || p.defaultModel; if ((p.retired || []).includes(model)) model = p.defaultModel; }
   return { id, name: p.name, url: String(url || '').replace(/\/+$/, ''), apiKey: saved.apiKey || '', model, json: p.json, needsKey: p.needsKey, noTemperature: !!p.noTemperature, maxTokensField: p.maxTokensField || 'max_tokens', extraHeaders: p.extraHeaders };
 }
 
