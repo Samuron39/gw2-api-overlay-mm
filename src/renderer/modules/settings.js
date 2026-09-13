@@ -108,10 +108,10 @@
       case 'dev': return t('settings.upd.dev');
       case 'checking': return t('settings.upd.checking');
       case 'available': return t('settings.upd.available', { v });
-      case 'not-available': return t('settings.upd.notAvailable');
       case 'downloading': return t('settings.upd.downloading', { v, percent: s.percent || 0 });
       case 'downloaded': return t('settings.upd.downloaded', { v });
       case 'error': return t('settings.upd.error', { error: s.error || t('settings.upd.unknown') });
+      case 'not-available': return s.note === 'noReleases' ? t('settings.upd.noReleases') : t('settings.upd.notAvailable');
       default: return '';
     }
   }

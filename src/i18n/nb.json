@@ -566,5 +566,6 @@
   "skills.noBuilds": "Fikk ingen builds fra API-et. Nøkkelen trenger tillatelsen builds.",
   "skills.fetchFirst": "Hent skill-baren først.",
   "skills.buildFallback": "Build {tab}",
-  "settings.uiScale": "Skalering av hjul, panel og overlay-vinduer (virker med en gang)"
+  "settings.uiScale": "Skalering av hjul, panel og overlay-vinduer (virker med en gang)",
+  "settings.upd.noReleases": "Ingen utgivelse er publisert ennå, så det finnes ingenting å oppdatere til."
 }

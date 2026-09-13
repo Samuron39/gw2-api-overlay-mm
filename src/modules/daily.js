@@ -19,7 +19,7 @@ const settle = (p) => p.then((v) => ({ ok: true, v })).catch((e) => ({ ok: false
 async function fetchDaily(key) {
   if (!key) throw new Error(t('common.noApiKeyShort'));
   if (cache.data && cache.key === key && Date.now() - cache.at < 60e3) return cache.data;
-  const g = (ep, params) => gw2.get(ep, { key, params });
+  const g = (ep, params, extra) => gw2.get(ep, { key, params, ...(extra || {}) });
   const [wvD, wvW, wvS, wbAll, wbDone, mcAll, mcDone, dcAll, dcDone, fracCat] = await Promise.all([
     settle(g('/account/wizardsvault/daily')), settle(g('/account/wizardsvault/weekly')), settle(g('/account/wizardsvault/special')),
     settle(g('/worldbosses')), settle(g('/account/worldbosses')),
@@ -36,7 +36,7 @@ async function fetchDaily(key) {
     const ids = cat.achievements.map((a) => (typeof a === 'object' ? a.id : a));
     const [defs, prog] = await Promise.all([
       settle(g('/achievements', { ids: ids.join(',') })),
-      settle(g('/account/achievements', { ids: ids.join(',') })),
+      settle(g('/account/achievements', { ids: ids.join(',') }, { bulk: true })), // 404 = ingen fremdrift på noen av dem
     ]);
     const progMap = new Map((prog.ok ? prog.v : []).map((p) => [p.id, p]));
     fractals = (defs.ok ? defs.v : []).map((d) => {

@@ -38,12 +38,20 @@ function init(o) {
   autoUpdater.on('update-not-available', (info) => set({ status: 'not-available', version: info?.version || null }));
   autoUpdater.on('download-progress', (p) => set({ status: 'downloading', percent: Math.round(p?.percent || 0) }));
   autoUpdater.on('update-downloaded', (info) => set({ status: 'downloaded', version: info?.version || null, percent: 100 }));
-  autoUpdater.on('error', (e) => set({ status: 'error', error: e?.message || String(e) }));
+  autoUpdater.on('error', (e) => set(describeError(e)));
 
   // Sjekk ved oppstart og med faste mellomrom, så lenge brukeren ikke har slått det av
   const auto = () => { if (autoAllowed()) check().catch(() => {}); };
   setTimeout(auto, STARTUP_DELAY).unref?.();
   setInterval(auto, INTERVAL).unref?.();
+}
+
+// Kort, forståelig feil. 404 på utgivelseslista betyr at prosjektet ikke har publisert noen versjon ennå, det er ikke en feil for brukeren.
+function describeError(e) {
+  const msg = (e?.message || String(e)).split('
+')[0].split(' Headers:')[0].trim();
+  if (/404/.test(msg) && /releases/.test(msg)) return { status: 'not-available', error: '', note: 'noReleases' };
+  return { status: 'error', error: msg.slice(0, 200) };
 }
 
 // Manuell sjekk. Returnerer tilstanden etter sjekken; nedlastingen fortsetter i bakgrunnen.
@@ -55,7 +63,7 @@ async function check() {
     try {
       await autoUpdater.checkForUpdates();
     } catch (e) {
-      set({ status: 'error', error: e?.message || String(e) });
+      set(describeError(e));
     } finally {
       checking = null;
     }

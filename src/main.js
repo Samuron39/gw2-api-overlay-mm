@@ -68,9 +68,9 @@ app.whenReady().then(async () => {
   await win.startFollowGame();
 
   // Første gang: åpne innstillinger og finn spillmappa
-  if (!config.apiKey && !TEST_MODE && !DEMO) {
-    if (!config.gw2Dir) { const d = await arcdps.detectDir(); if (d) { config.gw2Dir = d; cfg.saveConfig(); } }
-    win.openModule('settings', { toggle: false });
+  if (!TEST_MODE && !DEMO) {
+    if (!config.gw2Dir) { const d = await arcdps.detectDir(); if (d) { config.gw2Dir = d; cfg.saveConfig(); log.info('app', 'Fant spillmappa', d); } }
+    if (!config.apiKey) win.openModule('settings', { toggle: false });
   }
 
   if (process.env.GW2_SHOT) {
