@@ -41,7 +41,7 @@ Leser ArcDPS-logger og viser skade per spiller mot boss og totalt, boon-uptime f
 Knappen *Slik virker det* forklarer oppsettet og installerer eller oppdaterer ArcDPS: appen laster ned `d3d11.dll` fra utgiverens offisielle adresse, verifiserer MD5-summen mot den publiserte, tar backup av en eventuell gammel fil og legger den i spillmappa. ArcDPS pakkes ikke med appen, utgiveren tillater ikke videredistribusjon, og fila må uansett oppdateres ved hver spillpatch. Installasjon krever at spillet er avsluttet.
 
 ### Live (buffs, conditions, target og skill-bar)
-Live-data krever ArcDPS pluss vår egen ArcDPS-utvidelse, broen. Broen er en liten DLL (`bridge/`, skrevet i Rust) som ArcDPS laster fra `addons\arcdps\`. Den får kamphendelsene ArcDPS allerede leser, og sender dem som JSON over UDP til overlayen på 127.0.0.1:47500. Den leser ingenting selv. Installer den fra Live-modulen, start spillet på nytt, så viser modulen "Live-data mottas".
+Live-data krever ArcDPS pluss vår egen ArcDPS-utvidelse, broen. Broen er en liten DLL (`bridge/`, skrevet i Rust) som ArcDPS laster fra spillmappa (`arcdps_gw2overlay_bridge.dll` ved siden av `d3d11.dll`; ArcDPS krever «arcdps» i filnavnet og at utvidelsen oppgir samme imgui-versjon som ArcDPS selv, derfor er eksporten skrevet for hånd i `lib.rs`). Den får kamphendelsene ArcDPS allerede leser, og sender dem som JSON over UDP til overlayen på 127.0.0.1:47500. Den leser ingenting selv. Installer den fra Live-modulen, start spillet på nytt, så viser modulen "Live-data mottas".
 
 Fire små overlay-vinduer, hvert med egen posisjon, størrelse, ikonstørrelse og gjennomsiktighet, og hver kan låses:
 

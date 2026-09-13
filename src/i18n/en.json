@@ -404,7 +404,7 @@
   "live.checking": "Checking…",
   "live.installBridge": "Install the bridge in ArcDPS",
   "live.recheck": "Check again",
-  "live.bridgeHelp": "The bridge is our own ArcDPS extension (gw2overlay_bridge.dll). It lives in the game folder under addons\\arcdps and sends combat events to the overlay. Requires ArcDPS. Restart the game after installing.",
+  "live.bridgeHelp": "The bridge is our own ArcDPS extension (arcdps_gw2overlay_bridge.dll). It lives in the game folder next to d3d11.dll and sends combat events to the overlay. Requires ArcDPS. Restart the game after installing. Once loaded, arcdps.log shows \"GW2 Overlay Bridge\".",
   "live.win.buffs": "Buffs on you",
   "live.win.debuffs": "Conditions on you",
   "live.win.target": "Target (boss)",
@@ -558,7 +558,7 @@
   "arcdps.downloadFailed": "Download failed ({status})",
   "arcdps.md5Mismatch": "The checksum does not match ({got} vs {expected}). Not installing.",
   "arcdps.notDll": "The file is not a Windows DLL. Not installing.",
-  "arcdps.bridgeMissing": "The bridge (gw2overlay_bridge.dll) is not present in this installation.",
+  "arcdps.bridgeMissing": "The bridge (arcdps_gw2overlay_bridge.dll) is not present in this installation.",
 
   "skills.noCharacter": "No character from the game yet (MumbleLink). Enter the world with a character.",
   "skills.noBuilds": "No builds received from the API. The key needs the builds permission.",

@@ -27,8 +27,8 @@
 //!                         og skadetreff droppes.
 //! - local (combat_local): alt, unntatt rene skadetreff (ikke statechange/aktivering/buff) fra andre enn deg.
 
-use arcdps::{Agent, CombatEvent};
-use std::ffi::c_void;
+use arcdps::{helpers, Agent, ArcDpsExport, CombatEvent, RawAgent};
+use std::ffi::{c_char, c_void, CString};
 use std::net::UdpSocket;
 use std::ptr::NonNull;
 use std::sync::mpsc::{channel, RecvTimeoutError, Sender};
@@ -54,13 +54,77 @@ struct Queue {
 static TX: Mutex<Option<Queue>> = Mutex::new(None);
 static SENDER: Mutex<Option<JoinHandle<()>>> = Mutex::new(None);
 
-arcdps::arcdps_export! {
-    name: "GW2 Overlay Bridge",
-    sig: 0x4757_324F, // "GW2O"
-    init: init,
-    release: release,
-    combat_local: combat_local,
-    combat: combat_area,
+// ---------- Eksporten ArcDPS leter etter ----------
+// Skrevet for hånd i stedet for arcdps_export!-makroen: makroen oppgir imgui 1.80 (18000) i eksporttabellen, men
+// ArcDPS avviser utvidelser som ikke oppgir samme imgui-versjon som ArcDPS selv er bygget med (1.92.7 i 2026,
+// ARCDPSEXTENLOAD_INVALID_IMGUI). ArcDPS sender sin egen versjon som siste argument til get_init_addr, og vi
+// gir den tilbake uendret. Broen tegner ingenting med imgui, så versjonen spiller ellers ingen rolle.
+const SIG: u32 = 0x4757_324F; // "GW2O", unik id for ArcDPS
+static NAME: &[u8] = b"GW2 Overlay Bridge\0";
+static BUILD: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
+
+static mut EXPORT: ArcDpsExport = ArcDpsExport {
+    size: std::mem::size_of::<ArcDpsExport>(),
+    sig: SIG,
+    imgui_version: 0, // settes i get_init_addr
+    out_name: NAME.as_ptr(),
+    out_build: BUILD.as_ptr(),
+    wnd_nofilter: None,
+    combat: Some(raw_combat_area),
+    imgui: None,
+    options_end: None,
+    combat_local: Some(raw_combat_local),
+    wnd_filter: None,
+    options_windows: None,
+};
+
+unsafe extern "C" fn raw_combat_local(ev: Option<&CombatEvent>, src: Option<&RawAgent>, dst: Option<&RawAgent>, skill_name: *mut c_char, id: u64, revision: u64) {
+    let a = helpers::get_combat_args_from_raw(ev, src, dst, skill_name);
+    combat_local(a.ev, a.src, a.dst, a.skill_name, id, revision)
+}
+
+unsafe extern "C" fn raw_combat_area(ev: Option<&CombatEvent>, src: Option<&RawAgent>, dst: Option<&RawAgent>, skill_name: *mut c_char, id: u64, revision: u64) {
+    let a = helpers::get_combat_args_from_raw(ev, src, dst, skill_name);
+    combat_area(a.ev, a.src, a.dst, a.skill_name, id, revision)
+}
+
+/// Linje i arcdps.log (e3), så det er lett å se at broen ble lastet
+fn arc_log(msg: &str) {
+    if let Ok(c) = CString::new(msg) {
+        unsafe { arcdps::e3(c.as_ptr() as *mut u8) };
+    }
+}
+
+unsafe extern "system" fn load() -> *const ArcDpsExport {
+    let _ = init(None);
+    let imgui = *&raw const EXPORT.imgui_version; // rå peker, ingen delt referanse til static mut
+    arc_log(&format!("GW2 Overlay Bridge {}: lastet, sender til 127.0.0.1:{} (imgui {})", env!("CARGO_PKG_VERSION"), PORT, imgui));
+    &raw const EXPORT
+}
+
+unsafe extern "system" fn unload() {
+    release();
+}
+
+/// ArcDPS kaller denne ved lasting: arcversionstr, imguicontext, id3dptr, arcdll, mallocfn, freefn, imguiversion
+#[no_mangle]
+pub unsafe extern "system" fn get_init_addr(
+    arc_version: *mut c_char,
+    _imgui_ctx: *mut c_void,
+    _id3d: *mut c_void,
+    arc_dll: *mut c_void,
+    _malloc: *mut c_void,
+    _free: *mut c_void,
+    imgui_version: u32,
+) -> unsafe extern "system" fn() -> *const ArcDpsExport {
+    EXPORT.imgui_version = imgui_version;
+    arcdps::__init(arc_version, arc_dll, "GW2 Overlay Bridge");
+    load
+}
+
+#[no_mangle]
+pub extern "system" fn get_release_addr() -> unsafe extern "system" fn() {
+    unload
 }
 
 fn init(_swapchain: Option<NonNull<c_void>>) -> Result<(), Box<dyn std::error::Error>> {

@@ -95,14 +95,19 @@ function bridgeSource() {
   if (fs.existsSync(dev)) return dev;
   return '';
 }
-function bridgeTarget(gw2Dir) { return path.join(gw2Dir, 'addons', 'arcdps', 'gw2overlay_bridge.dll'); }
+// ArcDPS laster utvidelser fra spillmappa (der d3d11.dll ligger), og filnavnet må inneholde "arcdps".
+// addons\arcdps er bare for ini og logger; broen lå der før 0.2.3 og ble aldri lastet.
+const BRIDGE_FILE = 'arcdps_gw2overlay_bridge.dll';
+function bridgeTarget(gw2Dir) { return path.join(gw2Dir, BRIDGE_FILE); }
+function legacyBridge(gw2Dir) { return path.join(gw2Dir, 'addons', 'arcdps', 'gw2overlay_bridge.dll'); }
 function bridgeStatus(gw2Dir) {
   const src = bridgeSource();
   const target = isGameDir(gw2Dir) ? bridgeTarget(gw2Dir) : '';
   const installed = !!target && fs.existsSync(target);
   let upToDate = false;
   if (installed && src) { try { upToDate = md5File(src) === md5File(target); } catch { /* låst */ } }
-  return { available: !!src, installed, upToDate, target };
+  const legacy = isGameDir(gw2Dir) && fs.existsSync(legacyBridge(gw2Dir));
+  return { available: !!src, installed, upToDate, target, legacy };
 }
 async function installBridge(gw2Dir) {
   if (!isGameDir(gw2Dir)) throw new Error(t('arcdps.notGameDir'));
@@ -110,9 +115,9 @@ async function installBridge(gw2Dir) {
   if (!src) throw new Error(t('arcdps.bridgeMissing'));
   if (await gameRunning()) throw new Error(t('arcdps.gameRunningShort'));
   const target = bridgeTarget(gw2Dir);
-  fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.copyFileSync(src, target + '.tmp');
   fs.renameSync(target + '.tmp', target);
+  try { fs.unlinkSync(legacyBridge(gw2Dir)); } catch { /* fantes ikke */ }
   return { installed: true, target };
 }
 

@@ -404,7 +404,7 @@
   "live.checking": "Sjekker…",
   "live.installBridge": "Installer broen i ArcDPS",
   "live.recheck": "Sjekk på nytt",
-  "live.bridgeHelp": "Broen er vår egen ArcDPS-utvidelse (gw2overlay_bridge.dll). Den ligger i spillmappa under addons\\arcdps og sender kamphendelser til overlayen. Krever ArcDPS. Start spillet på nytt etter installasjon.",
+  "live.bridgeHelp": "Broen er vår egen ArcDPS-utvidelse (arcdps_gw2overlay_bridge.dll). Den ligger i spillmappa ved siden av d3d11.dll og sender kamphendelser til overlayen. Krever ArcDPS. Start spillet på nytt etter installasjon. Når den er lastet står det «GW2 Overlay Bridge» i arcdps.log.",
   "live.win.buffs": "Buffs på deg",
   "live.win.debuffs": "Conditions på deg",
   "live.win.target": "Målet (boss)",
@@ -558,7 +558,7 @@
   "arcdps.downloadFailed": "Nedlasting feilet ({status})",
   "arcdps.md5Mismatch": "Sjekksummen stemmer ikke ({got} vs {expected}). Installerer ikke.",
   "arcdps.notDll": "Fila er ikke en Windows-DLL. Installerer ikke.",
-  "arcdps.bridgeMissing": "Broen (gw2overlay_bridge.dll) finnes ikke i denne installasjonen.",
+  "arcdps.bridgeMissing": "Broen (arcdps_gw2overlay_bridge.dll) finnes ikke i denne installasjonen.",
 
   "skills.noCharacter": "Ingen karakter fra spillet ennå (MumbleLink). Gå inn i verden med en karakter.",
   "skills.noBuilds": "Fikk ingen builds fra API-et. Nøkkelen trenger tillatelsen builds.",
