@@ -367,3 +367,68 @@ test('målbytte: agent-melding med src.elite 0xffffffff og dst null setter targe
   await send(ev({ sc: 2 }));
   await until((x) => x.target === null, 'sc 2 nullstiller');
 });
+
+// ---------- Squad-DPS ----------
+// Andres skade kommer på evtc-kanalen (area). Spillere har elite != 0xffffffff; minioner er NPC-agenter med srcMaster
+// = eierens instans-id (instans-id -> agent-id læres fra srcInst på hendelsene). Egen skade telles bare fra local.
+test('Squad-DPS: andres treff og minion-skade fra area rangeres, egen skade telles ikke dobbelt, NPC og egne minioner utenom', async () => {
+  const t0 = Date.now();
+  const GAMMA = { id: 102, name: 'Gamma Langtnavn Overflyt', prof: 3, elite: 0, self: 0, team: 1 };
+  const PET = { id: 300, name: 'Juvenile Jaguar', prof: 0x2222, elite: 0xffffffff, self: 0, team: 1 };
+  const a = (over) => ev({ s: 'area', iff: 1, dst: GOLEM, ...over });
+  await send(ev({ sc: 2, time: t0 - 10 }));
+  await until((x) => !x.dps.current, 'ingen kamp i gang');
+  await send(ev({ sc: 1, time: t0, srcInst: 5400 }));
+  await until((x) => x.inCombat && x.dps.current?.active, 'kamp startet');
+  await send(
+    ev({ time: t0 + 100, dst: GOLEM, iff: 1, value: -1000, skill: 100, name: 'Slag', srcInst: 5400 }), // egen skade, local
+    a({ time: t0 + 100, src: SELF, srcInst: 5400, value: 1000, skill: 100, name: 'Slag' }), // area-kopi av egen: ignoreres
+    a({ time: t0 + 150, src: OTHER, srcInst: 7101, value: 3000, skill: 200, name: 'Pil', result: 1 }),
+    a({ time: t0 + 200, src: OTHER, srcInst: 7101, buff: 1, buffDmg: 500, skill: 736, name: 'Bleeding', result: 14 }), // condition-tick
+    a({ time: t0 + 250, src: PET, srcInst: 7300, srcMaster: 7101, value: 700, skill: 300, name: 'Bitt' }), // Betas pet -> Beta
+    a({ time: t0 + 300, src: GAMMA, srcInst: 7102, value: 800, skill: 400, name: 'Ild' }),
+    a({ time: t0 + 350, src: OTHER, srcInst: 7101, value: 999, skill: 200, result: 3 }), // blokkert: teller ikke
+    a({ time: t0 + 400, src: TRASH, srcInst: 7201, value: 5000, skill: 500, name: 'NPC-slag' }), // NPC mot NPC: ikke squad
+    a({ time: t0 + 450, src: OTHER, srcInst: 7101, dst: SELF, value: 400, skill: 200 }), // mot oss: hverken squad eller mottatt
+    a({ time: t0 + 500, src: PET, srcInst: 7301, srcMaster: 5400, value: 123, skill: 300 }), // egen minion: hoppes over
+    a({ time: t0 + 550, src: PET, srcInst: 7302, srcMaster: 9999, value: 321, skill: 300 }), // ukjent eier: hoppes over
+  );
+  let s = await until((x) => x.dps.current?.squad?.length === 3 && x.dps.current.squad[2].dmg === 800, 'squad med tre rader');
+  const sq = s.dps.current.squad;
+  assert.deepEqual(sq.map((p) => [p.name, p.dmg, p.self]), [['Beta', 4200, false], ['Alfa', 1000, true], ['Gamma Langtnavn Overflyt', 800, false]]);
+  assert.deepEqual(sq.map((p) => p.pct), [70, 17, 13]);
+  assert.equal(sq[1].id, SELF.id);
+  assert.ok(sq[0].dps > 0 && sq[0].dps >= sq[1].dps && sq[1].dps >= sq[2].dps, 'dps synkende');
+  assert.equal(s.dps.current.total, 1000, 'egen skade bare fra local');
+  assert.equal(s.dps.current.taken, 0, 'area-skade mot oss telles ikke som mottatt');
+  assert.equal(live.fight.squad.get(OTHER.id).hits, 3);
+  // Kampslutt: forsinket area-treff (2–3 s etterslep) legges på forrige kamp, treff etter fristen ikke
+  await send(ev({ sc: 2, time: t0 + 4000 }));
+  s = await until((x) => !x.dps.current && x.dps.last, 'kamp avsluttet');
+  assert.equal(s.dps.last.squad[0].dmg, 4200);
+  await send(a({ time: t0 + 3900, src: OTHER, srcInst: 7101, value: 100, skill: 200 }));
+  s = await until((x) => x.dps.last?.squad[0].dmg === 4300, 'forsinket treff lagt på forrige kamp');
+  assert.equal(s.dps.last.durationMs, 4000);
+  await send(a({ time: t0 + 9000, src: OTHER, srcInst: 7101, value: 100, skill: 200 }));
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(live.snapshot().dps.last.squad[0].dmg, 4300, 'treff lenge etter kampslutt ignoreres');
+  assert.equal(live.snapshot().dps.current, null, 'starter ikke ny kamp');
+});
+
+test('Squad-DPS: alene i kampen gir én rad (deg), og kontonavn/instans-id fra agent-registrering brukes for minioner', async () => {
+  const t0 = Date.now();
+  // Agent-registrering for en ny spiller: dst.id = instans-id på kartet, dst.name = kontonavn (README API)
+  await send({ t: 'agent', s: 'area', src: { id: 103, name: 'Delta', prof: 1, elite: 0 }, dst: { id: 7103, self: 0, name: 'Delta.9999', prof: 5, elite: 27 } });
+  await until(() => live.inst.get(7103) === 103, 'instans-id fra registrering');
+  await send(ev({ sc: 1, time: t0 }), ev({ time: t0 + 100, dst: GOLEM, iff: 1, value: -600, skill: 100, name: 'Slag' }));
+  let s = await until((x) => x.dps.current?.total === 600, 'egen skade');
+  assert.deepEqual(s.dps.current.squad.map((p) => [p.name, p.self, p.pct]), [['Alfa', true, 100]]);
+  // Deltas klone treffer: tilskrives Delta via srcMaster 7103, uten at Delta selv har vært src i noen hendelse
+  const CLONE = { id: 301, name: 'Klone', prof: 0x3333, elite: 0xffffffff, self: 0, team: 1 };
+  await send(ev({ s: 'area', time: t0 + 200, src: CLONE, srcInst: 7305, srcMaster: 7103, dst: GOLEM, iff: 1, value: 1400, skill: 600 }));
+  s = await until((x) => x.dps.current?.squad?.length === 2, 'Delta i lista');
+  assert.deepEqual(s.dps.current.squad.map((p) => [p.name, p.dmg, p.pct]), [['Delta', 1400, 70], ['Alfa', 600, 30]]);
+  assert.equal(live.fight.squad.get(103).account, 'Delta.9999');
+  await send(ev({ sc: 2, time: t0 + 2000 }));
+  await until((x) => !x.dps.current, 'kamp avsluttet');
+});

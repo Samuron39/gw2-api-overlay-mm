@@ -31,12 +31,16 @@
 //! - local: statechange-hendelser og all skade der du er part, treff og condition-ticks (sanntid: kampstatus,
 //!          DPS-måleren, «sist truffet» og mottatt skade). Treff mellom andre droppes.
 //! - area:  buff-påføring (buff == 1 uten buff_dmg), buff-fjerning, aktiveringer, statechange og agent-hendelser,
-//!          for alle parter. Rene skadetreff og condition-ticks droppes (de er statistikk, ikke overlay-data).
+//!          for alle parter. Rene skadetreff og condition-ticks droppes, MED UNNTAK av squad-skade: treff og ticks fra
+//!          andre spillere (og deres minions, src_master_instid != 0) mot fiender (iff == IFF_FOE) slippes gjennom til
+//!          squad-DPS-lista. Egne treff, egne minioner og skade mot deg droppes her (de går på local i sanntid),
+//!          og NPC mot NPC droppes.
 
 use arcdps::{helpers, Agent, ArcDpsExport, CombatEvent, RawAgent};
 use std::ffi::{c_char, c_void, CString};
 use std::net::UdpSocket;
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::mpsc::{channel, RecvTimeoutError, Sender};
 use std::sync::Mutex;
 use std::thread::{self, JoinHandle};
@@ -254,10 +258,54 @@ fn is_npc(a: &Option<Agent>) -> bool {
     a.as_ref().map_or(false, |a| a.elite == NPC_ELITE)
 }
 
+// ---------- Squad-DPS: andres skade fra evtc-kanalen ----------
+/// IFF_FOE fra `enum iff { IFF_FRIEND, IFF_FOE, IFF_UNKNOWN }` (evtc-README).
+const IFF_FOE: u8 = 1;
+
+/// Din egen instans-id på kartet (cbtevent.src_instid når src er deg). Brukes til å kjenne igjen egne minioner:
+/// README: «src_master_instid - if src_agent has a master (eg. is minion), will be equal to instid of master, zero otherwise.»
+/// 0 = ikke kjent ennå.
+static SELF_INST: AtomicU16 = AtomicU16::new(0);
+
+/// Husk egen instans-id fra enhver hendelse der src er deg.
+fn note_self(e: &CombatEvent, src: &Option<Agent>) {
+    if e.src_instance_id != 0 && is_self(src) {
+        SELF_INST.store(e.src_instance_id, Ordering::Relaxed);
+    }
+}
+
+/// Skal dette treffet/denne ticken (is_statechange == 0, ingen aktivering, ingen buff-fjerning) på evtc-kanalen sendes
+/// som squad-skade? README for CBTS_COMBAT: «value: combined shield+health strike damage», «buff_dmg: combined
+/// shield+health buff damage», «is_buff: skill is a buff», «iff: is friend foe of enum iff». Spillere kjennes på
+/// «if evtc_agent.is_elite != 0xffffffff, agent is a player», NPC-er har elite 0xffffffff. Minioner (pets, kloner,
+/// spirits) er NPC-agenter med src_master_instid != 0 og tilskrives eieren i live.js.
+/// «evtc: limited to squad outside instances»: utenfor instanser kommer bare squadens hendelser, så det trengs ingen
+/// egen squad-sjekk her.
+fn squad_damage(e: &CombatEvent, src: &Option<Agent>, dst: &Option<Agent>) -> bool {
+    if e.iff != IFF_FOE {
+        return false;
+    }
+    // Egne treff og skade mot deg går på chatbox-kanalen i sanntid og skal ikke telles to ganger
+    if is_self(src) || is_self(dst) {
+        return false;
+    }
+    let amount = if e.buff == 1 { e.buff_dmg } else { e.value };
+    if amount == 0 {
+        return false;
+    }
+    let minion = e.src_master_instance_id != 0;
+    if minion && e.src_master_instance_id == SELF_INST.load(Ordering::Relaxed) {
+        return false; // egen minion (egen skade regnes uten minioner, se live.js)
+    }
+    let src_player = src.as_ref().map_or(false, |a| a.elite != NPC_ELITE);
+    src_player || minion
+}
+
 /// Chatbox-kanalen (sanntid): statechange (kamp inn/ut, logg start/slutt), og skade der du er part: egne treff og
 /// condition-ticks (DPS-måleren og «sist truffet») og skade mot deg (mottatt). Treff mellom andre droppes.
 fn combat_local(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>, skill_name: Option<&'static str>, id: u64, _revision: u64) {
     if let Some(e) = ev {
+        note_self(e, &src);
         if e.is_statechange == 0 {
             let damage = e.is_activation == 0 && e.is_buff_remove == 0;
             if !damage || !(is_self(&src) || is_self(&dst)) {
@@ -273,15 +321,17 @@ fn combat_local(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>
 /// Evtc-kanalen (2–3 s forsinket): eneste kilde til buff-påføring/-fjerning, aktiveringer, BUFFINITIAL (sc 18),
 /// våpenbytte (sc 11) og agent-/målhendelser (ev == None). Nyere ArcDPS merker vanlige hendelser med egne statechange-koder
 /// (67 ANIMATIONSTART, 68 ANIMATIONSTOP, 69 BUFFAPPLY, 70 BUFFCHANGE, 71/72 BUFFREMOVE). Aktiveringer sendes bare for deg selv,
-/// buff-hendelser bare der du eller en NPC er part. Rene skadetreff og condition-ticks (gamle koder) droppes.
+/// buff-hendelser bare der du eller en NPC er part. Rene skadetreff og condition-ticks (gamle koder) droppes, unntatt
+/// squad-skade (andre spillere og deres minioner mot fiender), se `squad_damage`.
 fn combat_area(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>, skill_name: Option<&'static str>, id: u64, _revision: u64) {
     if let Some(e) = ev {
+        note_self(e, &src);
         match e.is_statechange {
             0 => {
                 if e.is_activation == 0 && e.is_buff_remove == 0 {
                     let plain_hit = e.buff == 0;
                     let buff_tick = e.buff == 1 && e.buff_dmg != 0;
-                    if plain_hit || buff_tick {
+                    if (plain_hit || buff_tick) && !squad_damage(e, &src, &dst) {
                         return;
                     }
                 }

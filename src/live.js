@@ -33,6 +33,13 @@ class Live extends EventEmitter {
     this.fight = null; // { start, last, total, taken, targets: Map, skills: Map }
     this.lastFight = null; // ferdig oppsummert
     this.dmgWindow = []; // [arcdps-tid, skade] de siste 10 s, for "DPS nå"
+    // Squad-DPS: andres skade kommer på evtc-kanalen (area, 2–3 s forsinket). Minioner tilskrives eieren via
+    // src_master_instid, så vi trenger instans-id -> agent-id. README: «src_instid - id of agent as appears in game at time
+    // of event», «src_master_instid - if src_agent has a master (eg. is minion), will be equal to instid of master».
+    this.inst = new Map(); // instans-id (u16) -> agent-id
+    this.accounts = new Map(); // agent-id -> kontonavn (fra agent-registrering, dst.name)
+    this.selfInst = 0; // egen instans-id, for å hoppe over egne minioner i squad-regnskapet
+    this.lastRaw = null; // rå kampregnskap for forrige kamp, så forsinket squad-skade kan legges til etter kampslutt
     this.lastDpsEmit = 0;
     this.timer = null;
     this.dirty = false;
@@ -133,6 +140,11 @@ class Live extends EventEmitter {
       // Agent fjernet (ev == null, src.prof == 0): ingenting å gjøre, målet beholdes til et nytt velges
       if (m.src && !m.src.prof && m.dst == null) return;
       // Agent-registrering: src har id og navn, dst har prof, elite, self og kontonavn
+      // Squad-DPS: README (API): «dst->id = instance id on map», «dst->name = acc names»
+      if (m.src && m.dst && m.src.name) {
+        if (m.dst.id > 0) { this.inst.set(m.dst.id, m.src.id); if (m.dst.self === 1) this.selfInst = m.dst.id; }
+        if (m.dst.name) this.accounts.set(m.src.id, m.dst.name);
+      }
       if (m.src && m.dst && m.dst.self === 1 && m.src.name) {
         this.self = { id: m.src.id, name: m.src.name, prof: m.dst.prof, elite: m.dst.elite, account: m.dst.name };
         this.agents.set(m.src.id, { ...this.self, self: 1 });
@@ -156,6 +168,9 @@ class Live extends EventEmitter {
     if (m.src?.name) this.agents.set(m.src.id, { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite, self: m.src.self });
     if (m.dst?.name) this.agents.set(m.dst.id, { id: m.dst.id, name: m.dst.name, prof: m.dst.prof, elite: m.dst.elite, self: m.dst.self });
     if (srcSelf && !this.self) this.self = { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite };
+    // Squad-DPS: instans-id -> agent-id fra hver hendelse (README: «src_instid - id of agent as appears in game at time of event»)
+    if (m.src && m.srcInst > 0 && m.src.id > 0) { this.inst.set(m.srcInst, m.src.id); if (srcSelf) this.selfInst = m.srcInst; }
+    if (m.dst && m.dstInst > 0 && m.dst.id > 0) this.inst.set(m.dstInst, m.dst.id);
 
     if (m.sc === 1 && srcSelf) { this.inCombat = true; if (m.s !== 'area') this.startFight(m.time); this.dirty = true; return; }
     // Ut av kamp: målet nullstilles. ArcDPS sender ikke CHANGEDEAD for vanlige fiender i åpen verden, så død
@@ -207,6 +222,10 @@ class Live extends EventEmitter {
     // Buff påført: dst får buffen, value = varighet ms
     if (m.buff === 1 && m.value > 0) { this.applyBuff(m, true); return; }
 
+    // Squad-DPS: skade på evtc-kanalen (area) er andres treff og condition-ticks mot fiender (broen slipper dem gjennom).
+    // Egen skade og skade mot oss telles fra chatbox-kanalen i sanntid og skal aldri telles igjen herfra.
+    if (m.s === 'area') { this.addSquadDamage(m); return; }
+
     // Skade mot oss (chatbox-kanalen): telles som mottatt i kampregnskapet
     if (!srcSelf && m.dst?.self === 1 && (m.value !== 0 || m.buffDmg !== 0)) { this.addTaken(m); return; }
     // Skade fra oss mot fiende: husk målet. Chatbox-kanalen gir skade som negativt tall, derfor != 0.
@@ -234,7 +253,7 @@ class Live extends EventEmitter {
   }
   startFight(t) {
     if (this.fight) return; // allerede i gang (kamp inn kommer også forsinket på evtc-kanalen)
-    this.fight = { start: t, last: t, total: 0, taken: 0, targets: new Map(), skills: new Map() };
+    this.fight = { start: t, last: t, total: 0, taken: 0, targets: new Map(), skills: new Map(), squad: new Map() };
     this.dmgWindow = [];
     this.dirty = true;
   }
@@ -242,7 +261,9 @@ class Live extends EventEmitter {
     const f = this.fight;
     if (!f) return;
     this.fight = null;
-    if (f.total > 0 || f.taken > 0) this.lastFight = this.summarize(f, Math.max(t, f.last));
+    f.end = Math.max(t, f.last);
+    this.lastRaw = f; // squad-skade som kommer forsinket etter kampslutt legges til her (se addSquadDamage)
+    if (f.total > 0 || f.taken > 0 || f.squad.size) this.lastFight = this.summarize(f, f.end);
     this.dirty = true;
   }
   addDamage(m) {
@@ -264,11 +285,55 @@ class Live extends EventEmitter {
     this.fight.taken += amt; this.fight.last = Math.max(this.fight.last, m.time);
     this.dirty = true;
   }
+  // ---------- Squad-DPS ----------
+  // Andres skade fra evtc-kanalen. Eieren er src, eller src sin master når src er en minion (pet, klone, spirit, mech):
+  // README: «src_master_instid - if src_agent has a master (eg. is minion), will be equal to instid of master, zero otherwise».
+  // Bare mot fiender («iff: is friend foe of enum iff», IFF_FOE = 1) og bare fra spillere («if evtc_agent.is_elite != 0xffffffff,
+  // agent is a player»). Egen skade (src.self, egne minioner) telles fra chatbox-kanalen og hoppes over her. Blokk/unnvik/absorb
+  // osv. gir 0 via damageOf. Kanalen er 2–3 s forsinket, så treff som kommer etter kampslutt legges på forrige kamp.
+  addSquadDamage(m) {
+    if (m.iff !== 1 || !m.src || !m.dst || m.src.self === 1 || m.dst.self === 1) return;
+    const amt = Live.damageOf(m);
+    if (!amt) return;
+    let owner = m.src;
+    if (m.srcMaster > 0) {
+      if (m.srcMaster === this.selfInst) return; // egen minion
+      const ownerId = this.inst.get(m.srcMaster);
+      owner = ownerId != null ? this.agents.get(ownerId) : null;
+      if (!owner || owner.self === 1) return; // ukjent eier, eller egen minion
+    }
+    if (owner.elite === NPC_ELITE || !(owner.id > 0)) return; // NPC (eller NPC sin minion)
+    let f = this.fight;
+    if (!f) {
+      // Etterslep: kampen er avsluttet i sanntid, men andres siste treff kommer 2–3 s etterpå. Legg dem på forrige kamp.
+      const r = this.lastRaw;
+      if (!r || m.time < r.start || m.time > r.end + 1000) return;
+      f = r;
+    } else if (m.time < f.start - 1000) return; // fra før vår kamp startet (forsinket): ikke vår kamp
+    const name = owner.name || this.agents.get(owner.id)?.name || this.accounts.get(owner.id) || ('#' + owner.id);
+    const p = f.squad.get(owner.id) || { id: owner.id, name, account: this.accounts.get(owner.id) || '', prof: owner.prof, elite: owner.elite, dmg: 0, hits: 0 };
+    p.dmg += amt; p.hits++; if (owner.name) p.name = owner.name;
+    f.squad.set(owner.id, p);
+    if (f === this.lastRaw) this.lastFight = this.summarize(f, f.end);
+    this.dirty = true;
+  }
+  // Rangert liste: deg (fra f.total, chatbox-kanalen) og de andre i squaden, synkende. Maks 10 rader, men du er alltid med.
+  // pct = andel av squadens samlede skade. Alene i kampen gir dette én rad (din egen).
+  squadList(f, durationMs) {
+    const rows = [{ id: this.self?.id ?? 0, name: this.self?.name || '', self: true, dmg: f.total }];
+    for (const p of f.squad.values()) rows.push({ id: p.id, name: p.name, self: false, dmg: p.dmg });
+    let sum = 0; for (const r of rows) sum += r.dmg;
+    rows.sort((a, b) => b.dmg - a.dmg);
+    const top = rows.slice(0, 10);
+    if (!top.some((r) => r.self)) top[top.length - 1] = rows.find((r) => r.self);
+    return top.map((r) => ({ ...r, dps: Math.round(r.dmg / durationMs * 1000), pct: sum ? Math.round(r.dmg / sum * 100) : 0 }));
+  }
   summarize(f, end) {
     const durationMs = Math.max(1000, end - f.start);
     const targets = [...f.targets.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 3);
     const skills = [...f.skills.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 8).map((s) => ({ ...s, pct: f.total ? Math.round(s.dmg / f.total * 100) : 0 }));
-    return { durationMs, total: f.total, taken: f.taken, dps: Math.round(f.total / durationMs * 1000), targets, skills, target: targets[0]?.name || '' };
+    const squad = this.squadList(f, durationMs);
+    return { durationMs, total: f.total, taken: f.taken, dps: Math.round(f.total / durationMs * 1000), targets, skills, target: targets[0]?.name || '', squad };
   }
   dpsSnapshot(now) {
     const f = this.fight;

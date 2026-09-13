@@ -88,7 +88,9 @@
           ${isDps ? `<label class="inline">${esc(t('live.fontSize'))} <input type="number" data-k="fontSize" value="${c.fontSize ?? 14}" min="10" max="40" step="1" style="width:64px" /> px</label>
                     <label class="inline">${esc(t('live.showSkills'))} <input type="number" data-k="showSkills" value="${c.showSkills ?? 3}" min="0" max="8" step="1" style="width:56px" /></label>
                     <label class="inline"><input type="checkbox" data-k="showTaken" ${c.showTaken !== false ? 'checked' : ''} /> ${esc(t('live.showTaken'))}</label>
-                    <label class="inline"><input type="checkbox" data-k="showLast" ${c.showLast !== false ? 'checked' : ''} /> ${esc(t('live.showLast'))}</label>`
+                    <label class="inline"><input type="checkbox" data-k="showLast" ${c.showLast !== false ? 'checked' : ''} /> ${esc(t('live.showLast'))}</label>
+                    <label class="inline"><input type="checkbox" data-k="showSquad" ${c.showSquad !== false ? 'checked' : ''} /> ${esc(t('live.showSquad'))}</label>
+                    <label class="inline">${esc(t('live.squadRows'))} <input type="number" data-k="squadRows" value="${c.squadRows ?? 5}" min="1" max="10" step="1" style="width:56px" /></label>`
           : `<label class="inline">${esc(t('live.icon'))} <input type="number" data-k="iconSize" value="${c.iconSize}" min="20" max="96" step="2" style="width:64px" /> px</label>
           <label class="inline">${esc(t('live.time'))} <select data-k="mode">${opt('mode', 'number', c.mode, 'live.number')}${opt('mode', 'clock', c.mode, 'live.shade')}${opt('mode', 'both', c.mode, 'live.both')}</select></label>`}
           ${isDps ? '' : isSb ? `<label class="inline"><input type="checkbox" data-k="showNext" ${c.showNext ? 'checked' : ''} /> ${esc(t('live.showNext'))}</label>

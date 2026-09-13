@@ -82,7 +82,9 @@
     const head = d?.current ? t('dps.live.now', { dps: k(d.current.dps10) }) : t('dps.live.lastTitle');
     const body = f ? t('dps.live.line', { dur: fmtDur(f.durationMs), avg: k(f.dps), total: k(f.total), taken: k(f.taken), target: f.target || '–' }) : t('dps.live.noFight');
     const skills = f?.skills?.length ? ' · ' + f.skills.slice(0, 3).map((s) => `${esc(s.name || s.skill)} ${s.pct}%`).join(', ') : '';
-    el.innerHTML = `<b class="${d?.current ? 'up' : ''}">${esc(head)}</b> <span class="muted">${esc(body)}${skills}</span> <button id="dpsLiveWin" class="small">${esc(t('dps.live.window'))}</button>`;
+    // Squad-DPS: «squad: Navn 12.3k (34 %), …» når flere enn deg har gjort skade
+    const squad = f?.squad?.length > 1 ? ' · ' + esc(t('dps.live.squad', { list: f.squad.slice(0, 5).map((p) => `${p.name || '?'} ${k(p.dmg)} (${p.pct} %)`).join(', ') })) : '';
+    el.innerHTML = `<b class="${d?.current ? 'up' : ''}">${esc(head)}</b> <span class="muted">${esc(body)}${skills}${squad}</span> <button id="dpsLiveWin" class="small">${esc(t('dps.live.window'))}</button>`;
   }
 
   async function arcStatus() {

@@ -674,5 +674,9 @@
   "dps.live.noFight": "ingen kamp ennå. Slå på noe, så teller den.",
   "dps.live.noBridge": "Live-DPS krever broen (Live-fanen). Loggene under kommer fra ArcDPS-filer.",
   "dps.live.window": "Vis DPS-vindu",
-  "dps.live.opened": "DPS-vinduet er på. Plasser det og lås det på Live-fanen."
+  "dps.live.opened": "DPS-vinduet er på. Plasser det og lås det på Live-fanen.",
+  "overlay.dps.squad": "Squad ({n})",
+  "live.showSquad": "Vis squad-lista",
+  "live.squadRows": "Rader i squad-lista",
+  "dps.live.squad": "squad: {list}"
 }

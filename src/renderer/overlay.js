@@ -74,7 +74,9 @@ function renderDps() {
   const d = snap?.dps || {};
   const edit = document.body.classList.contains('edit');
   let cur = d.current, last = d.last, sample = false;
-  if (!cur && !last && edit) { sample = true; cur = { active: true, dps10: 18420, dps: 15980, total: 287640, durationMs: 18000, taken: 9120, target: 'Legendary Destroyer', skills: [{ name: 'Arc Divider', dmg: 98000, pct: 34 }, { name: 'Decapitate', dmg: 61000, pct: 21 }, { name: 'Bleeding', dmg: 40000, pct: 14 }] }; }
+  if (!cur && !last && edit) { sample = true; cur = { active: true, dps10: 18420, dps: 15980, total: 287640, durationMs: 18000, taken: 9120, target: 'Legendary Destroyer', skills: [{ name: 'Arc Divider', dmg: 98000, pct: 34 }, { name: 'Decapitate', dmg: 61000, pct: 21 }, { name: 'Bleeding', dmg: 40000, pct: 14 }],
+    // Squad-DPS: eksempel med tre spillere så brukeren ser hvordan lista blir
+    squad: [{ name: 'Kara Nightwind', self: false, dmg: 380520, dps: 21140, pct: 45 }, { name: 'Morticon Storm', self: true, dmg: 287640, dps: 15980, pct: 34 }, { name: 'Thorn Ironbark', self: false, dmg: 176300, dps: 9790, pct: 21 }] }; }
   const show = cur || (cfg.showLast !== false ? last : null);
   if (!show) { dp.innerHTML = `<div class="top"><span class="big idle">–</span><span class="lbl">DPS</span></div><div class="sub">${esc(T.t('overlay.dps.noFight'))}</div>`; return; }
   const active = !!cur;
@@ -84,8 +86,26 @@ function renderDps() {
   rows.push(`<div class="sub">${esc(T.t('overlay.dps.line', { dur: fmtDur(show.durationMs), avg: fmtK(show.dps), total: fmtK(show.total) }))}${show.target ? ' · ' + esc(show.target) : ''}${cfg.showTaken !== false && show.taken ? ` · <span class="tk">${esc(T.t('overlay.dps.taken', { n: fmtK(show.taken) }))}</span>` : ''}</div>`);
   const n = Number(cfg.showSkills ?? 3);
   for (const s of (show.skills || []).slice(0, n)) rows.push(`<div class="sk"><span class="bar" style="--w:${s.pct || 0}%"></span><span class="n">${esc(s.name || s.skill)}</span><span class="v">${fmtK(s.dmg)} · ${s.pct || 0}%</span></div>`);
+  // ---------- Squad-DPS ----------
+  // Rangert liste over squaden (som en WoW-måler) når flere enn deg har gjort skade. Søyla er relativ til den øverste,
+  // pct er andel av squadens samlede skade. Din rad er alltid med, også når du ligger under de viste radene.
+  const squad = show.squad || [];
+  if (cfg.showSquad !== false && squad.length > 1) {
+    const rowsN = Math.max(1, Math.min(10, Number(cfg.squadRows ?? 5)));
+    const list = squad.slice(0, rowsN);
+    const me = squad.find((p) => p.self);
+    if (me && !list.includes(me)) list[list.length - 1] = me;
+    const top = squad[0]?.dmg || 1;
+    rows.push(`<div class="sqh">${esc(T.t('overlay.dps.squad', { n: squad.length }))}</div>`);
+    for (const p of list) {
+      const rank = squad.indexOf(p) + 1;
+      rows.push(`<div class="sq${p.self ? ' me' : ''}"><span class="bar" style="--w:${Math.round((p.dmg || 0) / top * 100)}%"></span><span class="n">${rank}. ${esc(shortName(p.name))}</span><span class="v">${fmtK(p.dps)} · ${p.pct || 0}%</span></div>`);
+    }
+  }
   dp.innerHTML = rows.join('');
 }
+// Kort navn i squad-lista: maks 14 tegn
+function shortName(s) { s = String(s || '?'); return s.length > 14 ? s.slice(0, 13) + '…' : s; }
 function labelFor(type) { return T.t('overlay.label.' + type); }
 
 function renderBuffs() {
