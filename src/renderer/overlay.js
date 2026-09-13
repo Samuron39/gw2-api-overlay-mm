@@ -63,6 +63,7 @@ function applyConfig(c) {
   grid.classList.toggle('col', c.direction === 'col');
   const isSb = TYPE === 'skillbar', isDps = KIND === 'dps';
   grid.hidden = isSb || isDps; sb.hidden = !isSb; sbStatus.hidden = !isSb; dp.hidden = !isDps; dpBar.hidden = !isDps;
+  hint.style.display = isDps ? 'none' : ''; // DPS-vinduet har verktøylinja med låseknapp; hintet ville dekket den
   document.documentElement.style.setProperty('--fs', (c.fontSize || 14) + 'px');
   if (isDps) renderDpsBar();
   render();
@@ -71,14 +72,17 @@ function applyConfig(c) {
 // ---------- Verktøylinja i DPS-vinduet ----------
 // Visning, periode og lås rett i boksen. Låst vindu slipper klikk gjennom til spillet, men mousemove kommer likevel
 // (setIgnoreMouseEvents med forward), så når pekeren er over verktøylinja slår vi klikk-gjennom av midlertidig, som hjulet gjør.
+// Nedtrekksmenyer (<select>) får ikke åpnet lista si i gjennomsiktige, rammeløse vinduer, så valgene er knapper som blar videre.
+const VIEWS = ['all', 'damage', 'squad', 'taken', 'healing'];
+const PERIODS = ['fight', 'last', 'session'];
 function renderDpsBar() {
-  const opt = (v, cur, key) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${esc(T.t(key))}</option>`;
-  const view = cfg.view || 'all', period = cfg.period || 'fight';
-  dpBar.innerHTML = `<select id="dpView" title="${esc(T.t('live.view'))}">${opt('all', view, 'live.view.all')}${opt('damage', view, 'live.view.damage')}${opt('squad', view, 'live.view.squad')}${opt('taken', view, 'live.view.taken')}${opt('healing', view, 'live.view.healing')}</select>`
-    + `<select id="dpPeriod" title="${esc(T.t('live.period'))}">${opt('fight', period, 'live.period.fight')}${opt('last', period, 'live.period.last')}${opt('session', period, 'live.period.session')}</select>`
-    + `<button id="dpLock" class="${cfg.locked ? 'locked' : ''}" title="${esc(T.t(cfg.locked ? 'wheel.unlockPosition' : 'wheel.lockPosition'))}">${cfg.locked ? '🔒' : '🔓'}</button>`;
-  dpBar.querySelector('#dpView').addEventListener('change', (e) => window.api.invoke('overlays:set', TYPE, { view: e.target.value }));
-  dpBar.querySelector('#dpPeriod').addEventListener('change', (e) => window.api.invoke('overlays:set', TYPE, { period: e.target.value }));
+  const view = VIEWS.includes(cfg.view) ? cfg.view : 'all', period = PERIODS.includes(cfg.period) ? cfg.period : 'fight';
+  dpBar.innerHTML = `<button id="dpView" title="${esc(T.t('live.view'))}">${esc(T.t('live.view.' + view))} ▸</button>`
+    + `<button id="dpPeriod" title="${esc(T.t('live.period'))}">${esc(T.t('live.period.' + period))} ▸</button>`
+    + `<button id="dpLock" class="lock ${cfg.locked ? 'locked' : ''}" title="${esc(T.t(cfg.locked ? 'wheel.unlockPosition' : 'wheel.lockPosition'))}">${cfg.locked ? '🔒' : '🔓'}</button>`;
+  const next = (list, cur) => list[(list.indexOf(cur) + 1) % list.length];
+  dpBar.querySelector('#dpView').addEventListener('click', () => window.api.invoke('overlays:set', TYPE, { view: next(VIEWS, view) }));
+  dpBar.querySelector('#dpPeriod').addEventListener('click', () => window.api.invoke('overlays:set', TYPE, { period: next(PERIODS, period) }));
   dpBar.querySelector('#dpLock').addEventListener('click', () => window.api.invoke('overlays:set', TYPE, { locked: !cfg.locked }));
 }
 let barHover = false;

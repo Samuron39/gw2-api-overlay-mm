@@ -53,10 +53,12 @@
     .gap { width: calc(var(--is) * 0.35); flex: 0 0 auto; }
     #sbStatus { position: absolute; right: 4px; top: 2px; font-size: 11px; color: #cfd3ff; background: rgba(18,20,23,0.75); padding: 1px 6px; border-radius: 6px; pointer-events: none; }
     /* DPS-måler: verktøylinje øverst (visning, periode, lås) som kan brukes også når vinduet er låst (se overlay.js) */
-    #dpsbar { display: flex; align-items: center; gap: 4px; padding: 3px 6px; background: rgba(18,20,23,0.92); border: 1px solid rgba(255,255,255,0.2); border-bottom: none; border-radius: 8px 8px 0 0; font-size: 11px; }
-    #dpsbar select { background: #1b1e24; color: #dfe3ee; border: 1px solid #3a404a; border-radius: 4px; font-size: 11px; padding: 1px 2px; max-width: 42%; }
-    #dpsbar button { margin-left: auto; background: #1b1e24; color: #dfe3ee; border: 1px solid #3a404a; border-radius: 4px; font-size: 11px; padding: 1px 6px; cursor: pointer; }
+    #dpsbar { display: flex; align-items: center; gap: 4px; padding: 3px 6px; background: #14171c; border: 1px solid #3a404a; border-bottom: 1px solid #2a2f38; border-radius: 8px 8px 0 0; font-size: 11px; } /* ugjennomsiktig egen linje øverst i boksen */
+    #dpsbar button { background: #1b1e24; color: #dfe3ee; border: 1px solid #3a404a; border-radius: 4px; font-size: 11px; padding: 1px 6px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
+    #dpsbar button:hover { border-color: #6b73ff; }
+    #dpsbar button.lock { margin-left: auto; max-width: none; }
     #dpsbar button.locked { color: #ffd166; }
+    #dps > * { flex-shrink: 0; } /* radene skal kuttes nederst, ikke klemmes oppå hverandre */
     #dps { height: calc(100% - 26px); padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs, 14px); background: rgba(18,20,23,0.8); border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); overflow: hidden; }
     #dps .top { display: flex; align-items: baseline; gap: 8px; }
     #dps .big { font-size: 200%; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000; }
