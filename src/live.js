@@ -33,6 +33,11 @@ class Live extends EventEmitter {
     this.rec = null; // { stream, file, until } mens den rå strømmen tas opp til fil (feilsøking)
     // DPS: pågående kamp og forrige kamp, regnet fra egne treff og condition-ticks i chatbox-kanalen (sanntid)
     this.fight = null; // { start, last, total, taken, targets: Map, skills: Map, takenSrc: Map, takenSkills: Map }
+    // Hele økta: summen av alle kamper siden appen startet (eller siste nullstilling). Ferdige kamper foldes inn i
+    // sessionBase når neste kamp starter (da er etterslepet fra evtc-kanalen sikkert lagt på forrige kamp).
+    this.sessionBase = null; // rått regnskap, samme form som fight, med combatMs
+    this.sessionFights = 0;
+    this.sessionStartedAt = Date.now();
     this.lastFight = null; // ferdig oppsummert
     this.dmgWindow = []; // [arcdps-tid, skade] de siste 10 s, for "DPS nå"
     // Squad-DPS: andres skade kommer på evtc-kanalen (area, 2–3 s forsinket). Minioner tilskrives eieren via
@@ -289,8 +294,56 @@ class Live extends EventEmitter {
     if (m.buff === 1) return Math.abs(Number(m.buffDmg) || 0);
     return Math.abs(Number(m.value) || 0);
   }
+  // ---------- Hele økta ----------
+  emptyRaw() {
+    return {
+      start: 0, end: 0, combatMs: 0, total: 0, taken: 0, targets: new Map(), skills: new Map(), squad: new Map(), takenSrc: new Map(), takenSkills: new Map(),
+      heal: 0, barrier: 0, healSkills: new Map(), healReceived: 0, healSources: new Map(), squadHeal: new Map(),
+    };
+  }
+  // Legger ett rått kampregnskap oppå et annet: tall summeres, Map-oppføringer slås sammen på nøkkel (dmg/hits/heal summeres)
+  foldRaw(dst, src, end) {
+    for (const k of ['total', 'taken', 'heal', 'barrier', 'healReceived']) dst[k] += src[k] || 0;
+    dst.combatMs += Math.max(0, (end ?? src.end ?? src.last) - src.start);
+    for (const mk of ['targets', 'skills', 'squad', 'takenSrc', 'takenSkills', 'healSkills', 'healSources', 'squadHeal']) {
+      for (const [key, v] of src[mk] || []) {
+        const cur = dst[mk].get(key);
+        if (!cur) { dst[mk].set(key, { ...v }); continue; }
+        for (const nk of ['dmg', 'hits', 'heal']) if (typeof v[nk] === 'number') cur[nk] = (cur[nk] || 0) + v[nk];
+        if (v.name) cur.name = v.name;
+      }
+    }
+  }
+  foldLastIntoSession() {
+    const r = this.lastRaw;
+    if (!r || r.folded) return;
+    if (!this.sessionBase) this.sessionBase = this.emptyRaw();
+    this.foldRaw(this.sessionBase, r);
+    r.folded = true;
+    this.sessionFights++;
+  }
+  resetSession() {
+    this.sessionBase = this.emptyRaw();
+    this.sessionFights = 0;
+    this.sessionStartedAt = Date.now();
+    if (this.lastRaw) this.lastRaw.folded = true; // forrige kamp hører til før nullstillingen
+    this.dirty = true;
+    log.info('live', 'Økta nullstilt');
+  }
+  // Økta akkurat nå: base + forrige kamp (om den ikke er foldet inn ennå) + pågående kamp
+  sessionSnapshot(now) {
+    const tmp = this.emptyRaw();
+    if (this.sessionBase) this.foldRaw(tmp, this.sessionBase, this.sessionBase.combatMs);
+    let fights = this.sessionFights;
+    if (this.lastRaw && !this.lastRaw.folded) { this.foldRaw(tmp, this.lastRaw); fights++; }
+    if (this.fight) { this.foldRaw(tmp, this.fight, now); fights++; }
+    const s = this.summarize(tmp, tmp.combatMs);
+    return { ...s, fights, combatMs: tmp.combatMs, startedAt: this.sessionStartedAt, session: true };
+  }
+
   startFight(t) {
     if (this.fight) return; // allerede i gang (kamp inn kommer også forsinket på evtc-kanalen)
+    this.foldLastIntoSession();
     this.fight = {
       start: t, last: t, total: 0, taken: 0, targets: new Map(), skills: new Map(), squad: new Map(), takenSrc: new Map(), takenSkills: new Map(),
       // healing: heal = egen healing gjort (inkl. barrier), barrier = barrier-delen av den, healSkills per skill,
@@ -532,7 +585,7 @@ class Live extends EventEmitter {
     }
     // lastHits: de siste treffene mot deg (nyeste sist). death: frosset kopi da du gikk ned/døde. Begge beholdes til neste kampstart.
     // healing.supported = broen har meldt heal-støtte i hello, ext = healing stats-utvidelsen er lastet i spillet
-    return { current: cur, last: this.lastFight, lastHits: this.lastHits.slice(), death: this.death, healing: { available: this.healSupported || this.healSeen, supported: this.healSupported, ext: this.healExt } };
+    return { current: cur, last: this.lastFight, session: this.sessionSnapshot(now), lastHits: this.lastHits.slice(), death: this.death, healing: { available: this.healSupported || this.healSeen, supported: this.healSupported, ext: this.healExt } };
   }
 
   // Samme arcdps-id i samme scope to ganger = samme hendelse levert to ganger. Husker de siste DEDUPE_KEEP.

@@ -26,7 +26,7 @@
       <section class="dy-card" id="lvSkillbar" style="grid-column: 1 / -1"></section>
     </div></div>`;
 
-  const WIN = ['buffs', 'debuffs', 'target', 'skillbar', 'dps'];
+  const WIN = ['buffs', 'debuffs', 'target', 'skillbar', 'dps', 'dps2', 'dps3'];
 
   async function mount(el) {
     root = el;
@@ -88,13 +88,15 @@
     $('#lvWindows', root).innerHTML = `<h3>${esc(t('live.windows'))}</h3><p class="muted small">${esc(t('live.windowsHelp'))}</p>` + WIN.map((id) => {
       const c = overlays[id];
       const isSb = id === 'skillbar';
-      const isDps = id === 'dps';
+      const isDps = id.startsWith('dps');
       return `<div class="lv-win" data-id="${id}">
         <div class="row"><label class="inline"><input type="checkbox" data-k="enabled" ${c.enabled ? 'checked' : ''} /> <b>${esc(t('live.win.' + id))}</b></label>
           <label class="inline"><input type="checkbox" data-k="locked" ${c.locked ? 'checked' : ''} /> ${esc(t('live.locked'))}</label>
           <button data-reset="${id}" class="small">${esc(t('live.resetPos'))}</button></div>
         <div class="row lv-opts">
-          ${isDps ? `<label class="inline">${esc(t('live.fontSize'))} <input type="number" data-k="fontSize" value="${c.fontSize ?? 14}" min="10" max="40" step="1" style="width:64px" /> px</label>
+          ${isDps ? `<label class="inline">${esc(t('live.view'))} <select data-k="view">${opt('view', 'all', c.view || 'all', 'live.view.all')}${opt('view', 'damage', c.view, 'live.view.damage')}${opt('view', 'squad', c.view, 'live.view.squad')}${opt('view', 'taken', c.view, 'live.view.taken')}${opt('view', 'healing', c.view, 'live.view.healing')}</select></label>
+                    <label class="inline">${esc(t('live.period'))} <select data-k="period">${opt('period', 'fight', c.period || 'fight', 'live.period.fight')}${opt('period', 'last', c.period, 'live.period.last')}${opt('period', 'session', c.period, 'live.period.session')}</select></label>
+                    <label class="inline">${esc(t('live.fontSize'))} <input type="number" data-k="fontSize" value="${c.fontSize ?? 14}" min="10" max="40" step="1" style="width:64px" /> px</label>
                     <label class="inline">${esc(t('live.showSkills'))} <input type="number" data-k="showSkills" value="${c.showSkills ?? 3}" min="0" max="8" step="1" style="width:56px" /></label>
                     <label class="inline"><input type="checkbox" data-k="showTaken" ${c.showTaken !== false ? 'checked' : ''} /> ${esc(t('live.showTaken'))}</label>
                     <label class="inline">${esc(t('live.takenRows'))} <input type="number" data-k="takenRows" value="${c.takenRows ?? 3}" min="0" max="5" step="1" style="width:56px" /></label>

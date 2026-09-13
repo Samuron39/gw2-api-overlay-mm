@@ -1,6 +1,7 @@
 'use strict';
 // Overlay-vindu: type fra URL (buffs, debuffs, target, skillbar). Tegner fra live-tilstanden 10 ganger i sekundet.
 const TYPE = new URLSearchParams(location.search).get('type') || 'buffs';
+const KIND = TYPE.startsWith('dps') ? 'dps' : TYPE; // dps, dps2 og dps3 tegnes likt
 const BOONS = { 740: 'MGT', 725: 'FUR', 1187: 'QCK', 30328: 'ALA', 717: 'PRO', 718: 'REG', 719: 'SWF', 726: 'VIG', 1122: 'STB', 743: 'AEG', 873: 'RES', 26980: 'RST' };
 const CONDS = { 736: 'BLD', 737: 'BRN', 861: 'CNF', 723: 'PSN', 19426: 'TRM', 720: 'BLN', 722: 'CHL', 721: 'CRP', 791: 'FER', 727: 'IMM', 26766: 'SLW', 27705: 'TNT', 742: 'WKN', 738: 'VLN' };
 let cfg = null;
@@ -59,7 +60,7 @@ function applyConfig(c) {
   document.documentElement.style.setProperty('--is', (c.iconSize || 40) + 'px');
   document.documentElement.style.setProperty('--ps', Math.round((c.iconSize || 40) * 0.72) + 'px');
   grid.classList.toggle('col', c.direction === 'col');
-  const isSb = TYPE === 'skillbar', isDps = TYPE === 'dps';
+  const isSb = TYPE === 'skillbar', isDps = KIND === 'dps';
   grid.hidden = isSb || isDps; sb.hidden = !isSb; sbStatus.hidden = !isSb; dp.hidden = !isDps;
   document.documentElement.style.setProperty('--fs', (c.fontSize || 14) + 'px');
   render();
@@ -84,20 +85,35 @@ function renderDps() {
     death = { downed: true, killer: 'Destroyer Troll', skill: 'Flame Burst', amount: 4200, hits: [] };
     cur.healing = { available: true, done: 41200, barrier: 6000, hps: 2290, hps10: 3120, received: 12800, bySkill: [{ name: 'Healing Spring', heal: 18000, pct: 44 }, { name: 'Regeneration', heal: 12000, pct: 29 }, { name: 'Blast Finisher', heal: 6000, pct: 15 }], bySource: [] }; // healing-eksempel
   }
-  const show = cur || (cfg.showLast !== false ? last : null);
-  if (!show) { dp.innerHTML = `<div class="top"><span class="big idle">–</span><span class="lbl">DPS</span></div><div class="sub">${esc(T.t('overlay.dps.noFight'))}</div>`; return; }
-  const active = !!cur;
-  const main = active ? show.dps10 : show.dps;
+  // Periode: denne kampen (med forrige som reserve utenfor kamp), forrige kamp, eller hele økta. Visning: hvilke seksjoner.
+  const period = cfg.period || 'fight';
+  const view = cfg.view || 'all';
+  const vDamage = view === 'all' || view === 'damage', vSquad = view === 'all' || view === 'squad', vTaken = view === 'all' || view === 'taken', vHeal = view === 'all' || view === 'healing';
+  let show, active = false, isSession = false;
+  if (period === 'session' && !sample) { show = d.session && (d.session.fights > 0) ? d.session : null; isSession = !!show; }
+  else if (period === 'last' && !sample) show = last;
+  else { show = cur || (cfg.showLast !== false ? last : null); active = !!cur; }
+  if (!show && sample) { show = cur; active = true; }
+  if (!show) { dp.innerHTML = `<div class="top"><span class="big idle">–</span><span class="lbl">${view === 'healing' ? 'HPS' : 'DPS'}</span></div><div class="sub">${esc(T.t(period === 'session' ? 'overlay.dps.noSession' : 'overlay.dps.noFight'))}</div>`; return; }
+  const h0 = show.healing || {};
+  const main = view === 'healing' ? (active ? h0.hps10 : h0.hps) : (active ? show.dps10 : show.dps);
+  const label = view === 'healing' ? (active ? T.t('overlay.dps.hpsNow') : T.t('overlay.dps.hps')) : (active ? T.t('overlay.dps.now') : isSession ? T.t('overlay.dps.session') : T.t('overlay.dps.last'));
   const rows = [];
-  rows.push(`<div class="top"><span class="big ${active ? '' : 'idle'}">${fmtK(main)}</span><span class="lbl">${esc(active ? T.t('overlay.dps.now') : T.t('overlay.dps.last'))}</span>${sample ? `<span class="lbl">(${esc(T.t('overlay.dps.sample'))})</span>` : ''}</div>`);
-  rows.push(`<div class="sub">${esc(T.t('overlay.dps.line', { dur: fmtDur(show.durationMs), avg: fmtK(show.dps), total: fmtK(show.total) }))}${show.target ? ' · ' + esc(show.target) : ''}${cfg.showTaken !== false && show.taken ? ` · <span class="tk">${esc(T.t('overlay.dps.taken', { n: fmtK(show.taken) }))}</span>` : ''}</div>`);
+  rows.push(`<div class="top"><span class="big ${active ? '' : 'idle'}">${fmtK(main)}</span><span class="lbl">${esc(label)}</span>${sample ? `<span class="lbl">(${esc(T.t('overlay.dps.sample'))})</span>` : ''}</div>`);
+  const line = view === 'healing'
+    ? (isSession ? T.t('overlay.dps.sessionLine', { fights: show.fights, dur: fmtDur(show.combatMs), avg: fmtK(h0.hps), total: fmtK(h0.done) }) + ' · ' : '') + T.t('overlay.dps.healLine', { total: fmtK(h0.done), received: fmtK(h0.received) })
+    : isSession
+      ? T.t('overlay.dps.sessionLine', { fights: show.fights, dur: fmtDur(show.combatMs), avg: fmtK(show.dps), total: fmtK(show.total) })
+      : T.t('overlay.dps.line', { dur: fmtDur(show.durationMs), avg: fmtK(show.dps), total: fmtK(show.total) });
+  rows.push(`<div class="sub">${esc(line)}${!isSession && show.target ? ' · ' + esc(show.target) : ''}${vTaken && cfg.showTaken !== false && show.taken ? ` · <span class="tk">${esc(T.t('overlay.dps.taken', { n: fmtK(show.taken) }))}</span>` : ''}</div>`);
   const n = Number(cfg.showSkills ?? 3);
-  for (const s of (show.skills || []).slice(0, n)) rows.push(`<div class="sk"><span class="bar" style="--w:${s.pct || 0}%"></span><span class="n">${esc(s.name || s.skill)}</span><span class="v">${fmtK(s.dmg)} · ${s.pct || 0}%</span></div>`);
+  if (view === 'healing') for (const s of (h0.bySkill || []).slice(0, Math.max(n, 3))) rows.push(`<div class="sk hs"><span class="bar" style="--w:${s.pct || 0}%"></span><span class="n">${esc(s.name || s.skill)}</span><span class="v">${fmtK(s.heal)} · ${s.pct || 0}%</span></div>`);
+  for (const s of (vDamage ? (show.skills || []) : []).slice(0, n)) rows.push(`<div class="sk"><span class="bar" style="--w:${s.pct || 0}%"></span><span class="n">${esc(s.name || s.skill)}</span><span class="v">${fmtK(s.dmg)} · ${s.pct || 0}%</span></div>`);
   // ---------- Squad-DPS ----------
   // Rangert liste over squaden (som en WoW-måler) når flere enn deg har gjort skade. Søyla er relativ til den øverste,
   // pct er andel av squadens samlede skade. Din rad er alltid med, også når du ligger under de viste radene.
   const squad = show.squad || [];
-  if (cfg.showSquad !== false && squad.length > 1) {
+  if (vSquad && cfg.showSquad !== false && squad.length > 1) {
     const rowsN = Math.max(1, Math.min(10, Number(cfg.squadRows ?? 5)));
     const list = squad.slice(0, rowsN);
     const me = squad.find((p) => p.self);
@@ -110,7 +126,7 @@ function renderDps() {
     }
   }
   // Mottatt: topp kilder (minions tilskrevet eieren) med andel av alt mottatt, søyle i rød tone
-  if (cfg.showTaken !== false) {
+  if (vTaken && cfg.showTaken !== false) {
     const tn = Number(cfg.takenRows ?? 3);
     const src = (show.takenBySource || []).slice(0, tn);
     if (src.length) {
@@ -119,14 +135,14 @@ function renderDps() {
     }
   }
   // Dødslogg: «Nedkjempet av X · siste: skill 4.2k» så lenge den finnes (til neste kampstart)
-  if (death) {
+  if (vTaken && death) {
     const who = T.t(death.downed ? 'overlay.dps.downedBy' : 'overlay.dps.killedBy', { killer: death.killer || '?' });
     const lastHit = death.skill ? ' · ' + T.t('overlay.dps.lastHit', { skill: death.skill, amount: fmtK(death.amount) }) : '';
     rows.push(`<div class="death"><b>${esc(who)}</b>${esc(lastHit)}</div>`);
   }
   // Healing (HPS): egen healing fra chatbox-kanalen via broen, se docs/healing-api.md. available = broen har meldt
   // heal-støtte (hello.heal) eller healing er telt. Uten det: en diskret linje bare i redigeringsmodus.
-  if (cfg.showHealing !== false) {
+  if (vHeal && view !== 'healing' && cfg.showHealing !== false) {
     const h = show.healing;
     if (h && h.available) {
       rows.push(`<div class="hl"><span class="hv">${fmtK(active ? h.hps10 : h.hps)}</span><span class="lbl">${esc(T.t(active ? 'overlay.dps.hpsNow' : 'overlay.dps.hps'))}</span><span class="sub">${esc(T.t('overlay.dps.healLine', { total: fmtK(h.done), received: fmtK(h.received) }))}</span></div>`);
@@ -302,7 +318,7 @@ function renderSkillbar() {
   sbStatus.textContent = `${skillbar.character} · ${skillbar.specName || skillbar.professionName}${setTxt}${modeTxt} · ${rot.length ? T.t('overlay.rotation', { pos: rotationPos + 1, total: rot.length }) : T.t('overlay.noRotation')}${snap?.connected ? '' : ' · ' + T.t('overlay.noLive')}`;
 }
 
-function render() { if (TYPE === 'skillbar') renderSkillbar(); else if (TYPE === 'dps') renderDps(); else renderBuffs(); }
+function render() { if (TYPE === 'skillbar') renderSkillbar(); else if (KIND === 'dps') renderDps(); else renderBuffs(); }
 
 // Skill-bar hentes fra API-et via skills:get. Én lasting om gangen (sbLoading), og MumbleLink-tilstanden som kommer
 // hvert 500 ms utløser bare ny lasting når karakter eller spec faktisk har endret seg (sbTrigger). Feilet lasting

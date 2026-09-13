@@ -57,6 +57,10 @@
     offLive = window.api.on('live:state', (s) => { liveSnap = s; renderLive(); });
     window.api.invoke('live:get').then((s) => { liveSnap = s; renderLive(); }).catch(() => {});
     $('#dpsLive', el).addEventListener('click', async (e) => {
+      if (e.target.id === 'dpsResetSession') {
+        try { await window.api.invoke('live:resetSession'); setStatus(t('dps.live.sessionReset')); } catch (err) { setStatus(err.message, true); }
+        return;
+      }
       if (e.target.id !== 'dpsLiveWin') return;
       try { await window.api.invoke('overlays:set', 'dps', { enabled: true, locked: false }); setStatus(t('dps.live.opened')); }
       catch (err) { setStatus(t('common.error', { message: err.message }), true); }
@@ -97,7 +101,10 @@
     // Healing (HPS) når broen leverer det og noe er healet: «healing 12.3k (HPS 890)». Nå-verdi i kamp, snitt etterpå.
     const h = f?.healing;
     const healing = h?.available && h.done ? ' · ' + esc(t('dps.live.healing', { total: k(h.done), hps: k(d?.current ? h.hps10 : h.hps) })) : '';
-    el.innerHTML = `<b class="${d?.current ? 'up' : ''}">${esc(head)}</b> <span class="muted">${esc(body)}${skills}${healing}${squad}${taken}</span> <button id="dpsLiveWin" class="small">${esc(t('dps.live.window'))}</button>${death}`;
+    // Hele økta: alle kamper siden appen startet eller siste nullstilling
+    const se = d?.session;
+    const session = se?.fights ? `<div class="session muted">${esc(t('dps.live.session', { fights: se.fights, dur: fmtDur(se.combatMs), total: k(se.total), dps: k(se.dps) }))}${se.healing?.done ? ' · ' + esc(t('dps.live.healing', { total: k(se.healing.done), hps: k(se.healing.hps) })) : ''} <button id="dpsResetSession" class="small">${esc(t('dps.live.resetSession'))}</button></div>` : '';
+    el.innerHTML = `<b class="${d?.current ? 'up' : ''}">${esc(head)}</b> <span class="muted">${esc(body)}${skills}${healing}${squad}${taken}</span> <button id="dpsLiveWin" class="small">${esc(t('dps.live.window'))}</button>${death}${session}`;
   }
 
   async function arcStatus() {

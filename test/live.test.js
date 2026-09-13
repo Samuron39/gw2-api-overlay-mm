@@ -333,6 +333,28 @@ test('DPS: egne treff og condition-ticks telles per kamp, blokkert teller ikke, 
   assert.equal(s.dps.last.target, 'Golem');
 });
 
+test('hele økta: summerer to kamper, forrige kamp foldes inn ved neste kampstart, nullstilling tømmer', async () => {
+  const t0 = Date.now();
+  await send(ev({ sc: 2, time: t0 - 10 }));
+  await until((x) => !x.dps.current, 'ingen kamp');
+  await send({ t: 'ev', s: 'local', id: ++seq, time: t0, sc: 0, src: SELF, dst: null, value: 0, buffDmg: 0, buff: 0, act: 0, rem: 0, iff: 2, result: 0, skill: 0, name: '' });
+  live.resetSession();
+  await send(ev({ sc: 1, time: t0 }), ev({ time: t0 + 100, dst: GOLEM, iff: 1, value: -1000, skill: 100, name: 'Slag' }), ev({ sc: 2, time: t0 + 2000 }));
+  let s = await until((x) => x.dps.last?.total === 1000, 'første kamp');
+  assert.equal(s.dps.session.fights, 1); assert.equal(s.dps.session.total, 1000); assert.equal(s.dps.session.combatMs, 2000);
+  await send(ev({ sc: 1, time: t0 + 5000 }), ev({ time: t0 + 5100, dst: TRASH, iff: 1, value: -3000, skill: 100, name: 'Slag' }));
+  s = await until((x) => x.dps.current?.total === 3000, 'andre kamp i gang');
+  assert.equal(s.dps.session.fights, 2); assert.equal(s.dps.session.total, 4000);
+  assert.ok(s.dps.session.skills.find((k) => k.name === 'Slag').hits === 2, 'skills slått sammen på tvers av kamper');
+  await send(ev({ sc: 2, time: t0 + 9000 }));
+  s = await until((x) => !x.dps.current, 'andre kamp slutt');
+  assert.equal(s.dps.session.total, 4000); assert.equal(s.dps.session.combatMs, 6000); assert.equal(s.dps.session.dps, Math.round(4000 / 6000 * 1000));
+  live.resetSession();
+  s = live.snapshot();
+  assert.equal(s.dps.session.fights, 0); assert.equal(s.dps.session.total, 0);
+  assert.equal(s.dps.last.total, 3000, 'forrige kamp vises fortsatt som forrige kamp');
+});
+
 test('målbytte slik ArcDPS faktisk sender det: ev null, src.elite 1, dst null (README.txt)', async () => {
   await send({ t: 'agent', s: 'area', src: { id: 2114, name: '', prof: 0, elite: 1, self: 0, team: 0 }, dst: null, name: '' });
   await until((x) => x.target?.id === 2114, 'target satt fra elite 1');

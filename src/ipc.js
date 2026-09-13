@@ -111,6 +111,7 @@ function register() {
 
   // ---------- Live, overlay-vinduer, skill-bar ----------
   handle('live:get', () => live.snapshot());
+  handle('live:resetSession', () => { live.resetSession(); return true; });
   // Feilsøking: ta opp den rå strømmen fra broen til loggmappa i inntil 3 minutter
   handle('live:record', (_e, ms) => live.record(path.join(log.path(), 'live-' + new Date().toISOString().replace(/[:.]/g, '-') + '.jsonl'), Math.min(Number(ms) || 180000, 600000)));
   handle('overlays:get', () => overlays.getAll());
