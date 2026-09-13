@@ -286,6 +286,33 @@ test('opptak skriver datagrammene med ankomsttid til fil og stopper når tiden e
   fs.unlinkSync(file);
 });
 
+test('nye ArcDPS-koder på evtc-kanalen: 69 påfører, 70 endrer varighet, 71/72 fjerner, 67/68 er aktivering', async () => {
+  const a = (over) => ev({ s: 'area', ...over });
+  // 69 BUFFAPPLY: to stacks Might på deg
+  await send(a({ sc: 69, buff: 1, value: 5000, skill: 740, name: 'Might', dst: SELF, iff: 0 }), a({ sc: 69, buff: 1, value: 5000, skill: 740, name: 'Might', dst: SELF, iff: 0 }));
+  let s = await until((x) => buff(x, 'Might')?.stacks === 2, 'to stacks fra sc 69');
+  // 70 BUFFCHANGE: aktiv stack forlenget til 20 s
+  await send(a({ sc: 70, buff: 1, value: 15000, overstack: 20000, skill: 740, name: 'Might', dst: SELF }));
+  s = await until((x) => buff(x, 'Might')?.remainingMs > 15000, 'forlenget fra sc 70');
+  assert.equal(buff(s, 'Might').stacks, 2);
+  // 71 BUFFREMOVE_SINGLE (rem 2), så 72 BUFFREMOVE_ALL (rem 1)
+  await send(a({ sc: 71, buff: 1, rem: 2, skill: 740, name: 'Might', src: SELF }));
+  s = await until((x) => buff(x, 'Might')?.stacks === 1, 'én stack fjernet via sc 71');
+  await send(a({ sc: 72, buff: 1, rem: 1, skill: 740, name: 'Might', src: SELF }));
+  await until((x) => !buff(x, 'Might'), 'alle fjernet via sc 72');
+  // 67 ANIMATIONSTART (value = ms til treffpunkt) og 68 ANIMATIONSTOP (act 3 = utført)
+  await send(a({ sc: 67, skill: 9100, name: 'Sverd', value: 600 }));
+  s = await until((x) => cd(x, 9100), 'aktivering fra sc 67');
+  assert.equal(cd(s, 9100).castDur, 600); assert.equal(cd(s, 9100).fired, false);
+  await send(a({ sc: 68, skill: 9100, name: 'Sverd', act: 3, value: 600 }));
+  s = await until((x) => cd(x, 9100)?.fired === true, 'utført fra sc 68');
+  // 68 med act 4 = avbrutt: cooldown fjernes
+  await send(a({ sc: 67, skill: 9101, name: 'Skjold', value: 400 }));
+  await until((x) => cd(x, 9101), 'ny aktivering');
+  await send(a({ sc: 68, skill: 9101, name: 'Skjold', act: 4, value: 100 }));
+  await until((x) => !cd(x, 9101), 'avbrutt via sc 68 act 4');
+});
+
 test('målbytte slik ArcDPS faktisk sender det: ev null, src.elite 1, dst null (README.txt)', async () => {
   await send({ t: 'agent', s: 'area', src: { id: 2114, name: '', prof: 0, elite: 1, self: 0, team: 0 }, dst: null, name: '' });
   await until((x) => x.target?.id === 2114, 'target satt fra elite 1');

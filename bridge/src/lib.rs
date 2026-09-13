@@ -248,6 +248,11 @@ fn is_self(a: &Option<Agent>) -> bool {
     a.as_ref().map_or(false, |a| a.self_ == 1)
 }
 
+const NPC_ELITE: u32 = 0xffff_ffff;
+fn is_npc(a: &Option<Agent>) -> bool {
+    a.as_ref().map_or(false, |a| a.elite == NPC_ELITE)
+}
+
 /// Chatbox-kanalen (sanntid): statechange (kamp inn/ut, logg start/slutt) og egne skadetreff, som overlayen bruker til
 /// kampstatus og til å vite hva vi sist traff. Condition-ticks og andres treff droppes.
 fn combat_local(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>, skill_name: Option<&'static str>, id: u64, _revision: u64) {
@@ -265,15 +270,32 @@ fn combat_local(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>
 }
 
 /// Evtc-kanalen (2–3 s forsinket): eneste kilde til buff-påføring/-fjerning, aktiveringer, BUFFINITIAL (sc 18),
-/// våpenbytte (sc 11) og agent-/målhendelser (ev == None). Rene skadetreff og condition-ticks droppes.
+/// våpenbytte (sc 11) og agent-/målhendelser (ev == None). Nyere ArcDPS merker vanlige hendelser med egne statechange-koder
+/// (67 ANIMATIONSTART, 68 ANIMATIONSTOP, 69 BUFFAPPLY, 70 BUFFCHANGE, 71/72 BUFFREMOVE). Aktiveringer sendes bare for deg selv,
+/// buff-hendelser bare der du eller en NPC er part. Rene skadetreff og condition-ticks (gamle koder) droppes.
 fn combat_area(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>, skill_name: Option<&'static str>, id: u64, _revision: u64) {
     if let Some(e) = ev {
-        if e.is_statechange == 0 && e.is_activation == 0 && e.is_buff_remove == 0 {
-            let plain_hit = e.buff == 0;
-            let buff_tick = e.buff == 1 && e.buff_dmg != 0;
-            if plain_hit || buff_tick {
-                return;
+        match e.is_statechange {
+            0 => {
+                if e.is_activation == 0 && e.is_buff_remove == 0 {
+                    let plain_hit = e.buff == 0;
+                    let buff_tick = e.buff == 1 && e.buff_dmg != 0;
+                    if plain_hit || buff_tick {
+                        return;
+                    }
+                }
             }
+            67 | 68 => {
+                if !is_self(&src) {
+                    return;
+                }
+            }
+            69..=72 => {
+                if !(is_self(&src) || is_self(&dst) || is_npc(&src) || is_npc(&dst)) {
+                    return;
+                }
+            }
+            _ => {}
         }
     }
     forward("area", ev, src, dst, skill_name, id);

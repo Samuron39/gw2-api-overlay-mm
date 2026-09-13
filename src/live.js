@@ -154,6 +154,15 @@ class Live extends EventEmitter {
     if (m.sc === 11 && srcSelf) { const v = Number(m.dstAgent); this.weaponSet = v === 5 ? 'B' : v === 4 ? 'A' : v === 1 ? 'W2' : v === 0 ? 'W1' : this.weaponSet; this.dirty = true; return; }
     // sc 18 (CBTS_BUFFINITIAL): buffs som allerede ligger på agenten ved oppstart eller kartbytte. Samme felt som en påføring.
     if (m.sc === 18) { this.applyBuff(m, false); return; }
+    // Nyere ArcDPS (2026) merker vanlige hendelser i evtc-kanalen med egne statechange-koder i stedet for 0 (målt 13. sept 2026;
+    // ordinalene i cbtstatechange slik broen faktisk får dem): 67 ANIMATIONSTART, 68 ANIMATIONSTOP, 69 BUFFAPPLY, 70 BUFFCHANGE,
+    // 71 BUFFREMOVE_SINGLE, 72 BUFFREMOVE_ALL. Oversettes til de gamle feltene (act/rem/buff) så resten av logikken er felles.
+    if (m.sc === 67) { m.sc = 0; m.act = 1; m.buff = 0; m.rem = 0; } // value = ms til treffpunktet (castDur)
+    else if (m.sc === 68) { m.sc = 0; m.act = m.act === 4 ? 4 : 3; m.buff = 0; m.rem = 0; } // cbtanimation: 3/5/6 = utført, 4 = avbrutt
+    else if (m.sc === 69) { m.sc = 0; m.buff = 1; m.rem = 0; m.act = 0; m.buffDmg = 0; } // value = varighet ms, dst = mottaker
+    else if (m.sc === 70) { this.changeBuff(m); return; } // overstack = ny varighet for den aktive stacken
+    else if (m.sc === 71) { m.sc = 0; m.buff = 1; m.act = 0; if (!m.rem) m.rem = 2; } // én stack, src = den som hadde buffen
+    else if (m.sc === 72) { m.sc = 0; m.buff = 1; m.act = 0; m.rem = 1; } // alle stacks
     if (m.sc !== 0) return;
 
     // Aktivering av skill (bare egne)
@@ -221,6 +230,21 @@ class Live extends EventEmitter {
     b.dur = m.value;
     b.expiries.push(m.time + m.value);
     if (b.expiries.length > MAX_STACKS) b.expiries.shift();
+    this.dirty = true;
+  }
+
+  // BUFFCHANGE (sc 70): den aktive stacken på dst fikk ny varighet (overstack = ny ms). Finnes ingen stack, legges én til.
+  changeBuff(m) {
+    const dst = m.dst;
+    const dur = Number(m.overstack) || 0;
+    if (!dst || dur <= 0) return;
+    const map = dst.self === 1 ? this.buffs : this.targets.get(dst.id);
+    const b = map && map.get(m.skill);
+    if (!b) { this.applyBuff({ ...m, value: dur }, false); return; }
+    let i = 0;
+    for (let k = 1; k < b.expiries.length; k++) if (b.expiries[k] > b.expiries[i]) i = k;
+    b.expiries[i] = m.time + dur;
+    if (dur > b.dur) b.dur = dur;
     this.dirty = true;
   }
 
