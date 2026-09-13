@@ -651,5 +651,9 @@
   "setup.ai.cloudOk": "{name} svarer, modell {model}.",
   "live.delay": "Forsinkelse fra ArcDPS",
   "live.delayHelp": "Evtc-kanalen fra ArcDPS kommer 2–3 sekunder etter spillet. Hold-oppe blinker først når en boon har vært borte lenger enn dette. Nedtellingene påvirkes ikke, de regnes fra hendelsens egen tid.",
-  "live.lag": "forsinkelse {s} s"
+  "live.lag": "forsinkelse {s} s",
+  "live.record": "Ta opp strømmen (3 min)",
+  "live.recordHelp": "Feilsøking: skriver alt broen sender de neste tre minuttene til en fil i loggmappa, med ankomsttid per linje.",
+  "live.recording": "Tar opp til {file} i 3 minutter. Gjør det som skal undersøkes i spillet nå.",
+  "live.recordingShort": "opptak, {s} s igjen"
 }

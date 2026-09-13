@@ -1,6 +1,7 @@
 'use strict';
 // Live-tilstand fra ArcDPS-broen (UDP 127.0.0.1:47500): buffs på deg, conditions på målet, cooldowns.
 const dgram = require('dgram');
+const fs = require('fs');
 const { EventEmitter } = require('events');
 const log = require('./log');
 
@@ -27,6 +28,7 @@ class Live extends EventEmitter {
     this.cooldowns = new Map(); // skill -> { name, castStart, castDur, fired, firedAt }
     this.weaponSet = 'A'; // A/B på land, W1/W2 i vann. Fra ArcDPS statechange 11 (dstAgent = 4/5 land, 0/1 vann)
     this.nextExpiry = null; // arcdps-tid for første utløp blant buffs i siste snapshot; da sendes ny tilstand
+    this.rec = null; // { stream, file, until } mens den rå strømmen tas opp til fil (feilsøking)
     this.timer = null;
     this.dirty = false;
     this.lastJsonWarn = 0; // maks én JSON-advarsel per 10 s
@@ -43,6 +45,7 @@ class Live extends EventEmitter {
     this.socket = dgram.createSocket('udp4');
     this.socket.on('message', (buf) => {
       this.stats.packets++;
+      this.recordDatagram(buf);
       // Ett datagram kan inneholde flere linjer (broen batcher)
       for (const line of buf.toString('utf8').split('\n')) {
         if (!line.trim()) continue;
@@ -57,11 +60,39 @@ class Live extends EventEmitter {
       // En buff som løper ut er også en endring: uten dette fikk vinduene ingen ny tilstand før neste kamphendelse,
       // og telte videre i minus på egen hånd
       if (this.nextExpiry != null && this.now() >= this.nextExpiry) this.dirty = true;
+      if (this.rec && Date.now() > this.rec.until) this.stopRecording();
       if (this.dirty) { this.dirty = false; this.emit('update', this.snapshot()); }
     }, 100);
   }
 
-  stop() { clearInterval(this.timer); this.timer = null; this.socket?.close(); this.socket = null; }
+  stop() { clearInterval(this.timer); this.timer = null; this.socket?.close(); this.socket = null; this.stopRecording(); }
+
+  // Feilsøking: skriv hvert datagram til fil med ankomsttid (ms siden epoch) foran hver linje, i inntil ms millisekunder.
+  // Lar oss se nøyaktig hva broen sender rundt en hendelse uten å stoppe overlayen.
+  record(file, ms) {
+    this.stopRecording();
+    fs.mkdirSync(require('path').dirname(file), { recursive: true });
+    const stream = fs.createWriteStream(file, { flags: 'a' });
+    stream.write('# GW2 Overlay live-opptak ' + new Date().toISOString() + ' (ankomst-ms<TAB>linje)\n');
+    this.rec = { stream, file, until: Date.now() + ms };
+    this.dirty = true;
+    log.info('live', 'Tar opp strømmen', { file, ms });
+    return { file, until: this.rec.until };
+  }
+  recordDatagram(buf) {
+    const r = this.rec;
+    if (!r) return;
+    if (Date.now() > r.until) { this.stopRecording(); return; }
+    const at = Date.now();
+    for (const line of buf.toString('utf8').split('\n')) if (line.trim()) r.stream.write(at + '\t' + line + '\n');
+  }
+  stopRecording() {
+    if (!this.rec) return;
+    try { this.rec.stream.end(); } catch { /* allerede lukket */ }
+    log.info('live', 'Opptak ferdig', this.rec.file);
+    this.rec = null;
+    this.dirty = true;
+  }
 
   now() { return Date.now() - this.offset; } // i arcdps-tid
 
@@ -242,6 +273,7 @@ class Live extends EventEmitter {
       target: target ? { id: target.id, name: target.name, buffs: tbuffs } : null,
       cooldowns, arcNow: now,
       stats: { ...this.stats },
+      recording: this.rec ? { file: this.rec.file, until: this.rec.until } : null,
     };
   }
 }

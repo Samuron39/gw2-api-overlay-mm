@@ -111,6 +111,8 @@ function register() {
 
   // ---------- Live, overlay-vinduer, skill-bar ----------
   handle('live:get', () => live.snapshot());
+  // Feilsøking: ta opp den rå strømmen fra broen til loggmappa i inntil 3 minutter
+  handle('live:record', (_e, ms) => live.record(path.join(log.path(), 'live-' + new Date().toISOString().replace(/[:.]/g, '-') + '.jsonl'), Math.min(Number(ms) || 180000, 600000)));
   handle('overlays:get', () => overlays.getAll());
   handle('overlays:set', (_e, type, patch) => { const r = overlays.set(type, patch); cfg.saveConfig(); return r; });
   handle('skills:get', (_e, opts) => skills.getSkillbar(cfg.config, live.snapshot(), mumble.state, opts || {}));

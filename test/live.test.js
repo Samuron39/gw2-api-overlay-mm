@@ -268,6 +268,24 @@ test('forsinkelsen på evtc-kanalen måles mot klokkeavviket fra local', async (
   assert.ok(s.stats.areaLagMs >= 2000 && s.stats.areaLagMs < 4000, 'målt ' + s.stats.areaLagMs);
 });
 
+test('opptak skriver datagrammene med ankomsttid til fil og stopper når tiden er ute', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const file = path.join(os.tmpdir(), 'gw2-overlay-test', 'live-rec-' + Date.now() + '.jsonl');
+  live.record(file, 400);
+  assert.ok(live.snapshot().recording?.file === file);
+  await send({ t: 'hello', arc: 'rec' }, ev({ sc: 1 }));
+  await until(() => live.stats.packets > 0 && fs.existsSync(file), 'fil skrevet');
+  await until(() => !live.snapshot().recording, 'opptak stoppet av seg selv');
+  const lines = fs.readFileSync(file, 'utf8').trim().split('\n');
+  assert.ok(lines[0].startsWith('#'), 'header');
+  assert.ok(lines.length >= 3, 'hello og hendelse skrevet');
+  const [at, json] = lines[1].split('\t');
+  assert.ok(Number(at) > 0 && JSON.parse(json).t === 'hello');
+  fs.unlinkSync(file);
+});
+
 test('målbytte slik ArcDPS faktisk sender det: ev null, src.elite 1, dst null (README.txt)', async () => {
   await send({ t: 'agent', s: 'area', src: { id: 2114, name: '', prof: 0, elite: 1, self: 0, team: 0 }, dst: null, name: '' });
   await until((x) => x.target?.id === 2114, 'target satt fra elite 1');

@@ -18,7 +18,7 @@
       <section class="dy-card" id="lvBridge">
         <h3>${esc(t('live.bridge'))}</h3>
         <div id="lvBridgeStatus" class="muted">${esc(t('live.checking'))}</div>
-        <div class="row" style="margin-top:6px"><button id="lvInstallBridge" class="primary">${esc(t('live.installBridge'))}</button><button id="lvCheck">${esc(t('live.recheck'))}</button></div>
+        <div class="row" style="margin-top:6px"><button id="lvInstallBridge" class="primary">${esc(t('live.installBridge'))}</button><button id="lvCheck">${esc(t('live.recheck'))}</button><button id="lvRecord" title="${esc(t('live.recordHelp'))}">${esc(t('live.record'))}</button></div>
         <p class="muted small">${esc(t('live.bridgeHelp'))}</p>
       </section>
       <section class="dy-card" id="lvWindows"></section>
@@ -37,6 +37,10 @@
       finally { if (root) { b.disabled = false; bridgeStatus(); } }
     });
     $('#lvCheck', el).addEventListener('click', bridgeStatus);
+    $('#lvRecord', el).addEventListener('click', async () => {
+      try { const r = await window.api.invoke('live:record', 180000); setStatus(t('live.recording', { file: r.file })); }
+      catch (e) { setStatus(t('common.error', { message: e.message }), true); }
+    });
     offLive = window.api.on('live:state', (s) => { snap = s; liveLine(); });
     offProgress = window.api.on('ai:progress', (p) => { const el2 = root && $('#lvSuggestStatus', root); if (el2) el2.textContent = p.content ? t('common.writing', { n: p.content }) : t('common.thinking', { n: p.reasoning }); });
     snap = await window.api.invoke('live:get').catch(() => null);
@@ -66,7 +70,7 @@
     if (!el) return;
     if (!snap?.connected) { el.innerHTML = `<span class="down">${esc(t('live.noContact'))}</span> <span class="muted">${esc(t('live.noContactHint'))}</span>`; return; }
     const target = snap.target ? esc(snap.target.name) + ' (' + snap.target.buffs.length + ')' : esc(t('live.noTarget'));
-    el.innerHTML = `<span class="up">${esc(t('live.receiving'))}</span> <span class="muted">(ArcDPS ${esc(snap.arcVersion)})</span> · ${snap.self ? esc(snap.self.name) : esc(t('live.unknownChar'))} · ${esc(t(snap.inCombat ? 'live.inCombat' : 'live.outOfCombat'))} · ${esc(t('live.buffs', { n: snap.buffs.length }))} · ${t('live.target', { name: target })}${snap.stats ? ` · <span class="muted" title="${esc(t('live.statsTitle'))}">${esc(t('live.stats', { packets: snap.stats.packets, events: snap.stats.events, drops: snap.stats.dropsDetected }))}${snap.stats.areaLagMs != null ? ' · ' + esc(t('live.lag', { s: (snap.stats.areaLagMs / 1000).toFixed(1) })) : ''}</span>` : ''}`;
+    el.innerHTML = `<span class="up">${esc(t('live.receiving'))}</span> <span class="muted">(ArcDPS ${esc(snap.arcVersion)})</span> · ${snap.self ? esc(snap.self.name) : esc(t('live.unknownChar'))} · ${esc(t(snap.inCombat ? 'live.inCombat' : 'live.outOfCombat'))} · ${esc(t('live.buffs', { n: snap.buffs.length }))} · ${t('live.target', { name: target })}${snap.stats ? ` · <span class="muted" title="${esc(t('live.statsTitle'))}">${esc(t('live.stats', { packets: snap.stats.packets, events: snap.stats.events, drops: snap.stats.dropsDetected }))}${snap.stats.areaLagMs != null ? ' · ' + esc(t('live.lag', { s: (snap.stats.areaLagMs / 1000).toFixed(1) })) : ''}</span>` : ''}${snap.recording ? ` · <span class="down">${esc(t('live.recordingShort', { s: Math.max(0, Math.round((snap.recording.until - Date.now()) / 1000)) }))}</span>` : ''}`;
   }
 
   function renderWindows() {

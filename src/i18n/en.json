@@ -651,5 +651,9 @@
   "setup.ai.cloudOk": "{name} responds, model {model}.",
   "live.delay": "ArcDPS delay",
   "live.delayHelp": "The evtc channel from ArcDPS arrives 2–3 seconds behind the game. Upkeep only blinks once a boon has been missing longer than this. Countdowns are unaffected, they are computed from the event's own time.",
-  "live.lag": "delay {s} s"
+  "live.lag": "delay {s} s",
+  "live.record": "Record stream (3 min)",
+  "live.recordHelp": "Debugging: writes everything the bridge sends during the next three minutes to a file in the log folder, with arrival time per line.",
+  "live.recording": "Recording to {file} for 3 minutes. Do whatever needs investigating in the game now.",
+  "live.recordingShort": "recording, {s} s left"
 }
