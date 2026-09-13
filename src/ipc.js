@@ -123,7 +123,7 @@ function register() {
     drags.delete(e.sender.id); w.emit('moved'); return true;
   });
   handle('wheel:ignoreMouse', (_e, ignore) => { const w = win.wheelWin; if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(!!ignore, { forward: true }); });
-  handle('app:setStartup', (_e, on) => { app.setLoginItemSettings({ openAtLogin: !!on, path: process.execPath, args: [path.resolve(__dirname, '..')] }); return app.getLoginItemSettings().openAtLogin; });
+  handle('app:setStartup', (_e, on) => { app.setLoginItemSettings({ openAtLogin: !!on, path: process.execPath, args: app.isPackaged ? [] : [path.resolve(__dirname, '..')] }); return app.getLoginItemSettings().openAtLogin; });
 
   handle('clipboard:write', (_e, text) => { clipboard.writeText(String(text)); return true; });
   // Lim inn tekst i spillets chat: kopier, gi GW2 fokus, Enter (hvis chatten ikke allerede er åpen), Ctrl+V.

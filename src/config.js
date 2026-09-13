@@ -57,12 +57,25 @@ function loadConfig() {
   i18n.setLanguage(config.language);
 }
 
+// Lagrer konfig og kontrollerer at fila faktisk ble skrevet. Skriver først til .tmp og døper om (atomisk);
+// svikter omdøpingen (låst fil, antivirus) skrives fila direkte. Avvik logges, så feilrapporten viser hva som skjedde.
 function saveConfig() {
+  if (!configPath) { lastSaveError = 'Ingen konfigsti'; log.error('config', lastSaveError); return; }
+  const data = JSON.stringify(config, null, 2);
+  const tmp = configPath + '.tmp';
   try {
-    const tmp = configPath + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(config, null, 2));
-    fs.renameSync(tmp, configPath);
+    try {
+      fs.writeFileSync(tmp, data);
+      fs.renameSync(tmp, configPath);
+    } catch (e) {
+      log.warn('config', 'Omdøping feilet, skriver direkte: ' + e.message);
+      try { fs.unlinkSync(tmp); } catch { /* ingen tmp */ }
+      fs.writeFileSync(configPath, data);
+    }
+    const back = fs.readFileSync(configPath, 'utf8');
+    if (back !== data) throw new Error('Fila på disk stemmer ikke med det som ble skrevet (' + back.length + ' vs ' + data.length + ' tegn)');
     lastSaveError = '';
+    log.debug('config', 'Lagret ' + data.length + ' tegn til ' + configPath);
   } catch (e) {
     lastSaveError = e.message;
     log.error('config', 'Kunne ikke lagre konfig: ' + configPath, e.message);

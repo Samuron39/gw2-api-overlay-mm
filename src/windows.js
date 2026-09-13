@@ -124,7 +124,7 @@ function applyConfig(prev) {
   if (prev.wheel.locked !== config.wheel.locked) broadcast('wheel:locked', { locked: !!config.wheel.locked });
   if (prev.dpsLogDir !== config.dpsLogDir) startDpsWatch();
   if (prev.launchAtStartup !== config.launchAtStartup && !TEST_MODE) {
-    app.setLoginItemSettings({ openAtLogin: !!config.launchAtStartup, path: process.execPath, args: [path.resolve(__dirname, '..')] });
+    app.setLoginItemSettings({ openAtLogin: !!config.launchAtStartup, path: process.execPath, args: app.isPackaged ? [] : [path.resolve(__dirname, '..')] });
   }
   const languageChanged = prev.language !== config.language;
   if (languageChanged) { i18n.setLanguage(config.language); setTrayMenu(); }
