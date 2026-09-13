@@ -69,6 +69,7 @@ function renderBuffs() {
   let list = [];
   if (TYPE === 'target') list = snap?.target?.buffs || [];
   else list = snap?.buffs || [];
+  list = list.filter((b) => b.remainingMs > 0); // vinduet teller ned selv mellom tilstandene, utløpt vises aldri
   const f = cfg.filter || 'all';
   list = list.filter((b) => {
     const k = classify(b.skill);

@@ -115,6 +115,20 @@ test('buff med kort varighet forsvinner av seg selv når tiden er ute', async ()
   await until((x) => !buff(x, 'Fury'), 'Fury utløpt');
 });
 
+test('utløp sender ny tilstand til vinduene uten at noen annen hendelse kommer', async () => {
+  const updates = [];
+  const onUpdate = (s) => updates.push(s);
+  live.on('update', onUpdate);
+  await send(ev({ buff: 1, value: 300, skill: 725, name: 'Fury', dst: SELF, iff: 0 }));
+  await until((x) => buff(x, 'Fury'), 'Fury påført');
+  // den første oppdateringen har Fury, en senere oppdatering (uten nye hendelser) skal ikke ha den
+  await new Promise((r) => setTimeout(r, 700));
+  live.off('update', onUpdate);
+  assert.ok(updates.some((s) => s.buffs.some((b) => b.name === 'Fury')), 'oppdatering med Fury');
+  const last = updates[updates.length - 1];
+  assert.ok(last && !last.buffs.some((b) => b.name === 'Fury'), 'siste oppdatering uten Fury');
+});
+
 test('target settes fra direkte skade og condition, sist truffet vinner, sc 2 nullstiller', async () => {
   await send(ev({ dst: GOLEM, iff: 1, value: 1200, skill: 100, name: 'Slag' }));
   let s = await until((x) => x.target?.id === 200, 'target fra skade');

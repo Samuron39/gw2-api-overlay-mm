@@ -26,6 +26,7 @@ class Live extends EventEmitter {
     this.targets = new Map(); // agentId -> Map(skill -> { name, expiries })
     this.cooldowns = new Map(); // skill -> { name, castStart, castDur, fired, firedAt }
     this.weaponSet = 'A'; // A/B på land, W1/W2 i vann. Fra ArcDPS statechange 11 (dstAgent = 4/5 land, 0/1 vann)
+    this.nextExpiry = null; // arcdps-tid for første utløp blant buffs i siste snapshot; da sendes ny tilstand
     this.timer = null;
     this.dirty = false;
     this.lastJsonWarn = 0; // maks én JSON-advarsel per 10 s
@@ -53,6 +54,9 @@ class Live extends EventEmitter {
     this.socket.bind(port, '127.0.0.1');
     this.timer = setInterval(() => {
       if (this.connected && Date.now() - this.lastHello > 6000) { this.connected = false; this.dirty = true; log.info('live', 'Broen koblet fra (ingen hello på 6 s)'); }
+      // En buff som løper ut er også en endring: uten dette fikk vinduene ingen ny tilstand før neste kamphendelse,
+      // og telte videre i minus på egen hånd
+      if (this.nextExpiry != null && this.now() >= this.nextExpiry) this.dirty = true;
       if (this.dirty) { this.dirty = false; this.emit('update', this.snapshot()); }
     }, 100);
   }
@@ -222,10 +226,16 @@ class Live extends EventEmitter {
       if (now - c.castStart > 10 * 60e3) { this.cooldowns.delete(skill); continue; }
       cooldowns.push({ skill, name: c.name, castStart: c.castStart, castDur: c.castDur, fired: c.fired, sinceMs: now - (c.fired ? c.firedAt : c.castStart + c.castDur) });
     }
+    const buffs = this.buffList(this.buffs);
+    const tbuffs = tmap ? this.buffList(tmap) : [];
+    let next = null;
+    for (const b of buffs) if (next == null || b.remainingMs < next) next = b.remainingMs;
+    for (const b of tbuffs) if (next == null || b.remainingMs < next) next = b.remainingMs;
+    this.nextExpiry = next == null ? null : now + next;
     return {
       connected: this.connected, arcVersion: this.arcVersion, inCombat: this.inCombat, weaponSet: this.weaponSet,
-      self: this.self, buffs: this.buffList(this.buffs),
-      target: target ? { id: target.id, name: target.name, buffs: tmap ? this.buffList(tmap) : [] } : null,
+      self: this.self, buffs,
+      target: target ? { id: target.id, name: target.name, buffs: tbuffs } : null,
       cooldowns, arcNow: now,
       stats: { ...this.stats },
     };
