@@ -66,7 +66,7 @@
     if (!el) return;
     if (!snap?.connected) { el.innerHTML = `<span class="down">${esc(t('live.noContact'))}</span> <span class="muted">${esc(t('live.noContactHint'))}</span>`; return; }
     const target = snap.target ? esc(snap.target.name) + ' (' + snap.target.buffs.length + ')' : esc(t('live.noTarget'));
-    el.innerHTML = `<span class="up">${esc(t('live.receiving'))}</span> <span class="muted">(ArcDPS ${esc(snap.arcVersion)})</span> · ${snap.self ? esc(snap.self.name) : esc(t('live.unknownChar'))} · ${esc(t(snap.inCombat ? 'live.inCombat' : 'live.outOfCombat'))} · ${esc(t('live.buffs', { n: snap.buffs.length }))} · ${t('live.target', { name: target })}${snap.stats ? ` · <span class="muted" title="${esc(t('live.statsTitle'))}">${esc(t('live.stats', { packets: snap.stats.packets, events: snap.stats.events, drops: snap.stats.dropsDetected }))}</span>` : ''}`;
+    el.innerHTML = `<span class="up">${esc(t('live.receiving'))}</span> <span class="muted">(ArcDPS ${esc(snap.arcVersion)})</span> · ${snap.self ? esc(snap.self.name) : esc(t('live.unknownChar'))} · ${esc(t(snap.inCombat ? 'live.inCombat' : 'live.outOfCombat'))} · ${esc(t('live.buffs', { n: snap.buffs.length }))} · ${t('live.target', { name: target })}${snap.stats ? ` · <span class="muted" title="${esc(t('live.statsTitle'))}">${esc(t('live.stats', { packets: snap.stats.packets, events: snap.stats.events, drops: snap.stats.dropsDetected }))}${snap.stats.areaLagMs != null ? ' · ' + esc(t('live.lag', { s: (snap.stats.areaLagMs / 1000).toFixed(1) })) : ''}</span>` : ''}`;
   }
 
   function renderWindows() {
@@ -83,7 +83,8 @@
           <label class="inline">${esc(t('live.icon'))} <input type="number" data-k="iconSize" value="${c.iconSize}" min="20" max="96" step="2" style="width:64px" /> px</label>
           <label class="inline">${esc(t('live.time'))} <select data-k="mode">${opt('mode', 'number', c.mode, 'live.number')}${opt('mode', 'clock', c.mode, 'live.shade')}${opt('mode', 'both', c.mode, 'live.both')}</select></label>
           ${isSb ? `<label class="inline"><input type="checkbox" data-k="showNext" ${c.showNext ? 'checked' : ''} /> ${esc(t('live.showNext'))}</label>
-                    <label class="inline"><input type="checkbox" data-k="showCooldown" ${c.showCooldown ? 'checked' : ''} /> ${esc(t('live.showCooldown'))}</label>`
+                    <label class="inline"><input type="checkbox" data-k="showCooldown" ${c.showCooldown ? 'checked' : ''} /> ${esc(t('live.showCooldown'))}</label>
+                    <label class="inline" title="${esc(t('live.delayHelp'))}">${esc(t('live.delay'))} <input type="number" data-k="delayMs" value="${c.delayMs ?? 3000}" min="0" max="10000" step="250" style="width:72px" /> ms</label>`
                  : `<label class="inline">${esc(t('live.layout'))} <select data-k="layout">${opt('layout', 'grid', c.layout, 'live.grid')}${opt('layout', 'list', c.layout, 'live.list')}</select></label>
                     <label class="inline">${esc(t('live.sort'))} <select data-k="sort">${opt('sort', 'timeAsc', c.sort, 'live.timeAsc')}${opt('sort', 'timeDesc', c.sort, 'live.timeDesc')}${opt('sort', 'stacks', c.sort, 'live.stacks')}${opt('sort', 'name', c.sort, 'live.name')}</select></label>
                     <label class="inline">${esc(t('live.content'))} <select data-k="filter">${opt('filter', 'boons', c.filter, 'live.boons')}${opt('filter', 'conditions', c.filter, 'live.conditions')}${opt('filter', 'other', c.filter, 'live.other')}${opt('filter', 'all', c.filter, 'live.all')}</select></label>

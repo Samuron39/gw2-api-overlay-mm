@@ -648,5 +648,8 @@
   "ai.rateLimited": "{name} har nådd grensen for antall forespørsler (429). Vent litt og prøv igjen.",
   "setup.ai.noKey": "{name} er valgt, men mangler API-nøkkel. Legg den inn under Innstillinger.",
   "setup.ai.cloudDown": "{name} svarte ikke: {error}",
-  "setup.ai.cloudOk": "{name} svarer, modell {model}."
+  "setup.ai.cloudOk": "{name} svarer, modell {model}.",
+  "live.delay": "Forsinkelse fra ArcDPS",
+  "live.delayHelp": "Evtc-kanalen fra ArcDPS kommer 2–3 sekunder etter spillet. Hold-oppe blinker først når en boon har vært borte lenger enn dette. Nedtellingene påvirkes ikke, de regnes fra hendelsens egen tid.",
+  "live.lag": "forsinkelse {s} s"
 }

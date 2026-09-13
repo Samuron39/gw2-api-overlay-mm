@@ -30,7 +30,7 @@ class Live extends EventEmitter {
     this.dirty = false;
     this.lastJsonWarn = 0; // maks én JSON-advarsel per 10 s
     // Tellere for statuslinja. Tap oppdages ved hopp i broens løpenummer "n" (fallback: arcdps-id for lokale hendelser)
-    this.stats = { packets: 0, events: 0, dropsDetected: 0 };
+    this.stats = { packets: 0, events: 0, dropsDetected: 0, areaLagMs: null };
     this.lastSeq = null;
     // Sikkerhetsnett mot dobbeltlevering: samme arcdps-id i samme scope ("local"/"area") behandles bare én gang
     this.seenIds = new Set();
@@ -100,6 +100,11 @@ class Live extends EventEmitter {
     // og ville skjøvet alle nedtellinger tilsvarende. Nedtellingene regnes fra hendelsens egen tid, så en forsinket
     // påføring starter riktig sted i tida.
     if (m.s !== 'area' || this.offset == null) this.offset = Date.now() - m.time;
+    // Målt forsinkelse på evtc-kanalen: hvor lenge etter hendelsens egen tid den kom fram (glidende snitt)
+    if (m.s === 'area') {
+      const lag = Date.now() - (m.time + this.offset);
+      if (lag >= 0 && lag < 30000) this.stats.areaLagMs = this.stats.areaLagMs == null ? lag : Math.round(this.stats.areaLagMs * 0.8 + lag * 0.2);
+    }
     const srcSelf = m.src?.self === 1;
     if (m.src?.name) this.agents.set(m.src.id, { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite, self: m.src.self });
     if (m.dst?.name) this.agents.set(m.dst.id, { id: m.dst.id, name: m.dst.name, prof: m.dst.prof, elite: m.dst.elite, self: m.dst.self });

@@ -648,5 +648,8 @@
   "ai.rateLimited": "{name} hit its request limit (429). Wait a moment and try again.",
   "setup.ai.noKey": "{name} is selected but has no API key. Add it under Settings.",
   "setup.ai.cloudDown": "{name} did not respond: {error}",
-  "setup.ai.cloudOk": "{name} responds, model {model}."
+  "setup.ai.cloudOk": "{name} responds, model {model}.",
+  "live.delay": "ArcDPS delay",
+  "live.delayHelp": "The evtc channel from ArcDPS arrives 2–3 seconds behind the game. Upkeep only blinks once a boon has been missing longer than this. Countdowns are unaffected, they are computed from the event's own time.",
+  "live.lag": "delay {s} s"
 }

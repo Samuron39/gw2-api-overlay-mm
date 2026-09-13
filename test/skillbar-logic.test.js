@@ -10,6 +10,23 @@ const S = require('../src/modules/skills.js');
 const buff = (name, skill = 0) => ({ skill, name, stacks: 1, remainingMs: 5000 });
 const fired = (skill, sinceMs) => ({ skill, fired: true, sinceMs, castStart: 1000 - sinceMs });
 
+test('hold-oppe: en boon regnes som borte først når den ikke er sett på delayMs', () => {
+  const upkeep = [{ skill: 1, boon: 'Might' }, { skill: 2, boon: 'Fury' }];
+  const seen = new Map();
+  // Tilkobling ved t=0: ingenting sett ennå, men toleransen gjelder fra start
+  assert.deepEqual(L.upkeepMissing(upkeep, 1, seen, 0, 1000, 3000), []);
+  assert.deepEqual(L.upkeepMissing(upkeep, 1, seen, 0, 3001, 3000), ['Might']);
+  // Might sett ved t=5000: borte først etter 8000
+  L.noteBoons([buff('Might')], seen, 5000);
+  assert.deepEqual(L.upkeepMissing(upkeep, 1, seen, 0, 7900, 3000), []);
+  assert.deepEqual(L.upkeepMissing(upkeep, 1, seen, 0, 8001, 3000), ['Might']);
+  // Fury med lite tid igjen teller ikke som sett
+  L.noteBoons([{ name: 'Fury', remainingMs: 500 }], seen, 9000);
+  assert.deepEqual(L.upkeepMissing(upkeep, 2, seen, 0, 9000, 3000), ['Fury']);
+  // delayMs 0 = som før: mangler med en gang
+  assert.deepEqual(L.upkeepMissing(upkeep, 1, seen, 0, 8001, 0), ['Might']);
+});
+
 test('parseAttunement leser kjerne-, Weaver- og dual-buffer', () => {
   assert.deepEqual(L.parseAttunement('Fire Attunement'), { main: 'Fire', off: null });
   assert.deepEqual(L.parseAttunement('Fire Water Attunement'), { main: 'Fire', off: 'Water' });

@@ -133,5 +133,22 @@
     return s;
   }
 
-  return { ELEMENTS, parseAttunement, pickAttunement, attunementWeapon, pickKit, pickLegend, pickForm, hasAlacrity, cooldownSeconds, ammoFor, ammoUse, ammoTick };
+  // Hold-oppe med toleranse for ArcDPS-forsinkelsen. Evtc-kanalen kommer 2–3 s etter spillet, så en boon du nettopp la på
+  // ser ut som borte til påføringen kommer fram. noteBoons husker når hver boon sist var på deg (med litt tid igjen);
+  // upkeepMissing sier at en boon mangler først når den ikke er sett på delayMs. since = når vi begynte å se (tilkobling),
+  // så boons vi aldri har sett også får samme toleranse fra start.
+  function noteBoons(buffs, seen, now, minRemainingMs = 1500) {
+    for (const b of buffs || []) if (b.remainingMs > minRemainingMs) seen.set(String(b.name || '').toLowerCase(), now);
+  }
+  function upkeepMissing(upkeep, skillId, seen, since, now, delayMs) {
+    const out = [];
+    for (const u of upkeep || []) {
+      if (u.skill !== skillId) continue;
+      const last = seen.get(String(u.boon).toLowerCase());
+      if (now - (last == null ? since : last) > delayMs) out.push(u.boon);
+    }
+    return out;
+  }
+
+  return { ELEMENTS, parseAttunement, pickAttunement, attunementWeapon, pickKit, pickLegend, pickForm, hasAlacrity, cooldownSeconds, ammoFor, ammoUse, ammoTick, noteBoons, upkeepMissing };
 });

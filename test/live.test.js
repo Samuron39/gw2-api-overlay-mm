@@ -233,6 +233,16 @@ test('sc 18 (buff initial): buffen legges på den som har den, max er varigheten
   await until((x) => !buff(x, 'Fire Attunement'), 'ryddet');
 });
 
+test('forsinkelsen på evtc-kanalen måles mot klokkeavviket fra local', async () => {
+  const t0 = Date.now();
+  live.stats.areaLagMs = null; // tidligere tester kan ha målt noe
+  await send(ev({ s: 'local', time: t0, sc: 1, src: SELF }));
+  await until(() => Math.abs(live.offset) < 1500, 'offset fra local');
+  await send(ev({ s: 'area', time: t0 - 2500, sc: 1, src: SELF }));
+  const s = await until((x) => x.stats.areaLagMs != null, 'forsinkelse målt');
+  assert.ok(s.stats.areaLagMs >= 2000 && s.stats.areaLagMs < 4000, 'målt ' + s.stats.areaLagMs);
+});
+
 test('målbytte slik ArcDPS faktisk sender det: ev null, src.elite 1, dst null (README.txt)', async () => {
   await send({ t: 'agent', s: 'area', src: { id: 2114, name: '', prof: 0, elite: 1, self: 0, team: 0 }, dst: null, name: '' });
   await until((x) => x.target?.id === 2114, 'target satt fra elite 1');

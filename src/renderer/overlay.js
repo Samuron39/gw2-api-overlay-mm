@@ -10,6 +10,8 @@ let rotationPos = 0;
 let lastFiredId = 0;
 let lastSet = 'A';
 const seenActivations = new Set();
+const boonSeen = new Map(); // boon-navn -> sist sett (ms), for hold-oppe med forsinkelsestoleranse
+let boonSince = 0; // når vi begynte å få live-data
 const ammoState = new Map(); // skill -> { charges, nextAt } (ladninger, telles ned per aktivering)
 const lastFiredBySkill = new Map(); // skill -> castStart for siste aktivering vi har telt
 const L = window.SkillbarLogic;
@@ -141,9 +143,11 @@ function renderSkillbar() {
   const rot = set.rotation?.steps || [];
   const upkeep = set.rotation?.upkeep || [];
   const cds = new Map((snap?.cooldowns || []).map((c) => [c.skill, c]));
-  // Boons som mangler på deg akkurat nå (eller er i ferd med å gå ut)
-  const haveBoon = new Set((snap?.buffs || []).filter((b) => b.remainingMs > 1500).map((b) => (b.name || '').toLowerCase()));
-  const missingFor = (skillId) => upkeep.filter((u) => u.skill === skillId && !haveBoon.has(String(u.boon).toLowerCase())).map((u) => u.boon);
+  // Boons som mangler på deg, med toleranse for at evtc-kanalen fra ArcDPS kommer 2–3 s etter spillet (cfg.delayMs)
+  const nowR = Date.now();
+  if (!snap?.connected) { boonSeen.clear(); boonSince = 0; }
+  else { if (!boonSince) boonSince = nowR; L.noteBoons(snap.buffs, boonSeen, nowR); }
+  const missingFor = (skillId) => L.upkeepMissing(upkeep, skillId, boonSeen, boonSince || nowR, nowR, cfg.delayMs ?? 3000);
   // Rotasjonsposisjon: gå videre når forventet skill ble aktivert
   for (const c of snap?.cooldowns || []) {
     if (c.fired && c.castStart > lastFiredId) {

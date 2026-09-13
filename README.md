@@ -62,7 +62,7 @@ Fire små overlay-vinduer, hvert med egen posisjon, størrelse, ikonstørrelse o
 
 **Rotasjon** redigeres steg for steg, eller foreslås av den lokale AI-modellen med tydelig forbehold.
 
-**Hold oppe.** Par av skill og boon, for eksempel elite-skillet og Might. Når boonen mangler på deg og skillet er klart, blinker skillet rødt i skill-baren med boonens forkortelse i hjørnet. «Foreslå fra skillene» fyller lista ut fra hvilke boons hvert skill gir ifølge API-et.
+**Hold oppe.** Par av skill og boon, for eksempel elite-skillet og Might. Når boonen mangler på deg og skillet er klart, blinker skillet rødt i skill-baren med boonens forkortelse i hjørnet. ArcDPS leverer evtc-kanalen 2–3 sekunder etter spillet, så blinkingen har en toleranse («Forsinkelse fra ArcDPS» på skill-bar-vinduet, standard 3 s): en boon regnes som borte først når den ikke er sett så lenge. Nedtellingene i overlayen påvirkes ikke, de regnes fra hendelsens egen tid. Målt forsinkelse vises i statuslinja på Live-fanen. «Foreslå fra skillene» fyller lista ut fra hvilke boons hvert skill gir ifølge API-et.
 
 **Ikoner.** Boons og conditions vises med ikonene fra spillet, hentet fra [GW2-wikien](https://wiki.guildwars2.com) (CC BY-SA 3.0, ikonene tilhører ArenaNet) og lagret i `assets/effects/<buff-id>.png` med kildeliste i `ATTRIBUTION.md` der. Andre effekter (skill-buffs) slås opp i skill-indeksen fra API-et og vises med ikonet fra render.guildwars2.com, hentet i batch maks én gang i sekundet. Mangler ikon, står forkortelsen (MGT, QCK, BLD …) som før. «Vis ikoner» per vindu slår det av.
 

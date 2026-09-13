@@ -82,7 +82,9 @@ test('batch med flere linjer per datagram tolkes fullt ut', async () => {
     assert.equal(s.target?.name, 'Testboss');
     assert.ok(s.target.buffs.find((b) => b.skill === 736), 'Bleeding på målet');
     assert.ok(s.cooldowns.find((c) => c.skill === 9999), 'aktivering registrert');
-    assert.deepEqual(s.stats, { packets: 1, events: batch.length - 1, dropsDetected: 0 }); // hello telles ikke som hendelse
+    const { areaLagMs, ...counts } = s.stats; // areaLagMs er tidsavhengig (målt forsinkelse), telles ikke her
+    assert.deepEqual(counts, { packets: 1, events: batch.length - 1, dropsDetected: 0 }); // hello telles ikke som hendelse
+    assert.ok(areaLagMs == null || areaLagMs >= 0);
 
     // Fjerning: én stack av Might, så alle stacks (rem === 1) av Quickness
     await send([
