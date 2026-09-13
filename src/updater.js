@@ -48,8 +48,7 @@ function init(o) {
 
 // Kort, forståelig feil. 404 på utgivelseslista betyr at prosjektet ikke har publisert noen versjon ennå, det er ikke en feil for brukeren.
 function describeError(e) {
-  const msg = (e?.message || String(e)).split('
-')[0].split(' Headers:')[0].trim();
+  const msg = (e?.message || String(e)).split('\n')[0].split(' Headers:')[0].trim();
   if (/404/.test(msg) && /releases/.test(msg)) return { status: 'not-available', error: '', note: 'noReleases' };
   return { status: 'error', error: msg.slice(0, 200) };
 }
