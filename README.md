@@ -6,6 +6,21 @@ Everything runs on your machine. The only external calls are to the official GW2
 
 Norsk? Les [README.nb.md](README.nb.md), den fullstendige dokumentasjonen på norsk. The app itself is in English or Norwegian, chosen from your Windows language on first start and changeable in Settings.
 
+## Screenshots
+
+The UI is shown in Norwegian here; the app is in English on an English Windows.
+
+![The wheel, buffs on you and the DPS meter during a world boss fight](docs/screenshots/combat-dps.jpg)
+
+<table>
+<tr><td width="50%" valign="top"><img src="docs/screenshots/dps-all.png" alt="DPS meter, view "All": damage, damage taken and healing for the last fight"><br><sub>DPS meter, view "All": damage, damage taken and healing for the last fight</sub></td><td width="50%" valign="top"><img src="docs/screenshots/dps-taken.png" alt="View "Taken": who hit you, per source"><br><sub>View "Taken": who hit you, per source</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="docs/screenshots/dps-healing.png" alt="View "Healing": HPS and healing per skill"><br><sub>View "Healing": HPS and healing per skill</sub></td><td width="50%" valign="top"><img src="docs/screenshots/overlays-unlocked.png" alt="Unlocked overlay windows are dragged and resized in place"><br><sub>Unlocked overlay windows are dragged and resized in place</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="docs/screenshots/live-tab.png" alt="Live tab: bridge status and one card per overlay window"><br><sub>Live tab: bridge status and one card per overlay window</sub></td><td width="50%" valign="top"><img src="docs/screenshots/timers.png" alt="Timers: current and next event per map, waypoint pasted into chat"><br><sub>Timers: current and next event per map, waypoint pasted into chat</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="docs/screenshots/today.png" alt="Today: Wizard's Vault, world bosses killed today, daily fractals"><br><sub>Today: Wizard's Vault, world bosses killed today, daily fractals</sub></td><td width="50%" valign="top"><img src="docs/screenshots/today-worldbosses.png" alt="Today, world bosses: one click pastes name, time and waypoint"><br><sub>Today, world bosses: one click pastes name, time and waypoint</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="docs/screenshots/characters.png" alt="Characters: gear per character with stats, runes and infusions"><br><sub>Characters: gear per character with stats, runes and infusions</sub></td><td width="50%" valign="top"><img src="docs/screenshots/get-started.png" alt="Get started: every step checked, buttons fix what is missing"><br><sub>Get started: every step checked, buttons fix what is missing</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="docs/screenshots/settings-update.png" alt="Settings: update card at the top, API key, AI provider"><br><sub>Settings: update card at the top, API key, AI provider</sub></td><td width="50%" valign="top"><img src="docs/screenshots/settings-overlay.png" alt="Settings: modules on the wheel, scaling, start with Windows"><br><sub>Settings: modules on the wheel, scaling, start with Windows</sub></td></tr>
+</table>
+
 ## Install
 
 1. Download `GW2 Overlay Setup <version>.exe` from the [latest release](https://github.com/Samuron39/gw2-api-overlay-mm/releases/latest).

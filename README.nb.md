@@ -6,6 +6,19 @@ Moduler: **Inventory** (rådgiver med lokal AI), **I dag** (Wizard's Vault, worl
 
 Skal du utvikle på appen, eller sette en AI-agent på den: les [AGENTS.md](AGENTS.md) først. Der står oppsettet, reglene, utgivelsesløypa og alt vi har lært om ArcDPS.
 
+## Skjermbilder
+
+![Hjulet, buffs på deg og DPS-måleren under en world boss](docs/screenshots/combat-dps.jpg)
+
+<table>
+<tr><td width="50%" valign="top"><img src="docs/screenshots/dps-all.png" alt="DPS-måler, visning «Alt»: skade, mottatt og healing for forrige kamp"><br><sub>DPS-måler, visning «Alt»: skade, mottatt og healing for forrige kamp</sub></td><td width="50%" valign="top"><img src="docs/screenshots/dps-taken.png" alt="Visning «Mottatt»: hvem som traff deg, per kilde"><br><sub>Visning «Mottatt»: hvem som traff deg, per kilde</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="docs/screenshots/dps-healing.png" alt="Visning «Healing»: HPS og healing per skill"><br><sub>Visning «Healing»: HPS og healing per skill</sub></td><td width="50%" valign="top"><img src="docs/screenshots/overlays-unlocked.png" alt="Ulåste overlay-vinduer dras og strekkes der de ligger"><br><sub>Ulåste overlay-vinduer dras og strekkes der de ligger</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="docs/screenshots/live-tab.png" alt="Live-fanen: status for broen og ett kort per overlay-vindu"><br><sub>Live-fanen: status for broen og ett kort per overlay-vindu</sub></td><td width="50%" valign="top"><img src="docs/screenshots/timers.png" alt="Tidsplan: nå og neste per kart, waypoint limes i chatten"><br><sub>Tidsplan: nå og neste per kart, waypoint limes i chatten</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="docs/screenshots/today.png" alt="I dag: Wizard's Vault, world bosses drept i dag, daglige fraktaler"><br><sub>I dag: Wizard's Vault, world bosses drept i dag, daglige fraktaler</sub></td><td width="50%" valign="top"><img src="docs/screenshots/today-worldbosses.png" alt="I dag, world bosses: ett klikk limer inn navn, tid og waypoint"><br><sub>I dag, world bosses: ett klikk limer inn navn, tid og waypoint</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="docs/screenshots/characters.png" alt="Karakterer: utstyr per karakter med stats, runer og infusions"><br><sub>Karakterer: utstyr per karakter med stats, runer og infusions</sub></td><td width="50%" valign="top"><img src="docs/screenshots/get-started.png" alt="Kom i gang: hvert steg sjekkes, knappene ordner det som mangler"><br><sub>Kom i gang: hvert steg sjekkes, knappene ordner det som mangler</sub></td></tr>
+<tr><td width="50%" valign="top"><img src="docs/screenshots/settings-update.png" alt="Innstillinger: oppdateringskortet øverst, API-nøkkel, AI-leverandør"><br><sub>Innstillinger: oppdateringskortet øverst, API-nøkkel, AI-leverandør</sub></td><td width="50%" valign="top"><img src="docs/screenshots/settings-overlay.png" alt="Innstillinger: moduler på hjulet, skalering, start med Windows"><br><sub>Innstillinger: moduler på hjulet, skalering, start med Windows</sub></td></tr>
+</table>
+
 ## Kom i gang
 
 ```bash
