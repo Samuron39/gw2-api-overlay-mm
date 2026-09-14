@@ -4,6 +4,8 @@ Modulær overlay for Guild Wars 2. Et lite hjul ligger over spillet og åpner mo
 
 Moduler: **Inventory** (rådgiver med lokal AI), **I dag** (Wizard's Vault, world bosses, fraktaler, kister), **Tidsplan** (world bosses og meta-events med waypoint rett i chatten), **Trading Post**, **DPS** (fra ArcDPS-logger), **Karakterer** (utstyr og AI-vurdering), **Guild** og **Innstillinger**.
 
+Skal du utvikle på appen, eller sette en AI-agent på den: les [AGENTS.md](AGENTS.md) først. Der står oppsettet, reglene, utgivelsesløypa og alt vi har lært om ArcDPS.
+
 ## Kom i gang
 
 ```bash
