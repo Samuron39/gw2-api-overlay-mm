@@ -151,11 +151,11 @@ function setupAutoHide() {
         hideTimer = null;
         if (overlayFocused() || (mumble.state.running && mumble.state.ui?.gameFocus)) return;
         panelWasVisible = !!panelWin?.isVisible();
-        wheelWin?.hide(); panelWin?.hide(); hiddenByAuto = true;
+        wheelWin?.hide(); panelWin?.hide(); overlays.setSuspended(true); hiddenByAuto = true;
       }, 2000);
     } else {
       if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-      if (hiddenByAuto && gameFocus) { hiddenByAuto = false; wheelWin?.showInactive(); if (panelWasVisible) panelWin?.showInactive(); }
+      if (hiddenByAuto && gameFocus) { hiddenByAuto = false; wheelWin?.showInactive(); if (panelWasVisible) panelWin?.showInactive(); overlays.setSuspended(false); }
     }
   });
 }
@@ -196,10 +196,10 @@ async function startFollowGame({ onGameStart } = {}) {
     gameWasRunning = running;
     if (running && wasKnown) { try { onGameStart?.(); } catch (e) { log.warn('app', 'onGameStart: ' + e.message); } }
     if (!cfg.config.followGame) return;
-    if (running) { wheelWin?.showInactive(); }
-    else { wheelWin?.hide(); panelWin?.hide(); }
+    if (running) { wheelWin?.showInactive(); overlays.setSuspended(false); }
+    else { wheelWin?.hide(); panelWin?.hide(); overlays.setSuspended(true); }
   };
-  if (!TEST_MODE) { gameWasRunning = await arcdps.gameRunning(); if (cfg.config.followGame && !gameWasRunning) wheelWin?.hide(); }
+  if (!TEST_MODE) { gameWasRunning = await arcdps.gameRunning(); if (cfg.config.followGame && !gameWasRunning) { wheelWin?.hide(); overlays.setSuspended(true); } }
   setInterval(pollGame, 5000);
 }
 

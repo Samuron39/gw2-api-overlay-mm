@@ -40,7 +40,7 @@ function create(type, c) {
   const y = c.y ?? Math.round(disp.y + disp.height - c.h - 160 - (type === 'skillbar' ? 0 : type.startsWith('dps') ? 300 + (type === 'dps2' ? 60 : type === 'dps3' ? 120 : 0) : 140));
   const w = new BrowserWindow({
     x, y, width: c.w, height: c.h, minWidth: 80, minHeight: 40,
-    transparent: true, frame: false, alwaysOnTop: true, skipTaskbar: true, hasShadow: false, resizable: !c.locked,
+    transparent: true, frame: false, alwaysOnTop: true, skipTaskbar: true, hasShadow: false, resizable: !c.locked, show: !suspended,
     focusable: false, title: `GW2 Overlay ${type}`, icon: ctx.icon, opacity: Number(c.opacity) || 1, webPreferences: ctx.webPreferences,
   });
   w.setAlwaysOnTop(true, 'screen-saver');
@@ -87,4 +87,17 @@ function ensure(type, patch = {}) {
 
 function setZoom(scale) { for (const w of wins.values()) if (w && !w.isDestroyed()) w.webContents.setZoomFactor(scale); }
 
-module.exports = { init, getAll, set, broadcast, ensure, setZoom, DEFAULTS, get: (type) => wins.get(type) || null };
+// Midlertidig skjul av alle overlay-vinduene (auto-skjul ved alt-tab, «følg spillet» når spillet ikke kjører).
+// Konfigen røres ikke; vinduene vises igjen uten å ta fokus. Vinduer som lages mens vi er suspendert, starter skjult.
+let suspended = false;
+function setSuspended(on) {
+  on = !!on;
+  if (on === suspended) return;
+  suspended = on;
+  for (const w of wins.values()) {
+    if (!w || w.isDestroyed()) continue;
+    if (on) w.hide(); else w.showInactive();
+  }
+}
+
+module.exports = { init, getAll, set, broadcast, ensure, setZoom, setSuspended, isSuspended: () => suspended, DEFAULTS, get: (type) => wins.get(type) || null };
