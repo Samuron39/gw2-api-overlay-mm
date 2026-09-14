@@ -137,6 +137,7 @@
       const curWp = wpInfo(r.cur), nextWp = wpInfo(r.next);
       const hereNow = here && (curWp?.mapId === here || nextWp?.mapId === here);
       const place = (wp, seg) => wp ? `${esc(wp.map)} · ${esc(wp.name)}` : esc(seg?.link || r.e.name);
+      const clock = (ms) => new Date(ms).toLocaleTimeString(T.locale, { hour: '2-digit', minute: '2-digit' });
       const pasteText = (head, wp, link) => { const s = `${head}${wp ? ' · ' + wp.map : ''} · ${link}`; return s.length > 190 ? head.slice(0, 190 - link.length - 3) + ' · ' + link : s; };
       const countdown = r.curFiller ? t('timers.nextIn', { t: fmt(r.nextIn != null ? r.nextIn : r.remaining) }) : t('timers.endsIn', { t: fmt(r.remaining) });
       return `<div class="tm-row ${hereNow ? 'here' : ''} ${hidden.has(r.key) ? 'hidden-row' : ''}">
@@ -148,7 +149,7 @@
           ${!r.curFiller && r.cur?.chatlink ? `<button class="wp" data-link="${esc(r.cur.chatlink)}" data-text="${esc(pasteText(t('timers.pasteNow', { name: r.cur.name, m: Math.max(0, Math.round(r.remaining / 60)) }), curWp, r.cur.chatlink))}" title="${esc(t('timers.pasteWp'))}">${place(curWp, r.cur)} ⧉</button>` : ''}
         </div>
         ${r.next ? `<div class="tm-next">${esc(t('timers.next'))} <b>${esc(r.next.name)}</b>${killed(r.next)}${strategyBtn(r.key, r.e, r.next)} ${esc(t('timers.inTime', { t: fmt(r.nextIn) }))}
-          ${r.next.chatlink ? `<button class="wp" data-link="${esc(r.next.chatlink)}" data-text="${esc(pasteText(t('timers.pasteNext', { name: r.next.name, m: Math.max(0, Math.round((r.nextIn || 0) / 60)) }), nextWp, r.next.chatlink))}" title="${esc(t('timers.pasteWp'))}">${place(nextWp, r.next)} ⧉</button>` : ''}</div>` : ''}
+          ${r.next.chatlink ? `<button class="wp" data-link="${esc(r.next.chatlink)}" data-text="${esc(pasteText(t('timers.pasteNext', { name: r.next.name, m: Math.max(0, Math.round((r.nextIn || 0) / 60)), time: clock(Date.now() + (r.nextIn || 0) * 1000) }), nextWp, r.next.chatlink))}" title="${esc(t('timers.pasteWp'))}">${place(nextWp, r.next)} ⧉</button>` : ''}</div>` : ''}
       </div>`;
     }).join('') || `<div class="empty">${esc(t('timers.empty'))}</div>`;
     root.querySelectorAll('button.wp').forEach((b) => b.addEventListener('click', async () => {

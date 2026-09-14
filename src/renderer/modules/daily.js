@@ -65,12 +65,34 @@
         const id = normalize(seg.name);
         const inMin = s.start >= m ? s.start - m : s.start + 1440 - m;
         const cur = out.get(id);
-        if (!cur || inMin < cur.inMin) out.set(id, { name: seg.name, inMin, chatlink: seg.chatlink });
+        if (!cur || inMin < cur.inMin) out.set(id, { name: seg.name, inMin, chatlink: seg.chatlink, start: s.start });
       }
     }
     return out;
   }
   const ALIAS = { 'golem mark ii': 'inquest_golem_mark_ii', 'triple trouble': 'triple_trouble_wurm' };
+
+  // Waypoint-oppslag (kartnavn) fra chat-lenka, samme koding som i timers.js: byte 0 = 4 (waypoint), byte 1-3 = id
+  function wpInfo(chatlink) {
+    if (!chatlink || !timers?.waypoints) return null;
+    try {
+      const raw = atob(chatlink.trim().slice(2, -1));
+      if (raw.charCodeAt(0) !== 4) return null;
+      const id = raw.charCodeAt(1) | (raw.charCodeAt(2) << 8) | (raw.charCodeAt(3) << 16);
+      return timers.waypoints[String(id)] || null;
+    } catch { return null; }
+  }
+  // Teksten som limes i chatten: bossnavn, minutter til start og klokkeslett, regnet ut i det du trykker (maks 190 tegn,
+  // spillets chat tar 199). start = minutt i døgnet (UTC) fra tidsplanen.
+  function pasteText(name, start, link) {
+    const m = (Date.now() / 60000) % 1440;
+    const inMin = Math.round(start >= m ? start - m : start + 1440 - m);
+    const time = new Date(Date.now() + inMin * 60000).toLocaleTimeString(T.locale, { hour: '2-digit', minute: '2-digit' });
+    const head = inMin < 1 ? t('daily.pasteNow', { name, time }) : t('daily.pasteNext', { name, m: inMin, time });
+    const wp = wpInfo(link);
+    const s = `${head}${wp ? ' · ' + wp.map : ''} · ${link}`;
+    return s.length > 190 ? head.slice(0, 190 - link.length - 3) + ' · ' + link : s;
+  }
   function normalize(name) { const n = name.toLowerCase().trim(); return ALIAS[n] || n.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
 
   function wizardSection(title, w) {
@@ -107,7 +129,7 @@
         <span class="dy-check">${b.done ? '✓' : '○'}</span>
         <span class="dy-title">${esc(b.spawn?.name || pretty(b.id))}</span>
         <span class="muted small">${esc(b.spawn ? (b.spawn.inMin < 1 ? t('daily.now') : t('daily.inMin', { n: Math.round(b.spawn.inMin) })) : t('daily.noFixedTime'))}</span>
-        ${b.spawn?.chatlink ? `<button class="wp" data-link="${esc(b.spawn.chatlink)}" title="${esc(t('daily.pasteWp'))}">⧉</button>` : ''}
+        ${b.spawn?.chatlink ? `<button class="wp" data-link="${esc(b.spawn.chatlink)}" data-name="${esc(b.spawn.name)}" data-start="${b.spawn.start}" title="${esc(t('daily.pasteWpTitle', { line: pasteText(b.spawn.name, b.spawn.start, b.spawn.chatlink) }))}">⧉</button>` : ''}
       </div>`).join('')}
     </section>`;
     const fracHtml = `<section class="dy-card"><h3>${esc(t('daily.fractals'))} <span class="muted small">${data.fractals.filter((f) => f.done).length}/${data.fractals.length}</span></h3>
@@ -123,8 +145,9 @@
       data.wizard.special ? wizardSection(t('daily.wvSpecial'), data.wizard.special) : '',
     ].join('');
     root.querySelectorAll('button.wp').forEach((b) => b.addEventListener('click', async () => {
-      const r = await window.api.invoke('game:paste', b.dataset.link);
-      setStatus(r.ok ? t('daily.pasted', { link: b.dataset.link }) : t('daily.copied', { link: b.dataset.link, reason: r.reason }));
+      const line = b.dataset.name ? pasteText(b.dataset.name, Number(b.dataset.start), b.dataset.link) : b.dataset.link;
+      const r = await window.api.invoke('game:paste', line);
+      setStatus(r.ok ? t('daily.pasted', { link: line }) : t('daily.copied', { link: line, reason: r.reason }));
     }));
   }
 
