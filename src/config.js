@@ -44,18 +44,22 @@ let config = { ...DEFAULT_CONFIG };
 let lastSaveError = '';
 let saveTimer = null;
 let extras = () => ({}); // felt som legges på publicConfig() (demo, dpsDefaultDir, appVersion), satt av main.js
+let systemLocale = ''; // Windows-språket (app.getLocale()), brukes bare når konfigen ikke har valgt språk ennå
 
-// path: konfigfila. extra: funksjon som gir ekstra felt til publicConfig()
-function init({ path, extra }) {
+// path: konfigfila. extra: funksjon som gir ekstra felt til publicConfig(). systemLocale: for språkvalg ved første start
+function init({ path, extra, systemLocale: loc }) {
   configPath = path;
   if (extra) extras = extra;
+  if (loc) systemLocale = loc;
 }
 
 function loadConfig() {
-  try {
-    const saved = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    config = { ...DEFAULT_CONFIG, ...saved, wheel: { ...DEFAULT_CONFIG.wheel, ...(saved.wheel || {}) }, panel: { ...DEFAULT_CONFIG.panel, ...(saved.panel || {}) } };
-  } catch { config = { ...DEFAULT_CONFIG }; }
+  let saved = null;
+  try { saved = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch { saved = null; }
+  if (saved) config = { ...DEFAULT_CONFIG, ...saved, wheel: { ...DEFAULT_CONFIG.wheel, ...(saved.wheel || {}) }, panel: { ...DEFAULT_CONFIG.panel, ...(saved.panel || {}) } };
+  else config = { ...DEFAULT_CONFIG };
+  // Første start (eller konfig fra før språkvalget fantes): følg Windows-språket. Et lagret valg røres aldri.
+  if (!saved || !saved.language) { config.language = i18n.languageForLocale(systemLocale); log.info('config', 'Språk valgt fra systemet: ' + systemLocale + ' -> ' + config.language); }
   if (!config.lmModel) config.lmModel = DEFAULT_CONFIG.lmModel;
   if (!config.aiProviders || typeof config.aiProviders !== 'object') config.aiProviders = {};
   i18n.setLanguage(config.language);

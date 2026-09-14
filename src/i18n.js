@@ -12,6 +12,15 @@ const DEFAULT_LANGUAGE = 'nb';
 const dicts = new Map(); // språk-id -> ordbok (flat)
 let current = DEFAULT_LANGUAGE;
 
+// Språk for en ny installasjon ut fra systemets locale (Electron app.getLocale(), f.eks. «nb-NO», «en-US», «de»):
+// norsk (nb/nn/no) gir nb, ellers et språk vi har fil for, ellers engelsk, ellers standardspråket.
+function languageForLocale(locale, available = languages().map((l) => l.id)) {
+  const code = String(locale || '').toLowerCase().split(/[-_]/)[0];
+  if (['nb', 'nn', 'no'].includes(code)) return available.includes('nb') ? 'nb' : DEFAULT_LANGUAGE;
+  if (code && available.includes(code)) return code;
+  return available.includes('en') ? 'en' : DEFAULT_LANGUAGE;
+}
+
 // Alle språk som finnes som JSON-filer, sortert med standardspråket først
 function languages() {
   let files = [];
@@ -55,4 +64,4 @@ function bundle() {
   return { language: current, locale: locale(), languages: languages(), dict: { ...dict(DEFAULT_LANGUAGE), ...dict(current) } };
 }
 
-module.exports = { DEFAULT_LANGUAGE, t, tn, format, lookup, setLanguage, language, locale, languages, bundle, dict };
+module.exports = { DEFAULT_LANGUAGE, t, tn, format, lookup, setLanguage, language, locale, languages, bundle, dict, languageForLocale };

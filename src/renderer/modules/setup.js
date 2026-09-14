@@ -100,7 +100,7 @@
       let state = 'wait', status = '';
       if (s) {
         if (s.logs.exists) { state = 'ok'; status = t('setup.logs.found', { dir: s.logs.dir, n: s.logs.count }); }
-        else { state = 'warn'; status = t('setup.logs.missing', { dir: s.logs.dir }); }
+        else { state = 'ok'; status = t('setup.logs.missing', { dir: s.logs.dir }); } // valgfritt: trengs bare for DPS-fanen
       }
       steps.push(step('logs', state, t('setup.logs.title'), esc(t('setup.logs.body')), esc(status)));
     }

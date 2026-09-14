@@ -16,7 +16,7 @@
   let mumble = { running: false };
   let offMumble = null;
   let offProgress = null;
-  const open = new Set(GROUPS); // åpne grupper i lista
+  const open = new Set(); // åpne grupper i lista; alle starter sammenlagt, søk åpner alt midlertidig
 
   const template = () => `
     <div class="gd-wrap">

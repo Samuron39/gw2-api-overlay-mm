@@ -40,6 +40,7 @@ app.whenReady().then(async () => {
   cfg.init({
     path: path.join(app.getPath('userData'), 'config.json'),
     extra: () => ({ demo: DEMO, dpsDefaultDir: dps.DEFAULT_DIR, appVersion: app.getVersion() }),
+    systemLocale: app.getLocale(),
   });
   log.init(app);
   log.info('app', 'Start', { version: APP_VERSION, electron: process.versions.electron, node: process.versions.node, platform: process.platform + ' ' + process.arch, os: process.getSystemVersion(), configPath: cfg.configPath, packaged: app.isPackaged, demo: DEMO, testMode: TEST_MODE });

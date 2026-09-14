@@ -109,3 +109,17 @@ test('regelmotoren følger språket: samme anbefaling, oversatt etikett', () => 
   assert.equal(r.reason, 'Legendary is kept');
   i18n.setLanguage('nb');
 });
+
+test('språk for ny installasjon følger systemets locale', () => {
+  const avail = ['nb', 'en'];
+  assert.equal(i18n.languageForLocale('nb-NO', avail), 'nb');
+  assert.equal(i18n.languageForLocale('nn', avail), 'nb');
+  assert.equal(i18n.languageForLocale('no', avail), 'nb');
+  assert.equal(i18n.languageForLocale('en-US', avail), 'en');
+  assert.equal(i18n.languageForLocale('de-DE', avail), 'en');
+  assert.equal(i18n.languageForLocale('', avail), 'en');
+  assert.equal(i18n.languageForLocale(undefined, avail), 'en');
+  assert.equal(i18n.languageForLocale('de', ['nb', 'en', 'de']), 'de');
+  assert.equal(i18n.languageForLocale('fr', ['nb']), 'nb');
+  assert.equal(i18n.languageForLocale('sv-SE'), 'en'); // ekte filer i src/i18n
+});
