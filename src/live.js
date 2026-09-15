@@ -17,10 +17,21 @@ class Live extends EventEmitter {
   constructor() {
     super();
     this.socket = null;
+    this.timer = null;
+    this.helloTimeoutMs = 6000; // uten hello så lenge regnes broen som frakoblet (kort i tester)
+    this.reset();
+  }
+
+  // Nullstiller all tilstand fra strømmen (ikke socket/timer/opptak). Kalles fra konstruktøren, stop() og testene.
+  reset() {
     this.connected = false;
     this.arcVersion = '';
     this.lastHello = 0;
-    this.offset = 0; // Date.now() - arcdps-tid
+    // Date.now() - arcdps-tid. null til første hendelse: før det vet vi ikke hva klokka er i arcdps-tid, og med 0 ville
+    // now() ligge millioner ms foran hendelsestidene (timeGetTime), så alt fra evtc-kanalen (BUFFINITIAL ved kartlasting,
+    // mat, boons fra andre) ble regnet som utløpt og slettet før første chatbox-hendelse.
+    this.offset = null;
+    this.lastArcTime = 0; // siste hendelsestid vi har sett; fallback for now() til avviket er kjent
     this.inCombat = false;
     this.self = null; // { id, name, prof, elite }
     this.agents = new Map(); // id -> { name, prof, elite, self }
@@ -60,8 +71,6 @@ class Live extends EventEmitter {
     this.healSeen = false; // minst én heal-linje (eller positiv local-hendelse fra eldre bro) er telt
     this.healWindow = []; // [arcdps-tid, heal] de siste 10 s, for "HPS nå"
     this.lastDpsEmit = 0;
-    this.timer = null;
-    this.dirty = false;
     this.lastJsonWarn = 0; // maks én JSON-advarsel per 10 s
     // Tellere for statuslinja. Tap oppdages ved hopp i broens løpenummer "n" (fallback: arcdps-id for lokale hendelser)
     this.stats = { packets: 0, events: 0, dropsDetected: 0, areaLagMs: null };
@@ -69,6 +78,7 @@ class Live extends EventEmitter {
     // Sikkerhetsnett mot dobbeltlevering: samme arcdps-id i samme scope ("local"/"area") behandles bare én gang
     this.seenIds = new Set();
     this.seenOrder = [];
+    this.dirty = true;
   }
 
   start(port = PORT) {
@@ -87,21 +97,33 @@ class Live extends EventEmitter {
     this.socket.on('error', (e) => log.warn('live', 'UDP-feil (port opptatt? en annen instans lytter)', e.message));
     this.socket.bind(port, '127.0.0.1');
     this.timer = setInterval(() => {
-      if (this.connected && Date.now() - this.lastHello > 6000) { this.connected = false; this.dirty = true; log.info('live', 'Broen koblet fra (ingen hello på 6 s)'); }
+      if (this.connected && Date.now() - this.lastHello > this.helloTimeoutMs) this.disconnect();
+      const now = this.now();
       // En buff som løper ut er også en endring: uten dette fikk vinduene ingen ny tilstand før neste kamphendelse,
       // og telte videre i minus på egen hånd
-      if (this.nextExpiry != null && this.now() >= this.nextExpiry) this.dirty = true;
+      if (this.nextExpiry != null && now != null && now >= this.nextExpiry) this.dirty = true;
       if (this.rec && Date.now() > this.rec.until) this.stopRecording();
       // Pågående kamp: ny tilstand to ganger i sekundet så DPS-vinduet teller, og avslutt om kampslutt-hendelsen uteble
       if (this.fight) {
-        if (!this.inCombat && this.now() - this.fight.last > 8000) this.endFight(this.now());
+        if (!this.inCombat && now != null && now - this.fight.last > 8000) this.endFight(now);
         else if (Date.now() - this.lastDpsEmit > 500) { this.lastDpsEmit = Date.now(); this.dirty = true; }
       }
       if (this.dirty) { this.dirty = false; this.emit('update', this.snapshot()); }
     }, 100);
   }
 
-  stop() { clearInterval(this.timer); this.timer = null; this.socket?.close(); this.socket = null; this.stopRecording(); }
+  stop() { clearInterval(this.timer); this.timer = null; this.socket?.close(); this.socket = null; this.stopRecording(); this.reset(); }
+
+  // Broen er borte (spillet lukket, ArcDPS lastet på nytt). Kampen avsluttes her og nå: ellers ble inCombat og fight stående,
+  // og neste økt fortsatte «samme» kamp med hele nedetiden i durationMs, session.combatMs og snitt-DPS.
+  disconnect() {
+    this.connected = false;
+    this.inCombat = false;
+    if (this.fight) this.endFight(this.now() ?? this.fight.last);
+    this.clearTarget();
+    this.dirty = true;
+    log.info('live', 'Broen koblet fra (ingen hello på ' + Math.round(this.helloTimeoutMs / 1000) + ' s)');
+  }
 
   // Feilsøking: skriv hvert datagram til fil med ankomsttid (ms siden epoch) foran hver linje, i inntil ms millisekunder.
   // Lar oss se nøyaktig hva broen sender rundt en hendelse uten å stoppe overlayen.
@@ -130,7 +152,9 @@ class Live extends EventEmitter {
     this.dirty = true;
   }
 
-  now() { return Date.now() - this.offset; } // i arcdps-tid
+  now() { return this.offset == null ? null : Date.now() - this.offset; } // i arcdps-tid, null før første hendelse
+  // now() der en verdi trengs: siste sette hendelsestid når avviket ennå er ukjent (da finnes bare det hendelsene selv sa)
+  nowOrLast() { return this.now() ?? this.lastArcTime; }
 
   // Tapsdeteksjon: hopp i broens løpenummer "n" betyr tapte datagram. Eldre bro uten "n": bruk arcdps-id for lokale hendelser.
   trackSeq(m) {
@@ -154,6 +178,7 @@ class Live extends EventEmitter {
       // dedupe per kanal: samme arcdps-id kan komme både på local og (fra utvidelsen) på ext
       if (this.isDuplicate({ s: 'heal-' + m.ch, id: m.id })) return;
       if (m.ch !== 'ext' || this.offset == null) this.offset = Date.now() - m.time; // local er sanntid, ext er forsinket
+      if (m.time > this.lastArcTime) this.lastArcTime = m.time;
       this.addHeal(m);
       return;
     }
@@ -172,7 +197,7 @@ class Live extends EventEmitter {
       // Agent-registrering: src har id og navn, dst har prof, elite, self og kontonavn
       // Squad-DPS: README (API): «dst->id = instance id on map», «dst->name = acc names»
       if (m.src && m.dst && m.src.name) {
-        if (m.dst.id > 0) { this.inst.set(m.dst.id, m.src.id); if (m.dst.self === 1) this.selfInst = m.dst.id; }
+        if (m.dst.id > 0) { if (m.dst.self === 1) this.setSelfInst(m.dst.id); this.inst.set(m.dst.id, m.src.id); }
         if (m.dst.name) this.accounts.set(m.src.id, m.dst.name);
       }
       if (m.src && m.dst && m.dst.self === 1 && m.src.name) {
@@ -190,7 +215,10 @@ class Live extends EventEmitter {
     // Klokkeavvik mot arcdps-tid settes bare fra chatbox-kanalen (sanntid). Evtc-kanalen (area) kommer 2–3 s forsinket,
     // og ville skjøvet alle nedtellinger tilsvarende. Nedtellingene regnes fra hendelsens egen tid, så en forsinket
     // påføring starter riktig sted i tida.
+    // Er avviket ukjent (ingen chatbox-hendelse ennå, typisk rett etter kartlasting), brukes area-tida i mellomtida: den
+    // ligger 2–3 s bak, men det er langt bedre enn ingen klokke.
     if (m.s !== 'area' || this.offset == null) this.offset = Date.now() - m.time;
+    if (m.time > this.lastArcTime) this.lastArcTime = m.time;
     // Målt forsinkelse på evtc-kanalen: hvor lenge etter hendelsens egen tid den kom fram (glidende snitt)
     if (m.s === 'area') {
       const lag = Date.now() - (m.time + this.offset);
@@ -201,25 +229,29 @@ class Live extends EventEmitter {
     if (m.dst?.name) this.agents.set(m.dst.id, { id: m.dst.id, name: m.dst.name, prof: m.dst.prof, elite: m.dst.elite, self: m.dst.self });
     if (srcSelf && !this.self) this.self = { id: m.src.id, name: m.src.name, prof: m.src.prof, elite: m.src.elite };
     // Squad-DPS: instans-id -> agent-id fra hver hendelse (README: «src_instid - id of agent as appears in game at time of event»)
-    if (m.src && m.srcInst > 0 && m.src.id > 0) { this.inst.set(m.srcInst, m.src.id); if (srcSelf) this.selfInst = m.srcInst; }
+    if (m.src && m.srcInst > 0 && m.src.id > 0) { if (srcSelf) this.setSelfInst(m.srcInst); this.inst.set(m.srcInst, m.src.id); }
     if (m.dst && m.dstInst > 0 && m.dst.id > 0) this.inst.set(m.dstInst, m.dst.id);
     // ---------- Dødslogg: nedkjempet/død for deg selv via statechange ----------
     // evtc-README, enum cbtstatechange i rekkefølge: CBTS_COMBAT = 0, ENTERCOMBAT (1), EXITCOMBAT (2), CHANGEUP (3),
     // CHANGEDEAD (4) "agent is dead at time of event", CHANGEDOWN (5) "agent is down at time of event"; "src_agent: relates
     // to agent", "realtime: limited to squad" (du er alltid i din egen squad, så de kommer på chatbox-kanalen også).
-    // Vi legger ordinalen til grunn (4 og 5): de lave kodene 1, 2, 9, 10, 11 og 18 er målt å stemme med ordinalen, det er
-    // bare de nyeste (67–72) som ligger én under README. Ikke verifisert i spillet ennå, se sluttrapporten.
+    // Vi legger ordinalen til grunn (4 og 5): kodene 1, 2, 9, 10, 11, 18 og 67–72 er alle målt å stemme nøyaktig med
+    // ordinalene i README-en (telt i arcdps-evtc-README.txt). Ikke verifisert i spillet ennå, se sluttrapporten.
     if ((m.sc === 4 || m.sc === 5) && srcSelf) { this.recordDeath(m.sc === 5, m.time, null); return; }
 
-    if (m.sc === 1 && srcSelf) { this.inCombat = true; if (m.s !== 'area') this.startFight(m.time); this.dirty = true; return; }
+    // Kamp inn/ut (sc 1/2) kommer på begge kanaler med samme time, men evtc-kopien 2–3 s etter. Bare chatbox-kanalen
+    // (sanntid, alltid til stede for deg selv) får styre: den forsinkede kopien satte ellers inCombat og tømte målet midt
+    // i neste kamp, og kamper kortere enn forsinkelsen endte med inCombat = true uten kamp.
+    if ((m.sc === 1 || m.sc === 2) && m.s === 'area') return;
+    if (m.sc === 1 && srcSelf) { this.inCombat = true; this.startFight(m.time); this.dirty = true; return; }
     // Ut av kamp: målet nullstilles. ArcDPS sender ikke CHANGEDEAD for vanlige fiender i åpen verden, så død
     // oppdages via dødsstøtet vårt (result 8, CBTR_KILLINGBLOW, chatbox-kanalen i sanntid) og ellers ved kampslutt.
-    if (m.sc === 2 && srcSelf) { this.inCombat = false; if (m.s !== 'area') this.endFight(m.time); this.clearTarget(); this.dirty = true; return; }
+    if (m.sc === 2 && srcSelf) { this.inCombat = false; this.endFight(m.time); this.clearTarget(); this.dirty = true; return; }
     if (m.sc === 11 && srcSelf) { const v = Number(m.dstAgent); this.weaponSet = v === 5 ? 'B' : v === 4 ? 'A' : v === 1 ? 'W2' : v === 0 ? 'W1' : this.weaponSet; this.dirty = true; return; }
     // sc 18 (CBTS_BUFFINITIAL): buffs som allerede ligger på agenten ved oppstart eller kartbytte. Samme felt som en påføring.
     if (m.sc === 18) { this.applyBuff(m, false); return; }
-    // Nyere ArcDPS (2026) merker vanlige hendelser i evtc-kanalen med egne statechange-koder i stedet for 0 (målt 13. sept 2026;
-    // ordinalene i cbtstatechange slik broen faktisk får dem): 67 ANIMATIONSTART, 68 ANIMATIONSTOP, 69 BUFFAPPLY, 70 BUFFCHANGE,
+    // Nyere ArcDPS (2026) merker vanlige hendelser i evtc-kanalen med egne statechange-koder i stedet for 0 (målt 13. sept 2026,
+    // og det er nøyaktig ordinalene i cbtstatechange i evtc-README): 67 ANIMATIONSTART, 68 ANIMATIONSTOP, 69 BUFFAPPLY, 70 BUFFCHANGE,
     // 71 BUFFREMOVE_SINGLE, 72 BUFFREMOVE_ALL. Oversettes til de gamle feltene (act/rem/buff) så resten av logikken er felles.
     if (m.sc === 67) { m.sc = 0; m.act = 1; m.buff = 0; m.rem = 0; } // value = ms til treffpunktet (castDur)
     else if (m.sc === 68) { m.sc = 0; m.act = m.act === 4 ? 4 : 3; m.buff = 0; m.rem = 0; } // cbtanimation: 3/5/6 = utført, 4 = avbrutt
@@ -271,8 +303,10 @@ class Live extends EventEmitter {
     // Skade mot oss (chatbox-kanalen): telles som mottatt i kampregnskapet. Dødsstøt (result 8) og nedkjempet (result 9)
     // mot oss kommer som egen hendelse med value 0 (målt for våre egne dødsstøt i opptaket), derfor slippes de også gjennom.
     if (!srcSelf && m.dst?.self === 1 && (m.value !== 0 || m.buffDmg !== 0 || m.result === 8 || m.result === 9)) { this.addTaken(m); return; }
-    // Skade fra oss mot fiende: husk målet. Chatbox-kanalen gir skade som negativt tall, derfor != 0.
-    if (srcSelf && m.iff === 1 && m.dst && (m.value !== 0 || m.buffDmg !== 0)) {
+    // Skade fra oss mot fiende: husk målet. Chatbox-kanalen gir skade som negativt tall, derfor != 0. Dødsstøt (result 8)
+    // og nedkjempet (result 9) kommer som egen hendelse med value 0 og buffDmg 0 (alle åtte i opptaket), så de slippes
+    // gjennom uansett verdi; addDamage teller ikke 0.
+    if (srcSelf && m.iff === 1 && m.dst && (m.value !== 0 || m.buffDmg !== 0 || m.result === 8 || m.result === 9)) {
       this.addDamage(m);
       if (m.result === 8) { // CBTR_KILLINGBLOW: målet døde av dette treffet
         this.targets.delete(m.dst.id);
@@ -285,6 +319,15 @@ class Live extends EventEmitter {
   }
 
   clearTarget() { if (this.targetId != null) { this.targetId = null; this.dirty = true; } }
+
+  // Instans-id-er gjelder per kart (egen instid byttet 5400 -> 2452 i opptaket ved kartbytte). Får vi selv en ny instid,
+  // er hele tabellen fra forrige kart ugyldig: gamle oppføringer ville pekt minioner og treff på feil agent til de ble
+  // overskrevet.
+  setSelfInst(id) {
+    if (!(id > 0)) return;
+    if (this.selfInst > 0 && this.selfInst !== id) this.inst.clear();
+    this.selfInst = id;
+  }
 
   // ---------- DPS ----------
   // Skademengden i en hendelse: strike = value (negativt i chatbox-kanalen), condition-tick = buffDmg.
@@ -342,8 +385,9 @@ class Live extends EventEmitter {
   }
 
   startFight(t) {
-    if (this.fight) return; // allerede i gang (kamp inn kommer også forsinket på evtc-kanalen)
-    this.foldLastIntoSession();
+    if (this.fight) return; // allerede i gang (første treff kommer før sc 1 i opptaket)
+    // Forrige kamp foldes IKKE inn i økta her: andres siste treff kommer 2–3 s forsinket, og har neste kamp alt startet,
+    // legges de på forrige kamp (se fightFor). sessionSnapshot teller en ufoldet forrige kamp med; foldingen skjer i endFight.
     this.fight = {
       start: t, last: t, total: 0, taken: 0, targets: new Map(), skills: new Map(), squad: new Map(), takenSrc: new Map(), takenSkills: new Map(),
       // healing: heal = egen healing gjort (inkl. barrier), barrier = barrier-delen av den, healSkills per skill,
@@ -415,6 +459,7 @@ class Live extends EventEmitter {
     if (!f) return;
     this.fight = null;
     f.end = Math.max(t, f.last);
+    this.foldLastIntoSession(); // kampen før denne er nå trygt ferdig med etterslep fra evtc-kanalen
     this.lastRaw = f; // squad-skade som kommer forsinket etter kampslutt legges til her (se addSquadDamage)
     if (f.total > 0 || f.taken > 0 || f.squad.size || f.heal > 0 || f.healReceived > 0) this.lastFight = this.summarize(f, f.end);
     this.dirty = true;
@@ -486,7 +531,7 @@ class Live extends EventEmitter {
     if (this.deathSeen.length > 20) this.deathSeen.shift();
     const last = this.lastHits[this.lastHits.length - 1];
     this.death = {
-      time, at: time + this.offset, downed, hits: this.lastHits.slice(),
+      time, at: this.offset == null ? Date.now() : time + this.offset, downed, hits: this.lastHits.slice(),
       killer: hit?.killer || last?.source || '',
       skill: hit?.skill || last?.name || '',
       amount: hit?.amount || last?.amount || 0,
@@ -513,13 +558,8 @@ class Live extends EventEmitter {
       if (!owner) return; // ukjent eier
     }
     if (owner.elite === NPC_ELITE || !(owner.id > 0)) return; // NPC (eller NPC sin minion)
-    let f = this.fight;
-    if (!f) {
-      // Etterslep: kampen er avsluttet i sanntid, men andres siste treff kommer 2–3 s etterpå. Legg dem på forrige kamp.
-      const r = this.lastRaw;
-      if (!r || m.time < r.start || m.time > r.end + 1000) return;
-      f = r;
-    } else if (m.time < f.start - 1000) return; // fra før vår kamp startet (forsinket): ikke vår kamp
+    const f = this.fightFor(m.time);
+    if (!f) return;
     const name = owner.name || this.agents.get(owner.id)?.name || this.accounts.get(owner.id) || ('#' + owner.id);
     const p = f.squad.get(owner.id) || { id: owner.id, name, account: this.accounts.get(owner.id) || '', prof: owner.prof, elite: owner.elite, dmg: 0, hits: 0 };
     p.dmg += amt; p.hits++; if (owner.name) p.name = owner.name;
@@ -527,14 +567,19 @@ class Live extends EventEmitter {
     if (f === this.lastRaw) this.lastFight = this.summarize(f, f.end);
     this.dirty = true;
   }
+  // Hvilket regnskap et forsinket area-treff med hendelsestid t hører til: pågående kamp, eller forrige kamp når treffet
+  // skjedde i den (fra 1 s før start til 1 s etter slutt). Etterslepet er 2–3 s, så forrige kamp må fortsatt ta imot treff
+  // selv om neste kamp alt er i gang. null = ingen kamp treffet hører til (lenge etter kampslutt: ingen ny kamp startes).
+  fightFor(t) {
+    const f = this.fight, r = this.lastRaw;
+    if (r && t <= r.end + 1000 && t >= r.start - 1000 && (!f || t < f.start)) return r;
+    if (f && t >= f.start - 1000) return f;
+    return null;
+  }
   // Egen minions skade (fra evtc-kanalen) inn i eget regnskap: total, skills, mål. Etter kampslutt legges den på forrige kamp.
   addOwnMinionDamage(m, amt) {
-    let f = this.fight;
-    if (!f) {
-      const r = this.lastRaw;
-      if (!r || m.time < r.start || m.time > r.end + 1000) return;
-      f = r;
-    } else if (m.time < f.start - 1000) return;
+    const f = this.fightFor(m.time);
+    if (!f) return;
     f.total += amt;
     const tg = f.targets.get(m.dst.id) || { id: m.dst.id, name: m.dst.name || '', dmg: 0 };
     tg.dmg += amt; if (m.dst.name) tg.name = m.dst.name; f.targets.set(m.dst.id, tg);
@@ -612,7 +657,9 @@ class Live extends EventEmitter {
     }
     let b = map.get(m.skill);
     if (!b) { b = { name: m.name, expiries: [], src: m.src?.name || '', dur: 0 }; map.set(m.skill, b); }
-    b.dur = m.value;
+    // sc 18: value er gjenværende tid, og evtc-README sier «buff_dmg: original ms duration of stack». Uten dette startet
+    // kakediagrammet fullt for en buff som var halvveis. Eldre bro/ukjent (buffDmg 0) faller tilbake til value.
+    b.dur = m.sc === 18 && m.buffDmg > 0 ? Number(m.buffDmg) : m.value;
     b.expiries.push(m.time + m.value);
     if (b.expiries.length > MAX_STACKS) b.expiries.shift();
     this.dirty = true;
@@ -649,11 +696,12 @@ class Live extends EventEmitter {
   // buffs (attunement, kit, legend-stance) har lang varighet og skal ikke ryddes fordi det er stille rundt dem.
   // max = varigheten fra siste påføring, så kakediagrammet i overlayen får riktig total.
   buffList(map) {
-    const now = this.now();
+    const known = this.now() != null; // ukjent klokke (ingen hendelse ennå): ingenting regnes som utløpt
+    const now = this.nowOrLast();
     const out = [];
     for (const [skill, b] of map) {
       let alive = 0, last = 0;
-      for (const e of b.expiries) if (e > now) { alive++; if (e > last) last = e; }
+      for (const e of b.expiries) if (e > now || !known) { alive++; if (e > last) last = e; }
       if (!alive) { map.delete(skill); continue; }
       if (alive !== b.expiries.length) b.expiries = b.expiries.filter((e) => e > now);
       out.push({ skill, name: b.name, stacks: alive, remainingMs: last - now, max: b.dur || 0, src: b.src });
@@ -662,7 +710,7 @@ class Live extends EventEmitter {
   }
 
   snapshot() {
-    const now = this.now();
+    const now = this.nowOrLast();
     const target = this.targetId != null ? this.agents.get(this.targetId) : null;
     const tmap = this.targetId != null ? this.targets.get(this.targetId) : null;
     const cooldowns = [];

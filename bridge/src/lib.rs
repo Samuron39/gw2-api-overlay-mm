@@ -381,8 +381,8 @@ fn combat_local(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>
 fn combat_area(ev: Option<&CombatEvent>, src: Option<Agent>, dst: Option<Agent>, skill_name: Option<&'static str>, id: u64, _revision: u64) {
     if let Some(e) = ev {
         // Hendelser fra healing stats-utvidelsen (e10): signaturen ligger i pad61-64 (README: «pad61-64 will be set to sig»).
-        // Sjekkes før statechange-filteret, fordi is_statechange her er CBTS_EXTENSIONCOMBAT (ordinal 49 i evtc-README, kan
-        // avvike med én slik 67–72 gjorde) og ikke 0.
+        // Sjekkes før statechange-filteret, fordi is_statechange her er CBTS_EXTENSIONCOMBAT (ordinal 49 i evtc-README;
+        // kodene 67–72 er målt å stemme nøyaktig med ordinalene, så 49 antas også å stemme) og ikke 0.
         if e.is_statechange != 0 && ext_sig(e) == HEALING_STATS_SIG {
             HEAL_EXT_SEEN.store(true, Ordering::Relaxed);
             // Utvidelsen negerer heal-mengden (EventProcessor.cpp: «Flip event values so healed amount is negative»)
@@ -498,7 +498,8 @@ fn forward(scope: &str, ev: Option<&CombatEvent>, src: Option<Agent>, dst: Optio
         }),
         None => send(|n| {
             // ev == None: agent-registrering (src = agent, dst har prof/elite/self, dst.self_ = 1 hvis det er deg)
-            // eller target-endring (src.elite = 0xffffffff, src.id = nytt mål, dst = None)
+            // eller target-endring (src.elite = 1 ifølge README og opptaket 13. sept 2026, src.id = nytt mål, dst = None;
+            // eldre ArcDPS sendte 0xffffffff, live.js godtar begge)
             format!(
                 "{{\"t\":\"agent\",\"s\":\"{scope}\",\"n\":{n},\"id\":{id},\"src\":{},\"dst\":{},\"name\":\"{}\"}}\n",
                 agent_json(&src),

@@ -56,7 +56,11 @@ test.after(() => {
   live.stop();
   assert.equal(live.socket, null, 'stop() lukker socketen');
   assert.equal(live.timer, null);
+  assert.equal(live.offset, null, 'stop() nullstiller tilstanden');
 });
+
+// Hver test starter med blank tilstand (samme instans deles av hele fila): ingen kamp, ukjent klokkeavvik, tomme Map-er
+test.beforeEach(() => live.reset());
 
 test('før hello: ikke tilkoblet, ingen self', () => {
   const s = live.snapshot();
@@ -154,8 +158,8 @@ test('target settes fra direkte skade og condition, sist truffet vinner, dødsst
   await new Promise((r) => setTimeout(r, 50));
   assert.equal(live.snapshot().target.id, 200);
 
-  // dødsstøt (result 8) fra oss nullstiller målet med en gang
-  await send(ev({ dst: GOLEM, iff: 1, value: -500, result: 8, skill: 100 }));
+  // dødsstøt (result 8) fra oss nullstiller målet med en gang. Det kommer som egen hendelse med value 0 (alle åtte i opptaket)
+  await send(ev({ dst: GOLEM, iff: 1, value: 0, result: 8, skill: 100 }));
   s = await until((x) => x.target === null, 'dødsstøt nullstiller');
   // nytt mål fra chatbox-skade (negativt tall), og kampslutt nullstiller
   await send(ev({ dst: TRASH, iff: 1, value: -5, skill: 100 }));
@@ -365,8 +369,9 @@ test('klokkeavvik settes fra local-kanalen, ikke fra forsinkede area-hendelser',
   await send(ev({ s: 'local', time: t0, sc: 1, src: SELF }));
   await until(() => Math.abs(live.offset - 100000) < 1500, 'offset fra local');
   const before = live.offset;
+  const n = live.stats.events;
   await send(ev({ s: 'area', time: t0 - 3000, sc: 1, src: SELF }));
-  await until((x) => x.inCombat, 'area-hendelsen mottatt');
+  await until(() => live.stats.events > n, 'area-hendelsen mottatt');
   assert.equal(live.offset, before);
 });
 
@@ -689,4 +694,149 @@ test('healing: eldre bro uten heal i hello gir available false til noe er telt, 
   assert.equal(s.dps.healing.available, true, 'telt healing gjør seksjonen tilgjengelig');
   await send(ev({ sc: 2, time: t0 + 2000 }));
   await until((x) => !x.dps.current, 'kamp avsluttet');
+});
+
+// ---------- Rettinger etter kodegjennomgangen 14. sept 2026 (fase 1) ----------
+const ARC_T0 = 5_000_000; // arcdps-tid (timeGetTime, ms siden Windows startet): millioner ms under Date.now()
+
+test('klokkeavvik: ukjent til første hendelse, area setter det når ingen local har kommet, local overstyrer', async () => {
+  assert.equal(live.offset, null, 'null etter reset');
+  assert.equal(live.now(), null);
+  // buffs i Map-en uten kjent klokke ryddes ikke (ingenting kan regnes som utløpt)
+  live.buffs.set(1, { name: 'Ukjent klokke', expiries: [ARC_T0 + 5000], src: '', dur: 5000 });
+  assert.deepEqual(live.snapshot().buffs.map((b) => [b.name, b.stacks]), [['Ukjent klokke', 1]]);
+  live.buffs.clear();
+  // Rett etter kartlasting: hello, så BUFFINITIAL (sc 18) og BUFFAPPLY (sc 69) på evtc-kanalen, ingen chatbox-hendelse.
+  // Før rettingen var offset 0, now() ~ Date.now() og alt dette ble slettet som utløpt i buffList.
+  const wall = Date.now();
+  await send(
+    { t: 'hello', arc: '20260901.1' },
+    ev({ s: 'area', time: ARC_T0, sc: 18, buff: 1, value: 20000, buffDmg: 60000, skill: 5492, name: 'Fire Attunement', src: SELF, dst: SELF, iff: 0 }),
+    ev({ s: 'area', time: ARC_T0 + 100, sc: 69, buff: 1, value: 5000, skill: 740, name: 'Might', src: OTHER, dst: SELF, iff: 0 }),
+    ev({ s: 'area', time: ARC_T0 + 100, sc: 69, buff: 1, value: 3000, skill: 2063, name: 'Food', src: SELF, dst: SELF, iff: 0 }),
+  );
+  let s = await until((x) => x.buffs.length === 3, 'tre buffs fra evtc-kanalen alene');
+  assert.ok(live.offset != null && Math.abs(live.offset - (wall - ARC_T0 - 100)) < 1500, 'avviket satt fra area, fikk ' + live.offset);
+  const att = buff(s, 'Fire Attunement'), might = buff(s, 'Might');
+  assert.equal(att.max, 60000, 'sc 18: max er opprinnelig varighet (buffDmg)');
+  assert.ok(att.remainingMs > 19000 && att.remainingMs <= 20000, 'sc 18: gjenværende er value, fikk ' + att.remainingMs);
+  // avviket ble satt av sc 18-hendelsen (time ARC_T0); Might ble påført 100 ms senere i arcdps-tid
+  assert.ok(might.remainingMs > 4000 && might.remainingMs <= 5100, 'Might ~5 s, fikk ' + might.remainingMs);
+  // Første chatbox-hendelse (sanntid) setter avviket på nytt; area-hendelser rører det ikke etterpå
+  const local = Date.now();
+  await send(ev({ s: 'local', time: ARC_T0 + 2600, sc: 1, src: SELF }));
+  await until((x) => x.inCombat, 'local-hendelse');
+  assert.ok(Math.abs(live.offset - (local - ARC_T0 - 2600)) < 1500, 'avviket fra local, fikk ' + live.offset);
+  const before = live.offset;
+  const n = live.stats.events;
+  await send(ev({ s: 'area', time: ARC_T0 + 200, sc: 69, buff: 1, value: 5000, skill: 740, name: 'Might', src: OTHER, dst: SELF, iff: 0 }));
+  await until(() => live.stats.events > n, 'area-hendelse etter local');
+  assert.equal(live.offset, before);
+  assert.equal(buff(live.snapshot(), 'Might').stacks, 2);
+  await send(ev({ s: 'local', time: ARC_T0 + 3000, sc: 2, src: SELF }));
+  await until((x) => !x.inCombat, 'ut av kamp');
+});
+
+test('kamp inn/ut fra evtc-kanalen (forsinket kopi) rører ikke tilstanden; bare chatbox-kanalen styrer', async () => {
+  const t0 = Date.now();
+  await send(ev({ sc: 1, time: t0 }), ev({ time: t0 + 100, dst: GOLEM, iff: 1, value: -500, skill: 100, name: 'Slag' }), ev({ sc: 2, time: t0 + 1000 }));
+  await until((x) => !x.inCombat && x.target === null && x.dps.last, 'første kamp ferdig');
+  // neste kamp starter før evtc-kopien av forrige kampslutt har kommet fram
+  await send(ev({ sc: 1, time: t0 + 1500 }), ev({ time: t0 + 1600, dst: GOLEM, iff: 1, value: -700, skill: 100, name: 'Slag' }));
+  await until((x) => x.inCombat && x.target?.id === 200 && x.dps.current?.total === 700, 'andre kamp i gang');
+  let n = live.stats.events;
+  await send(ev({ s: 'area', sc: 2, time: t0 + 1000 })); // forsinket kopi av forrige kampslutt
+  await until(() => live.stats.events > n, 'area sc 2 mottatt');
+  const s = live.snapshot();
+  assert.equal(s.inCombat, true, 'fortsatt i kamp');
+  assert.equal(s.target?.id, 200, 'målet står');
+  assert.equal(s.dps.current?.total, 700, 'kampen pågår');
+  await send(ev({ sc: 2, time: t0 + 3000 }));
+  await until((x) => !x.inCombat && !x.dps.current, 'andre kamp ferdig');
+  // en forsinket kamp-inn fra evtc-kanalen starter ingen kamp (kortere kamp enn forsinkelsen endte før med inCombat = true)
+  n = live.stats.events;
+  await send(ev({ s: 'area', sc: 1, time: t0 + 1500 }));
+  await until(() => live.stats.events > n, 'area sc 1 mottatt');
+  assert.equal(live.snapshot().inCombat, false);
+  assert.equal(live.snapshot().dps.current, null);
+});
+
+test('frakobling midt i kamp avslutter kampen og slipper målet, så nedetiden ikke telles som kamp', async (t) => {
+  live.helloTimeoutMs = 300;
+  t.after(() => { live.helloTimeoutMs = 6000; });
+  const t0 = Date.now();
+  await send({ t: 'hello', arc: '20260901.1' }, ev({ sc: 1, time: t0 }), ev({ time: t0 + 100, dst: GOLEM, iff: 1, value: -900, skill: 100, name: 'Slag' }));
+  let s = await until((x) => x.connected && x.inCombat && x.target?.id === 200 && x.dps.current?.total === 900, 'i kamp og tilkoblet');
+  s = await until((x) => !x.connected, 'frakoblet etter kort hello-frist');
+  assert.equal(s.inCombat, false);
+  assert.equal(s.target, null);
+  assert.equal(s.dps.current, null, 'kampen er avsluttet');
+  assert.equal(s.dps.last?.total, 900, 'og huskes som forrige kamp');
+  assert.ok(s.dps.last.durationMs < 5000, 'varigheten er kampens, ikke nedetiden: ' + s.dps.last.durationMs);
+});
+
+test('sen squad-skade fra forrige kamp telles i forrige kamp og i økta selv om neste kamp alt har startet', async () => {
+  const t0 = Date.now();
+  const a = (over) => ev({ s: 'area', iff: 1, dst: GOLEM, src: OTHER, srcInst: 7101, skill: 200, name: 'Pil', ...over });
+  live.resetSession();
+  await send(ev({ sc: 1, time: t0 }), ev({ time: t0 + 100, dst: GOLEM, iff: 1, value: -1000, skill: 100, name: 'Slag' }), a({ time: t0 + 150, value: 3000 }), ev({ sc: 2, time: t0 + 2000 }));
+  let s = await until((x) => !x.dps.current && x.dps.last?.squad?.[0]?.dmg === 3000, 'første kamp ferdig med Beta 3000');
+  // neste kamp starter 0,5 s etter, før etterslepet (2–3 s) fra evtc-kanalen har kommet
+  await send(ev({ sc: 1, time: t0 + 2500 }), ev({ time: t0 + 2600, dst: TRASH, iff: 1, value: -200, skill: 100, name: 'Slag' }));
+  s = await until((x) => x.dps.current?.total === 200, 'andre kamp i gang');
+  assert.equal(s.dps.session.fights, 2);
+  await send(a({ time: t0 + 1900, value: 100 })); // Betas siste treff i forrige kamp, levert nå
+  s = await until((x) => x.dps.last?.squad?.[0]?.dmg === 3100, 'lagt på forrige kamp');
+  assert.equal(s.dps.current.squad.length, 1, 'ikke på den pågående');
+  const beta = (x) => x.dps.session.squad.find((p) => p.name === 'Beta');
+  assert.equal(beta(s).dmg, 3100, 'og i økta');
+  assert.equal(s.dps.session.total, 1200);
+  await send(ev({ sc: 2, time: t0 + 4000 }));
+  s = await until((x) => !x.dps.current, 'andre kamp ferdig');
+  assert.equal(s.dps.session.fights, 2);
+  assert.equal(beta(s).dmg, 3100, 'forrige kamp foldet inn med det sene treffet');
+  assert.equal(s.dps.session.total, 1200);
+  assert.equal(s.dps.session.combatMs, 3500);
+  // et treff til fra den første kampen etter at den andre er ferdig: første er nå foldet inn og er ikke lenger «forrige»,
+  // og treffet ligger mer enn 1 s før den andre kampen startet (t0 + 2500), så det hører ikke til den heller
+  const n = live.stats.events;
+  await send(a({ time: t0 + 1200, value: 50 }));
+  await until(() => live.stats.events > n, 'mottatt');
+  assert.equal(beta(live.snapshot()).dmg, 3100, 'ignoreres');
+});
+
+test('instans-id-tabellen tømmes når du selv får ny instans-id (kartbytte)', async () => {
+  await send(
+    { t: 'agent', s: 'area', src: { id: 100, name: 'Alfa', prof: 1, elite: 0 }, dst: { id: 5400, self: 1, name: 'Alfa.1234', prof: 1, elite: 62 } },
+    { t: 'agent', s: 'area', src: { id: 101, name: 'Beta', prof: 1, elite: 0 }, dst: { id: 7101, self: 0, name: 'Beta.5678', prof: 4, elite: 55 } },
+  );
+  await until(() => live.inst.get(7101) === 101 && live.selfInst === 5400, 'registrert');
+  await send(ev({ sc: 1, srcInst: 5400 })); // samme instid i en hendelse: ingenting tømmes
+  await until((x) => x.inCombat, 'hendelse');
+  assert.equal(live.inst.get(7101), 101);
+  await send({ t: 'agent', s: 'area', src: { id: 100, name: 'Alfa', prof: 1, elite: 0 }, dst: { id: 2452, self: 1, name: 'Alfa.1234', prof: 1, elite: 62 } });
+  await until(() => live.selfInst === 2452, 'ny instid');
+  assert.equal(live.inst.get(7101), undefined, 'gamle oppføringer borte');
+  assert.equal(live.inst.get(2452), 100);
+  assert.equal(live.inst.get(5400), undefined);
+  // også via hendelse (srcInst) når du er src
+  await send({ t: 'agent', s: 'area', src: { id: 101, name: 'Beta', prof: 1, elite: 0 }, dst: { id: 7777, self: 0, name: 'Beta.5678', prof: 4, elite: 55 } });
+  await until(() => live.inst.get(7777) === 101, 'Beta på nytt kart');
+  await send(ev({ sc: 2, srcInst: 3333 }));
+  await until(() => live.selfInst === 3333, 'ny instid fra hendelse');
+  assert.equal(live.inst.get(7777), undefined);
+  assert.equal(live.inst.get(3333), 100);
+});
+
+test('reset(): tømmer buffs, avvik, agenter, kamp og tellere', async () => {
+  const t0 = Date.now();
+  await send({ t: 'hello', arc: 'x' }, ev({ sc: 1, time: t0 }), ev({ time: t0 + 100, dst: GOLEM, iff: 1, value: -500, skill: 100 }), ev({ buff: 1, value: 5000, skill: 740, name: 'Might', dst: SELF, iff: 0 }));
+  await until((x) => x.connected && x.dps.current && x.buffs.length === 1 && x.target, 'tilstand bygd');
+  live.reset();
+  const s = live.snapshot();
+  assert.equal(s.connected, false); assert.equal(s.inCombat, false); assert.equal(s.self, null);
+  assert.deepEqual(s.buffs, []); assert.equal(s.target, null); assert.equal(s.dps.current, null); assert.equal(s.dps.last, null);
+  assert.deepEqual(s.stats, { packets: 0, events: 0, dropsDetected: 0, areaLagMs: null });
+  assert.equal(live.offset, null); assert.equal(live.agents.size, 0); assert.equal(live.fight, null); assert.equal(live.lastSeq, null);
+  assert.ok(live.socket, 'socketen lever videre');
 });

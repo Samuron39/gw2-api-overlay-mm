@@ -1,6 +1,6 @@
 'use strict';
 // Test for mottakeren i src/live.js: broen batcher flere JSON-linjer per UDP-datagram (adskilt med \n).
-// Sender én batch til port 47500 (eller LIVE_TEST_PORT) og sjekker at alle hendelsene tolkes,
+// Sender én batch til testport 47598 (eller LIVE_TEST_PORT; live.test.js bruker 47599 og filene kjører parallelt) og sjekker at alle hendelsene tolkes,
 // at tellerne i snapshot stemmer, og at tap oppdages ved hopp i løpenummeret "n".
 // Kjør: npm test   (eller: node --test test/live-batch.test.js)
 const test = require('node:test');
@@ -8,8 +8,8 @@ const assert = require('node:assert/strict');
 const dgram = require('dgram');
 const live = require('../src/live');
 
-const PORT = Number(process.env.LIVE_TEST_PORT) || 47500;
-let port = PORT; // faktisk port: 47500, eller en ledig port hvis appen kjører og holder 47500
+const PORT = Number(process.env.LIVE_TEST_PORT) || 47598; // aldri appens 47500: da traff testen en kjørende overlay
+let port = PORT; // faktisk port: PORT, eller en ledig port hvis noe annet holder den
 const NPC = 0xffffffff;
 const T0 = 5_000_000; // arcdps-tid (ms) for første hendelse
 
@@ -36,6 +36,8 @@ function send(lines) {
   });
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+test.beforeEach(() => live.reset()); // blank tilstand (samme instans deles av hele fila)
 
 // Starter mottakeren og venter til porten er bundet. false hvis porten er opptatt.
 function startLive(p) {

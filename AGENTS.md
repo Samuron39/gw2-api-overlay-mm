@@ -36,7 +36,7 @@ bridge/                      ArcDPS-utvidelse i Rust (cdylib, arcdps-crate 0.11.
 helper/                      Rust-hjelper: MumbleLink og innliming i spillets chat
 data/                        tidsplan, waypoints og guides.json fra wikien (CC BY-SA)
 docs/                        healing-api.md, BRIEF-felles.md (mal for underagenter), BRIEF-guider.md (eksempel)
-test/                        node:test, kjør `npm test` (132 tester per 14. sept 2026, må være grønn før commit)
+test/                        node:test, kjør `npm test` (139 tester per 15. sept 2026, må være grønn før commit)
 ```
 
 Ny modul = `src/modules/<navn>.js` + `src/renderer/modules/<navn>.js`, IPC i ipc.js, kanal i preload.js, skript i
@@ -75,7 +75,7 @@ curl -sL https://github.com/Samuron39/gw2-api-overlay-mm/releases/latest/downloa
   `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` (symlenker i arkivet feiler uten utviklermodus).
 - Broen (`bridge/target/release/gw2overlay_bridge.dll`) bygges med `cargo build --release` i `bridge/` FØR release
   (`scripts/check-native.js` stopper deg ellers). Eieren installerer ny bro via Live-fanen; si fra når broen er endret.
-- Siste utgitte versjon: 0.4.3 (14. sept 2026).
+- Siste utgitte versjon: 0.4.4 (15. sept 2026).
 
 ## 5. ArcDPS: målte fakta (build 20260816), ikke antakelser
 
@@ -92,9 +92,12 @@ UDP-opptak `opptak-2026-09-13.log` samme sted. Siter README-linjer i kodekomment
 - `combat` (område/evtc) har alt annet (buff-påføringer, aktiveringer, våpenbytte, andres hendelser) men kommer
   2–3 s forsinket (målt 2,6 s hos eieren). Utenfor instanser bare squaden. La aldri område-hendelser sette
   klokkeavviket i live.js.
-- evtc-kanalen merker vanlige hendelser med statechange-koder som ligger ÉN under README-ordinalene:
-  67 ANIMATIONSTART, 68 ANIMATIONSTOP (act 3/5/6 utført, 4 avbrutt), 69 BUFFAPPLY, 70 BUFFCHANGE (overstack = ny
-  varighet), 71 BUFFREMOVE_SINGLE, 72 BUFFREMOVE_ALL. live.js normaliserer dem.
+- evtc-kanalen merker vanlige hendelser med egne statechange-koder, og de er NØYAKTIG README-ordinalene (telt i
+  `arcdps-evtc-README.txt`, CBTS_COMBAT = 0): 67 ANIMATIONSTART, 68 ANIMATIONSTOP (act 3/5/6 utført, 4 avbrutt),
+  69 BUFFAPPLY, 70 BUFFCHANGE (overstack = ny varighet), 71 BUFFREMOVE_SINGLE, 72 BUFFREMOVE_ALL. live.js normaliserer dem.
+- Kamp inn/ut (sc 1/2) kommer på BEGGE kanaler (samme time, ulik id, evtc-kopien 2–3 s etter); live.js ignorerer dem
+  fra area. Dødsstøt (result 8) har alltid value 0 og buffDmg 0. BUFFINITIAL (sc 18): value = gjenværende, buffDmg =
+  opprinnelig varighet. Klokkeavviket er null til første hendelse; area får sette det bare når ingen local har kommet.
 - Målbytte: ev null, src.elite == 1. Agent lagt til: ev null, src.prof != 0. Dødsstøt: result 8. Ingen
   CHANGEDEAD/HEALTHPCTUPDATE for vanlige fiender i åpen verden; target tømmes på sc 2 eller eget dødsstøt.
 - Healing: ArcDPS har ingen heal-hendelse; chatbox-kanalen viser healing som positive verdier (samme regler som
