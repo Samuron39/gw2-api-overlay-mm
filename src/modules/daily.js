@@ -5,6 +5,24 @@ const { t } = require('../i18n');
 
 const FRACTAL_CATEGORY = 88;
 let cache = { at: 0, key: '', data: null };
+const bossCache = new Map();
+
+// Tidsplan trenger bare ett endepunkt, ikke hele Wizard's Vault-/fraktaloversikten.
+async function fetchWorldbosses(key, { force = false } = {}) {
+  if (!key) throw new Error(t('common.noApiKeyShort'));
+  const now = Date.now(), day = Math.floor(now / 864e5);
+  let entry = bossCache.get(key);
+  if (entry?.pending) return entry.pending;
+  if (!force && entry?.data && entry.day === day && now - entry.at < 60e3) return entry.data;
+  if (!entry) { entry = {}; bossCache.clear(); bossCache.set(key, entry); }
+  const pending = gw2.get('/account/worldbosses', { key }).then((done) => {
+    const data = { done, fetchedAt: Date.now() };
+    entry.data = data; entry.at = data.fetchedAt; entry.day = day;
+    return data;
+  });
+  entry.pending = pending;
+  try { return await pending; } finally { if (entry.pending === pending) entry.pending = null; }
+}
 
 function resets() {
   const now = new Date();
@@ -22,7 +40,7 @@ async function fetchDaily(key) {
   const g = (ep, params, extra) => gw2.get(ep, { key, params, ...(extra || {}) });
   const [wvD, wvW, wvS, wbAll, wbDone, mcAll, mcDone, dcAll, dcDone, fracCat] = await Promise.all([
     settle(g('/account/wizardsvault/daily')), settle(g('/account/wizardsvault/weekly')), settle(g('/account/wizardsvault/special')),
-    settle(g('/worldbosses')), settle(g('/account/worldbosses')),
+    settle(g('/worldbosses')), settle(fetchWorldbosses(key).then((d) => d.done)),
     settle(g('/mapchests')), settle(g('/account/mapchests')),
     settle(g('/dailycrafting')), settle(g('/account/dailycrafting')),
     settle(g(`/achievements/categories/${FRACTAL_CATEGORY}`)),
@@ -61,11 +79,6 @@ async function fetchDaily(key) {
 }
 
 // Kobler navn fra tidsplanen til API-id for world bosses
-const BOSS_ALIAS = { 'golem mark ii': 'inquest_golem_mark_ii', 'triple trouble': 'triple_trouble_wurm', 'evolved jungle wurm': 'triple_trouble_wurm' };
-function bossIdFromName(name) {
-  const n = String(name || '').toLowerCase().trim();
-  if (BOSS_ALIAS[n]) return BOSS_ALIAS[n];
-  return n.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-}
+const { bossId: bossIdFromName } = require('../renderer/timer-logic');
 
-module.exports = { fetchDaily, resets, bossIdFromName, invalidate: () => { cache.at = 0; } };
+module.exports = { fetchDaily, fetchWorldbosses, resets, bossIdFromName, invalidate: () => { cache.at = 0; for (const entry of bossCache.values()) entry.at = 0; } };

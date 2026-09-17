@@ -578,5 +578,95 @@
 62438.5
 ],
 "continent": 1
+},
+"2667": {
+"coord": [
+60676.5,
+42149.4
+],
+"name": "Makali Outpost Waypoint",
+"map": "Desert Highlands",
+"continent": 1,
+"mapId": 1211
+},
+"2947": {
+"coord": [
+64761.5,
+59142.4
+],
+"name": "Soul's Vendetta Waypoint",
+"map": "Jahai Bluffs",
+"continent": 1,
+"mapId": 1301
+},
+"2676": {
+"coord": [
+67375.7,
+53930.7
+],
+"name": "Market Ruins Waypoint",
+"map": "Domain of Vabbi",
+"continent": 1,
+"mapId": 1248
+},
+"2797": {
+"coord": [
+64290.5,
+53303.7
+],
+"name": "Vehjin Palace Waypoint",
+"map": "Domain of Vabbi",
+"continent": 1,
+"mapId": 1248
+},
+"2963": {
+"coord": [
+63986.3,
+57861
+],
+"name": "Venta Pass Waypoint",
+"map": "Jahai Bluffs",
+"continent": 1,
+"mapId": 1301
+},
+"2643": {
+"coord": [
+61075,
+45581
+],
+"name": "Augury's Shadow Waypoint",
+"map": "Elon Riverlands",
+"continent": 1,
+"mapId": 1228
+},
+"2723": {
+"coord": [
+59187.1,
+50521.2
+],
+"name": "The Darklands Waypoint",
+"map": "The Desolation",
+"continent": 1,
+"mapId": 1226
+},
+"2753": {
+"coord": [
+61423.3,
+51140.4
+],
+"name": "Lair of the Forgotten Waypoint",
+"map": "The Desolation",
+"continent": 1,
+"mapId": 1226
+},
+"2747": {
+"coord": [
+58615.4,
+43742.9
+],
+"name": "Amnoon Waypoint",
+"map": "Crystal Oasis",
+"continent": 1,
+"mapId": 1210
 }
 }

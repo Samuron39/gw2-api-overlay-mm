@@ -15,13 +15,13 @@
   let editMode = false;
   let doneBosses = new Set();
   let doneTimer = null;
-  const BOSS_ALIAS = { 'golem mark ii': 'inquest_golem_mark_ii', 'triple trouble': 'triple_trouble_wurm' };
-  const bossId = (name) => { const n = String(name || '').toLowerCase().trim(); return BOSS_ALIAS[n] || n.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); };
+  const bossId = TimerLogic.bossId;
+  let signature = '';
   async function loadDone() {
-    if (!Panel.config?.apiKey) return;
-    try { const d = await window.api.invoke('daily:get', false); doneBosses = new Set(d.worldbosses?.done || []); } catch { /* uten progression */ }
+    if (!Panel.config?.apiKey || !scope?.valid()) return;
+    const valid = scope.request('worldbosses');
+    try { const d = await window.api.invoke('daily:worldbosses', false); if (valid()) { doneBosses = new Set(d.done || []); render(); } } catch { /* uten progression */ }
   }
-  const timelines = new Map();
 
   // Guider: «Strategi»-knapp per boss. Lista hentes én gang (data/guides.json); oppføringen finnes når event-nøkkelen
   // stemmer og navnet er bossen selv, et alias (segmentnavn) eller hele metaen. Valget gis til Guider via sessionStorage.
@@ -32,41 +32,20 @@
   }
   const strategyBtn = (key, e, seg) => { const g = guideFor(key, e, seg); return g ? ` <button class="gd-strat" data-guide="${esc(g.id)}" title="${esc(t('timers.strategyTitle'))}">📖 ${esc(t('timers.strategy'))}</button>` : ''; };
 
-  const FILLER = (name) => !name || name.startsWith('(') || /^(Reset|Downtime|Nothing|Idle|Pause|Break)$/i.test(name);
-
-  function timeline(e) {
-    if (timelines.has(e)) return timelines.get(e);
-    const segs = [];
-    let tm = 0;
-    for (const s of e.sequences?.partial || []) { segs.push({ r: s.r, start: tm, end: tm + s.d }); tm += s.d; }
-    const pat = e.sequences?.pattern || [];
-    let guard = 0;
-    while (pat.length && tm < 1440 && guard++ < 3000) {
-      for (const s of pat) { segs.push({ r: s.r, start: tm, end: tm + s.d }); tm += s.d; if (tm >= 1440) break; }
-    }
-    timelines.set(e, segs);
-    return segs;
-  }
-
-  function nowMin() { return (Date.now() / 60000) % 1440; }
-
   function status(key, e) {
-    const segs = timeline(e);
-    if (!segs.length) return null;
-    const m = nowMin();
-    let idx = segs.findIndex((s) => s.start <= m && m < s.end);
-    if (idx < 0) idx = segs.length - 1;
-    const cur = segs[idx];
-    const curSeg = e.segments[cur.r];
-    let next = null, nextStart = null;
-    for (let i = 1; i <= segs.length; i++) {
-      const s = segs[(idx + i) % segs.length];
-      const seg = e.segments[s.r];
-      const start = s.start + ((idx + i) >= segs.length ? 1440 : 0);
-      if (s.r === cur.r || FILLER(seg?.name)) continue;
-      next = seg; nextStart = start; break;
-    }
-    return { key, e, cur: curSeg, curFiller: FILLER(curSeg?.name), remaining: (cur.end - m) * 60, progress: (m - cur.start) / (cur.end - cur.start), next, nextIn: nextStart == null ? null : (nextStart - m) * 60 };
+    const st = TimerLogic.status(e, Date.now());
+    return st ? { key, e, ...st } : null;
+  }
+  const countdown = (r) => r.curFiller ? t('timers.nextIn', { t: fmt(r.nextIn ?? r.remaining) }) : t('timers.endsIn', { t: fmt(r.remaining) });
+  function pasteLine(key, next) {
+    const r = status(key, data.events[key]);
+    const seg = next ? r?.next : r?.cur;
+    if (!seg?.chatlink) return '';
+    const wp = wpInfo(seg), m = Math.max(0, Math.round((next ? r.nextIn : r.remaining) / 60));
+    const time = new Date(Date.now() + (r.nextIn || 0) * 1000).toLocaleTimeString(T.locale, { hour: '2-digit', minute: '2-digit' });
+    const head = next ? t('timers.pasteNext', { name: seg.name, m, time }) : t('timers.pasteNow', { name: seg.name, m });
+    const line = `${head}${wp ? ' · ' + wp.map : ''} · ${seg.chatlink}`;
+    return line.length <= 190 ? line : head.slice(0, 187 - seg.chatlink.length) + ' · ' + seg.chatlink;
   }
 
   function fmt(sec) {
@@ -103,7 +82,7 @@
     scope = life.start();
     const mounted = scope;
     const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
-    root = el;
+    root = el; signature = "";
     el.innerHTML = template();
     hidden = new Set(Panel.config?.timersHidden || []);
     if (!data) {
@@ -119,8 +98,8 @@
     if (!mounted.valid()) return;
     mumble = initial;
     offMumble = scope.on('mumble:state', (s) => { mumble = s; });
-    loadDone().then(render);
-    if (!guides) window.api.invoke('guides:list').then((g) => { guides = g.groups?.worldbosses || []; render(); }).catch(() => {}); // uten guider vises bare ikke knappen
+    loadDone();
+    if (!guides) window.api.invoke('guides:list').then((g) => { if (!mounted.valid()) return; guides = g.groups?.worldbosses || []; render(); }).catch(() => {}); // uten guider vises bare ikke knappen
     doneTimer = mounted.interval(loadDone, 5 * 60e3);
     render();
     tick = mounted.interval(render, 1000);
@@ -143,28 +122,37 @@
       if (st) rows.push(st);
     }
     rows.sort((a, b) => (a.curFiller ? 1 : 0) - (b.curFiller ? 1 : 0) || (a.nextIn ?? 1e9) - (b.nextIn ?? 1e9));
+    const nextSignature = JSON.stringify([category, editMode, [...hidden], [...doneBosses], here, !!guides, rows.map((r) => [r.key, r.curId, r.start, r.next?.name])]);
+    if (signature === nextSignature) {
+      for (const r of rows) {
+        const row = root.querySelector(`.tm-row[data-event="${CSS.escape(r.key)}"]`);
+        if (!row) continue;
+        $('.tm-countdown', row).textContent = countdown(r);
+        $('.tm-bar', row).style.width = Math.round(r.progress * 100) + '%';
+        const next = $('.tm-next-countdown', row); if (next) next.textContent = t('timers.inTime', { t: fmt(r.nextIn) });
+      }
+      return;
+    }
+    signature = nextSignature;
     $('#tmList', root).innerHTML = rows.map((r) => {
       const curWp = wpInfo(r.cur), nextWp = wpInfo(r.next);
       const hereNow = here && (curWp?.mapId === here || nextWp?.mapId === here);
       const place = (wp, seg) => wp ? `${esc(wp.map)} · ${esc(wp.name)}` : esc(seg?.link || r.e.name);
-      const clock = (ms) => new Date(ms).toLocaleTimeString(T.locale, { hour: '2-digit', minute: '2-digit' });
-      const pasteText = (head, wp, link) => { const s = `${head}${wp ? ' · ' + wp.map : ''} · ${link}`; return s.length > 190 ? head.slice(0, 190 - link.length - 3) + ' · ' + link : s; };
-      const countdown = r.curFiller ? t('timers.nextIn', { t: fmt(r.nextIn != null ? r.nextIn : r.remaining) }) : t('timers.endsIn', { t: fmt(r.remaining) });
-      return `<div class="tm-row ${hereNow ? 'here' : ''} ${hidden.has(r.key) ? 'hidden-row' : ''}">
+      return `<div data-event="${esc(r.key)}" class="tm-row ${hereNow ? 'here' : ''} ${hidden.has(r.key) ? 'hidden-row' : ''}">
         ${editMode ? `<label class="inline tm-toggle"><input type="checkbox" data-key="${esc(r.key)}" ${hidden.has(r.key) ? '' : 'checked'} /></label>` : ''}
         <div class="tm-head"><b>${esc(r.e.name)}</b><span class="muted"> ${esc(r.e.category)}</span>${hereNow ? `<span class="badge here">${esc(t('timers.here'))}</span>` : ''}</div>
         <div class="tm-now" style="background:${bg(r.cur)}">
           <div class="tm-bar" style="width:${Math.round(r.progress * 100)}%"></div>
-          <span class="tm-txt">${r.curFiller ? `<span class="muted">${esc(t('timers.nothingNow'))}</span>` : `${esc(t('timers.now'))} <b>${esc(r.cur?.name)}</b>${killed(r.cur)}${strategyBtn(r.key, r.e, r.cur)}`} · ${esc(countdown)}</span>
-          ${!r.curFiller && r.cur?.chatlink ? `<button class="wp" data-link="${esc(r.cur.chatlink)}" data-text="${esc(pasteText(t('timers.pasteNow', { name: r.cur.name, m: Math.max(0, Math.round(r.remaining / 60)) }), curWp, r.cur.chatlink))}" title="${esc(t('timers.pasteWp'))}">${place(curWp, r.cur)} ⧉</button>` : ''}
+          <span class="tm-txt">${r.curFiller ? `<span class="muted">${esc(t('timers.nothingNow'))}</span>` : `${esc(t('timers.now'))} <b>${esc(r.cur?.name)}</b>${killed(r.cur)}${strategyBtn(r.key, r.e, r.cur)}`} · <span class="tm-countdown">${esc(countdown(r))}</span></span>
+          ${!r.curFiller && r.cur?.chatlink ? `<button class="wp" data-link="${esc(r.cur.chatlink)}" data-next="0" title="${esc(t('timers.pasteWp'))}">${place(curWp, r.cur)} ⧉</button>` : ''}
         </div>
-        ${r.next ? `<div class="tm-next">${esc(t('timers.next'))} <b>${esc(r.next.name)}</b>${killed(r.next)}${strategyBtn(r.key, r.e, r.next)} ${esc(t('timers.inTime', { t: fmt(r.nextIn) }))}
-          ${r.next.chatlink ? `<button class="wp" data-link="${esc(r.next.chatlink)}" data-text="${esc(pasteText(t('timers.pasteNext', { name: r.next.name, m: Math.max(0, Math.round((r.nextIn || 0) / 60)), time: clock(Date.now() + (r.nextIn || 0) * 1000) }), nextWp, r.next.chatlink))}" title="${esc(t('timers.pasteWp'))}">${place(nextWp, r.next)} ⧉</button>` : ''}</div>` : ''}
+        ${r.next ? `<div class="tm-next">${esc(t('timers.next'))} <b>${esc(r.next.name)}</b>${killed(r.next)}${strategyBtn(r.key, r.e, r.next)} <span class="tm-next-countdown">${esc(t('timers.inTime', { t: fmt(r.nextIn) }))}</span>
+          ${r.next.chatlink ? `<button class="wp" data-link="${esc(r.next.chatlink)}" data-next="1" title="${esc(t('timers.pasteWp'))}">${place(nextWp, r.next)} ⧉</button>` : ''}</div>` : ''}
       </div>`;
     }).join('') || `<div class="empty">${esc(t('timers.empty'))}</div>`;
     root.querySelectorAll('button.wp').forEach((b) => b.addEventListener('click', async () => {
       // Limer inn «Boss om N min · kart · [&lenke]» (maks 190 tegn, spillets chat tar 199), regnet ut i det du trykker
-      const link = b.dataset.text || b.dataset.link;
+      const link = pasteLine(b.closest('.tm-row').dataset.event, b.dataset.next === '1');
       const r = await window.api.invoke('game:paste', link);
       if (r.ok) setStatus(t('timers.pasted', { link }));
       else if (r.reason === 'NOGAME') setStatus(t('timers.noGame', { link }));

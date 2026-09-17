@@ -129,3 +129,46 @@ test('Live: manuell redigering under AI bevares til forslaget uttrykkelig brukes
   await root.querySelector('#lvSave').dispatch('click');
   assert.equal(h.calls.filter((c) => c.channel === 'skills:setRotation').at(-1).args[1].steps[0].note, 'AI');
 });
+
+test('Tidsplan oppdaterer nedtelling uten å erstatte waypoint-knappen eller hente kontodata', async () => {
+  const { getData } = require('../src/modules/timers');
+  const data = getData(); let now = Date.UTC(2026, 8, 17, 0, 1);
+  const h = renderer(['timers'], (ch) => {
+    if (ch === 'timers:data') return { events: { 'core-wb': data.events['core-wb'] }, waypoints: data.waypoints };
+    if (ch === 'mumble:get') return { running: false };
+    if (ch === 'guides:list') return { groups: {} };
+    if (ch === 'daily:worldbosses') return { done: [] };
+    if (ch === 'game:paste') return { ok: true };
+  }, { apiKey: 'FAKE' });
+  h.ctx.Date = class extends Date { static now() { return now; } };
+  const root = h.root(); await h.modules.timers.mount(root); await flush();
+  const list = root.querySelector('#tmList'), button = list.querySelector('button.wp'), count = list.querySelector('.tm-countdown');
+  const before = count.textContent, writes = list.writes, apiCalls = h.calls.length;
+  now += 60000;
+  [...h.intervals.values()].find((i) => i.ms === 1000).fn();
+  assert.equal(list.writes, writes); assert.equal(list.querySelector('button.wp'), button);
+  assert.notEqual(count.textContent, before); assert.equal(h.calls.length, apiCalls);
+  await button.dispatch('click');
+  assert.match(h.calls.at(-1).args[0], /pasteNow/);
+  assert.equal(h.calls.some((c) => c.channel === 'daily:get'), false);
+});
+
+test('I dag skifter aktiv boss og chattekst uten ny API-henting eller nye knapper', async () => {
+  const data = require('../src/modules/timers').getData(); let now = Date.UTC(2026, 8, 17, 0, 1);
+  const h = renderer(['daily'], (ch) => {
+    if (ch === 'timers:data') return data;
+    if (ch === 'daily:get') return { fetchedAt: now, resets: { daily: now + 10000, weekly: now + 20000 }, worldbosses: { all: ['admiral_taidha_covington'], done: [] }, wizard: {}, fractals: [], dailycrafting: { all: [], done: [] }, mapchests: { all: [], done: [] } };
+    if (ch === 'game:paste') return { ok: true };
+  }, { apiKey: 'FAKE' });
+  h.ctx.Date = class extends Date { static now() { return now; } };
+  const root = h.root(); await h.modules.daily.mount(root);
+  const button = root.querySelector('button.wp'), body = root.querySelector('#dyBody'), writes = body.writes;
+  assert.equal(root.querySelector('.dy-boss-time').textContent, 'daily.now');
+  await button.dispatch('click'); assert.match(h.calls.at(-1).args[0], /pasteNow/);
+  now = Date.UTC(2026, 8, 17, 0, 15);
+  [...h.intervals.values()].find((i) => i.ms === 1000).fn();
+  assert.equal(body.writes, writes); assert.equal(root.querySelector('button.wp'), button);
+  assert.match(root.querySelector('.dy-boss-time').textContent, /165/);
+  await button.dispatch('click'); assert.match(h.calls.at(-1).args[0], /pasteNext/);
+  assert.equal(h.calls.filter((c) => c.channel === 'daily:get').length, 1);
+});

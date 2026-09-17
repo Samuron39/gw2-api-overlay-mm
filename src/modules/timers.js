@@ -18,4 +18,4 @@ function getData() {
   return cached;
 }
 
-module.exports = { getData };
+module.exports = { getData, ...require('../renderer/timer-logic') };

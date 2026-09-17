@@ -1,10 +1,9 @@
 'use strict';
 // Tester for tidsplan-dataene: data/event-timer-wiki.json via src/modules/timers.js getData() og data/waypoints.json.
-// Selve tidsplan-logikken ligger i en IIFE i renderer, så her ekspanderes sekvensene på samme måte som der
-// (partial først, deretter pattern gjentatt til døgnet er fylt).
+// Samme rene implementasjon som renderer, ingen kopi av tidsberegningen i testen.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { getData } = require('../src/modules/timers');
+const { getData, expand: timeline, status, bossSpawns } = require('../src/modules/timers');
 
 const data = getData();
 
@@ -16,17 +15,9 @@ function decodeChatlink(link) {
   return { type: b[0], id: b[1] | (b[2] << 8) | (b[3] << 16) };
 }
 
-// Samme ekspansjon som renderer/modules/timers.js
 function expand(e) {
-  const segs = [];
-  let t = 0;
-  for (const s of e.sequences?.partial || []) { segs.push({ r: s.r, start: t, end: t + s.d }); t += s.d; }
-  const pat = e.sequences?.pattern || [];
-  let guard = 0;
-  while (pat.length && t < 1440 && guard++ < 3000) {
-    for (const s of pat) { segs.push({ r: s.r, start: t, end: t + s.d }); t += s.d; if (t >= 1440) break; }
-  }
-  return { segs, total: t };
+  const segs = timeline(e);
+  return { segs, total: segs.at(-1)?.end || 0 };
 }
 
 test('getData: versjon, ingen tom-oppføring og samme objekt ved gjentatte kall', () => {
@@ -76,9 +67,9 @@ test('alle tidsplaner: sekvensene dekker døgnet og segmentreferansene finnes', 
   }
 });
 
-test('waypoints.json dekker alle chatlinks i core-wb', () => {
-  const wb = data.events['core-wb'];
-  for (const s of Object.values(wb.segments)) {
+test('waypoints.json dekker alle chatlinks i alle tidsplaner', () => {
+  for (const event of Object.values(data.events)) for (const s of Object.values(event.segments)) {
+    if (!s.chatlink) continue;
     const { type, id } = decodeChatlink(s.chatlink);
     assert.equal(type, 4, `${s.name}: chatlink er ikke et waypoint`);
     const wp = data.waypoints[id];
@@ -88,6 +79,38 @@ test('waypoints.json dekker alle chatlinks i core-wb', () => {
     assert.ok(wp.map);
     assert.ok(Array.isArray(wp.coord) && wp.coord.length === 2);
   }
+});
+
+test('Taidha bruker halvåpent aktivt intervall og blir neste spawn ved slutt', () => {
+  const at = (minute) => Date.UTC(2026, 8, 17) + minute * 60000;
+  for (const minute of [0, 1, 14.999]) {
+    const boss = bossSpawns(data.events, at(minute)).get('admiral_taidha_covington');
+    assert.equal(boss.active, true); assert.equal(boss.inMin, 0);
+    assert.equal(status(data.events['core-wb'], at(minute)).cur.name, boss.name);
+  }
+  const boss = bossSpawns(data.events, at(15)).get('admiral_taidha_covington');
+  assert.equal(boss.active, false); assert.equal(boss.inMin, 165);
+});
+
+test('Alle restsegmenter fortsetter uten hopp ved UTC-midnatt', () => {
+  for (const [key, event] of Object.entries(data.events)) {
+    const last = timeline(event).at(-1);
+    if (last.end <= 1440) continue;
+    const before = status(event, Date.UTC(2026, 8, 17, 23, 59, 59));
+    const after = status(event, Date.UTC(2026, 8, 18));
+    assert.equal(before.curId, after.curId, key);
+    assert.ok(Math.abs(before.remaining - after.remaining - 1) < 0.001, key);
+    assert.ok(after.progress >= before.progress, key);
+  }
+  const ds = status(data.events['hot-ds'], Date.UTC(2026, 8, 18, 0, 1));
+  assert.equal(ds.curFiller, false);
+  assert.equal(ds.remaining, 89 * 60);
+  assert.ok(Math.abs(ds.progress - 31 / 120) < 0.00001);
+});
+
+test('Drakkar kobles til API-id selv om segmentet også nevner Spirits of the Wild', () => {
+  const boss = bossSpawns(data.events, Date.UTC(2026, 8, 17, 1, 10)).get('drakkar');
+  assert.ok(boss); assert.equal(boss.active, true); assert.ok(boss.chatlink);
 });
 
 test('alle chatlinks i datasettet er waypoint-lenker (type 4)', () => {

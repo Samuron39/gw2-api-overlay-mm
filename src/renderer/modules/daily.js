@@ -53,32 +53,20 @@
   function renderResets() {
     if (!root || !data) return;
     $('#dyResets', root).textContent = t('daily.resets', { daily: fmt(data.resets.daily - Date.now()), weekly: fmt(data.resets.weekly - Date.now()) });
+    const spawns = bossSpawns();
+    for (const row of root.querySelectorAll('[data-boss]')) {
+      const spawn = spawns.get(row.dataset.boss);
+      $('.dy-boss-time', row).textContent = bossTime(spawn);
+      const button = $('button.wp', row);
+      if (button && spawn) button.title = t('daily.pasteWpTitle', { line: pasteText(spawn.name, spawn.start, spawn.chatlink) });
+    }
   }
 
   function pretty(id) { return id.replace(/_heros_choice_chest$/, '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()); }
 
-  // Neste spawn per world boss fra tidsplanen
-  function bossSpawns() {
-    const out = new Map();
-    if (!timers) return out;
-    const m = (Date.now() / 60000) % 1440;
-    for (const key of ['core-wb', 'core-hwb']) {
-      const e = timers.events[key]; if (!e) continue;
-      const segs = []; let tm = 0;
-      for (const s of e.sequences?.partial || []) { segs.push({ r: s.r, start: tm }); tm += s.d; }
-      let guard = 0;
-      while ((e.sequences?.pattern || []).length && tm < 1440 && guard++ < 3000) for (const s of e.sequences.pattern) { segs.push({ r: s.r, start: tm }); tm += s.d; if (tm >= 1440) break; }
-      for (const s of segs) {
-        const seg = e.segments[s.r]; if (!seg?.name) continue;
-        const id = normalize(seg.name);
-        const inMin = s.start >= m ? s.start - m : s.start + 1440 - m;
-        const cur = out.get(id);
-        if (!cur || inMin < cur.inMin) out.set(id, { name: seg.name, inMin, chatlink: seg.chatlink, start: s.start });
-      }
-    }
-    return out;
-  }
-  const ALIAS = { 'golem mark ii': 'inquest_golem_mark_ii', 'triple trouble': 'triple_trouble_wurm' };
+  // Aktivt segment betyr tidsplanen, ikke at bossen fortsatt lever i denne kartinstansen.
+  function bossSpawns() { return TimerLogic.bossSpawns(timers?.events, Date.now()); }
+  const bossTime = (spawn) => spawn ? spawn.active ? t('daily.now') : t('daily.inMin', { n: Math.max(1, Math.round(spawn.inMin)) }) : t('daily.noFixedTime');
 
   // Waypoint-oppslag (kartnavn) fra chat-lenka, samme koding som i timers.js: byte 0 = 4 (waypoint), byte 1-3 = id
   function wpInfo(chatlink) {
@@ -94,14 +82,15 @@
   // spillets chat tar 199). start = minutt i døgnet (UTC) fra tidsplanen.
   function pasteText(name, start, link) {
     const m = (Date.now() / 60000) % 1440;
-    const inMin = Math.round(start >= m ? start - m : start + 1440 - m);
+    const spawn = bossSpawns().get(TimerLogic.bossId(name));
+    const inMin = Math.round(spawn ? spawn.inMin : start >= m ? start - m : start + 1440 - m);
     const time = new Date(Date.now() + inMin * 60000).toLocaleTimeString(T.locale, { hour: '2-digit', minute: '2-digit' });
-    const head = inMin < 1 ? t('daily.pasteNow', { name, time }) : t('daily.pasteNext', { name, m: inMin, time });
+    const head = spawn?.active ? t('daily.pasteNow', { name, time }) : t('daily.pasteNext', { name, m: inMin, time });
     const wp = wpInfo(link);
     const s = `${head}${wp ? ' · ' + wp.map : ''} · ${link}`;
     return s.length > 190 ? head.slice(0, 190 - link.length - 3) + ' · ' + link : s;
   }
-  function normalize(name) { const n = name.toLowerCase().trim(); return ALIAS[n] || n.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
+
 
   function wizardSection(title, w) {
     if (!w) return `<section class="dy-card"><h3>${esc(title)}</h3><p class="muted">${esc(t('daily.unavailable'))}</p></section>`;
@@ -135,10 +124,10 @@
     const bosses = data.worldbosses.all.map((id) => ({ id, done: done.has(id), spawn: spawns.get(id) }))
       .sort((a, b) => a.done - b.done || (a.spawn?.inMin ?? 9999) - (b.spawn?.inMin ?? 9999));
     const bossHtml = `<section class="dy-card"><h3>${esc(t('daily.worldBosses'))} <span class="muted small">${data.worldbosses.done.length}/${data.worldbosses.all.length} ${esc(t('daily.today'))}</span></h3>
-      ${bosses.map((b) => `<div class="dy-row ${b.done ? 'done' : ''}">
+      ${bosses.map((b) => `<div data-boss="${esc(b.id)}" class="dy-row ${b.done ? 'done' : ''}">
         <span class="dy-check">${b.done ? '✓' : '○'}</span>
         <span class="dy-title">${esc(b.spawn?.name || pretty(b.id))}</span>
-        <span class="muted small">${esc(b.spawn ? (b.spawn.inMin < 1 ? t('daily.now') : t('daily.inMin', { n: Math.round(b.spawn.inMin) })) : t('daily.noFixedTime'))}</span>
+        <span class="muted small dy-boss-time">${esc(bossTime(b.spawn))}</span>
         ${b.spawn?.chatlink ? `<button class="wp" data-link="${esc(b.spawn.chatlink)}" data-name="${esc(b.spawn.name)}" data-start="${b.spawn.start}" title="${esc(t('daily.pasteWpTitle', { line: pasteText(b.spawn.name, b.spawn.start, b.spawn.chatlink) }))}">⧉</button>` : ''}
       </div>`).join('')}
     </section>`;

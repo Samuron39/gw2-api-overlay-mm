@@ -104,7 +104,7 @@ function renderer(names, invoke, config = {}) {
     } },
   });
   const dir = path.join(__dirname, '../../src/renderer');
-  for (const name of ['ui-state.js']) vm.runInContext(fs.readFileSync(path.join(dir, name), 'utf8'), ctx);
+  for (const name of ['ui-state.js', 'timer-logic.js']) vm.runInContext(fs.readFileSync(path.join(dir, name), 'utf8'), ctx);
   ctx.Panel = { ...ctx.UiState, $: (s, root = document) => root.querySelector(s), esc: (s) => String(s ?? '').replace(/[&<>\"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])), gold: String,
     setStatus: (...s) => statuses.push(s), register: (m) => { modules[m.id] = m; }, config,
     onConfig: (cb) => { configListeners.add(cb); return () => configListeners.delete(cb); },
