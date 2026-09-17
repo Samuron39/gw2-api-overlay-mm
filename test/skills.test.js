@@ -14,6 +14,12 @@ test('modulen lastes uten electron (cacheFile fanger feilen selv)', () => {
 
 const { normalizeRotation } = require('../src/modules/skills');
 
+test('ukjent profesjon returnerer feil før nettverk og velger aldri Guardian', async (t) => {
+  t.mock.method(globalThis, 'fetch', () => { assert.fail('ukjent profesjon skal ikke hente skills'); });
+  const result = await require('../src/modules/skills').getSkillbar({ apiKey: 'FAKE_TEST_KEY' }, {}, { identity: { name: 'Test', profession: 999 } });
+  assert.equal(result.ok, false); assert.ok(result.error); assert.equal(result.professionName, undefined);
+});
+
 test('normalizeRotation: tomt gir tomme lister', () => {
   assert.deepEqual(normalizeRotation(null), { steps: [], upkeep: [] });
   assert.deepEqual(normalizeRotation(undefined), { steps: [], upkeep: [] });

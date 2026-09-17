@@ -248,7 +248,8 @@ async function getSkillbar(config, snap, mumble, opts = {}) {
   const ident = mumble?.identity;
   if (!ident?.name) return { ok: false, error: t('skills.noCharacter') };
   if (!config.apiKey) return { ok: false, error: t('common.noApiKeyShort') };
-  const profName = PROF_NAMES[ident.profession] || 'Guardian';
+  const profName = PROF_NAMES[ident.profession];
+  if (!profName) return { ok: false, error: t('skills.unknownProfession') };
   const liveSpec = ident.spec || 0;
   const idx = await fetchIndex();
   const [prof, buildTabs, eqTabs] = await Promise.all([
@@ -382,10 +383,12 @@ async function suggestRotation(config, key, opts = {}) {
     { role: 'system', content: `Du er en erfaren Guild Wars 2-spiller. Foreslå en praktisk skill-rotasjon for PvE ut fra skillene under. Bruk bare id-er fra lista. Svar på ${ai.answerLanguage()}. Vær ærlig i forklaringen om at dette er et forslag og ikke en benchmark-rotasjon.` },
     { role: 'user', content: `Karakter: ${bar.character}, ${bar.professionName}${bar.specName ? ' (' + bar.specName + ')' : ''}, build «${bar.buildName}», våpen: ${bar.weaponTypes.join(' + ') || 'ukjent'}.\nSkills:\n${lines.join('\n')}\n\nLag en rotasjon på 8 til 16 steg som JSON: rotasjon = liste av { skill: id, note: kort merknad }, pluss forklaring.` },
   ];
-  const text = await ai.completeText(config, messages, { jsonSchema: ROT_SCHEMA, maxTokens: 6000, onProgress: opts.onProgress });
-  const j = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
+  const text = await ai.completeText(config, messages, { ...opts, jsonSchema: ROT_SCHEMA, maxTokens: 6000 });
+  let j;
+  try { j = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text); } catch { throw new Error(t('ai.invalidResponse')); }
+  if (!j || !Array.isArray(j.rotasjon)) throw new Error(t('ai.invalidResponse'));
   const valid = new Set(bar.all.map((s) => s.id));
-  j.rotasjon = (j.rotasjon || []).filter((r) => valid.has(r.skill)).map((r) => ({ skill: r.skill, note: String(r.note || '').slice(0, 80) }));
+  j.rotasjon = j.rotasjon.filter((r) => r && valid.has(r.skill)).map((r) => ({ skill: r.skill, note: String(r.note || '').slice(0, 80) }));
   return j;
 }
 
