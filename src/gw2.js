@@ -5,6 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const log = require('./log');
 const { t } = require('./i18n');
+const { request, delay, failure, LIMITS } = require('./network');
+const { CacheWriter } = require('./cache-writer');
 
 const BASE = 'https://api.guildwars2.com/v2';
 const CHUNK = 200;        // maks ids per bulk-kall
@@ -14,9 +16,11 @@ let cacheDir = null;
 const itemCache = new Map();
 let materialCategories = null;
 let currencies = null;
+let itemWriter = null;
 
 function init(dir) {
   cacheDir = dir;
+  itemWriter = new CacheWriter(path.join(dir, 'items-cache.json'), () => JSON.stringify([...itemCache.values()]));
   try {
     const raw = JSON.parse(fs.readFileSync(path.join(dir, 'items-cache.json'), 'utf8'));
     for (const it of raw) itemCache.set(it.id, it);
@@ -24,38 +28,40 @@ function init(dir) {
 }
 
 function persistItems() {
-  if (!cacheDir) return;
-  try {
-    fs.writeFileSync(path.join(cacheDir, 'items-cache.json'), JSON.stringify([...itemCache.values()]));
-  } catch { /* ikke kritisk */ }
+  itemWriter?.schedule();
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-async function get(endpoint, { key, params = {}, bulk = false, retries = 3, withHeaders = false } = {}) {
+async function get(endpoint, { key, params = {}, bulk = false, retries = 3, withHeaders = false, signal, timeoutMs = LIMITS.apiMs, budgetMs = LIMITS.gw2TotalMs, retryDelayMs = 1000 } = {}) {
   const url = new URL(BASE + endpoint);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const headers = { Accept: 'application/json', 'Accept-Language': 'en' };
   if (key) headers.Authorization = 'Bearer ' + key;
+  const deadline = Date.now() + budgetMs;
+  retries = Math.max(0, Math.min(3, retries));
   for (let attempt = 0; ; attempt++) {
-    let res;
-    try { res = await fetch(url, { headers }); }
-    catch (e) { log.error('gw2', `Nettverksfeil på ${endpoint}`, e.message); throw e; }
-    if (res.status === 429 || res.status >= 500) {
-      if (attempt >= retries) { log.error('gw2', `HTTP ${res.status} på ${endpoint}, gir opp etter ${attempt + 1} forsøk`); throw new Error(t('gw2.httpError', { status: res.status, endpoint })); }
-      log.warn('gw2', `HTTP ${res.status} på ${endpoint}, prøver igjen om ${attempt + 1} s (${attempt + 1}/${retries})`);
-      await sleep(1000 * (attempt + 1));
+    if (signal?.aborted) throw failure('ABORT_ERR');
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw failure('TIMEOUT');
+    const result = await request(url, { headers }, { signal, timeoutMs: Math.min(timeoutMs, remaining) }, async (res) => {
+      if (res.status === 429 || res.status >= 500) {
+        if (attempt >= retries) throw new Error(t('gw2.httpError', { status: res.status, endpoint }));
+        const raw = res.headers?.get?.('retry-after');
+        const suggested = raw == null ? NaN : /^\d+(?:\.\d+)?$/.test(raw) ? Number(raw) * 1000 : Date.parse(raw) - Date.now();
+        return { retry: Number.isFinite(suggested) ? Math.max(0, suggested) : retryDelayMs * (attempt + 1) };
+      }
+      if (res.status === 404 && bulk) return { value: [] }; // ingen av id-ene fantes
+      if (!res.ok) {
+        log[res.status === 403 || res.status === 404 ? 'warn' : 'error']('gw2', `HTTP ${res.status} på ${endpoint}`);
+        throw new Error(t('gw2.httpError', { status: res.status, endpoint }));
+      }
+      const body = await res.json();
+      return { value: withHeaders ? { body, headers: Object.fromEntries(res.headers) } : body };
+    });
+    if (result.retry != null) {
+      await delay(Math.min(result.retry, Math.max(0, deadline - Date.now())), signal);
       continue;
     }
-    if (res.status === 404 && bulk) return []; // ingen av id-ene fantes
-    if (!res.ok) {
-      let msg = '';
-      try { msg = (await res.json()).text || ''; } catch { /* tom */ }
-      log[res.status === 403 || res.status === 404 ? 'warn' : 'error']('gw2', `HTTP ${res.status} på ${endpoint}`, msg);
-      throw new Error(t('gw2.httpError', { status: res.status, endpoint }) + (msg ? ': ' + msg : ''));
-    }
-    if (withHeaders) return { body: await res.json(), headers: Object.fromEntries(res.headers) };
-    return res.json();
+    return result.value;
   }
 }
 
@@ -115,13 +121,18 @@ const UNLOCK_ENDPOINTS = {
   novelties: '/account/novelties', finishers: '/account/finishers', jadebots: '/account/jadebots',
 };
 async function fetchUnlocks(key, perms) {
-  const out = { available: perms.has('unlocks') };
+  const out = { available: perms.has('unlocks'), status: {}, errors: [] };
   if (!out.available) return out;
   const entries = Object.entries(UNLOCK_ENDPOINTS);
-  const res = await mapLimit(entries, CONCURRENCY, ([, ep]) => get(ep, { key }).catch(() => null));
+  const res = await mapLimit(entries, CONCURRENCY, async ([, ep]) => {
+    try { const value = await get(ep, { key }); return Array.isArray(value) ? value : null; }
+    catch { return null; }
+  });
   entries.forEach(([k], i) => {
     const v = res[i];
-    out[k] = new Set(Array.isArray(v) ? v.map((x) => (x && typeof x === 'object' ? x.id : x)) : []);
+    out.status[k] = v == null ? 'unknown' : 'known';
+    out[k] = v == null ? null : new Set(v.map((x) => (x && typeof x === 'object' ? x.id : x)));
+    if (v == null) out.errors.push(t('gw2.unlockUnknown', { endpoint: entries[i][1] }));
   });
   return out;
 }
@@ -204,6 +215,7 @@ async function fetchAccountData(key) {
     if (s.status === 'fulfilled') data[keys[i]] = s.value;
     else errors.push(`${keys[i]}: ${s.reason.message}`);
   });
+  errors.push(...(data.unlocks?.errors || []));
 
   const instances = [];
   const freeSlots = { characters: {}, bank: { free: 0, total: 0 }, shared: { free: 0, total: 0 } };
@@ -285,4 +297,4 @@ async function fetchMaps(ids) {
   return out;
 }
 
-module.exports = { get, mapLimit, init, fetchAccountData, fetchItems, fetchPrices, fetchMaterialCategories, demoAccountData, fetchMaps, fetchAchievementIndex };
+module.exports = { get, mapLimit, init, fetchAccountData, fetchItems, fetchPrices, fetchMaterialCategories, demoAccountData, fetchMaps, fetchAchievementIndex, flushCache: () => itemWriter?.flush() || Promise.resolve() };

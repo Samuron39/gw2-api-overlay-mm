@@ -57,7 +57,7 @@ function salvageEstimate(item, prices) {
 
 // Hva kontoen vet om itemet: samlinger det inngår i, om skinnet er låst opp, om opplåsningen allerede er eid.
 function accountFacts(item, ctx) {
-  const f = { collections: [], skinLocked: null, unlockDup: null, unlockName: '' };
+  const f = { collections: [], skinLocked: null, unlockDup: null, unlockName: '', unlockUnknown: false };
   const idx = ctx.achIndex, acc = ctx.accountAch, un = ctx.unlocks;
   if (idx && acc) {
     const refs = [...(idx.items[item.id] || [])];
@@ -74,12 +74,18 @@ function accountFacts(item, ctx) {
   }
   if (un && un.available) {
     if (item.default_skin && ['Armor', 'Weapon', 'Back'].includes(item.type) && un.skins) f.skinLocked = !un.skins.has(item.default_skin);
-    if (item.type === 'MiniPet' && item.details?.minipet_id != null && un.minis) { f.unlockDup = un.minis.has(item.details.minipet_id); f.unlockName = t('rules.unlock.mini'); }
+    if (item.type === 'MiniPet' && item.details?.minipet_id != null) {
+      if (un.minis) f.unlockDup = un.minis.has(item.details.minipet_id);
+      f.unlockUnknown = un.status?.minis === 'unknown'; f.unlockName = t('rules.unlock.mini');
+    }
     if (item.type === 'Consumable' && item.details?.type === 'Unlock') {
       const d = item.details;
       const map = { Dye: ['dyes', d.color_id, 'rules.unlock.dye'], CraftingRecipe: ['recipes', d.recipe_id, 'rules.unlock.recipe'], Minipet: ['minis', d.minipet_id, 'rules.unlock.mini'] };
       const e = map[d.unlock_type];
-      if (e && e[1] != null && un[e[0]]) { f.unlockDup = un[e[0]].has(e[1]); f.unlockName = t(e[2]); }
+      if (e && e[1] != null) {
+        if (un[e[0]]) f.unlockDup = un[e[0]].has(e[1]);
+        f.unlockUnknown = un.status?.[e[0]] === 'unknown'; f.unlockName = t(e[2]);
+      }
     }
   }
   return f;
@@ -110,6 +116,7 @@ function recommend(row, ctx) {
   if (facts.skinLocked === true) flags.push('skinLocked');
   if (facts.unlockDup === true) flags.push('unlockDup');
   if (facts.unlockDup === false) flags.push('unlockNew');
+  if (facts.unlockUnknown) flags.push('unlockUnknown');
   if (ctx.listed?.has(item.id)) flags.push('listed');
   const done = (action, reason, unitValue = 0, units = count) => ({
     action, label: ACTION_LABEL[action], reason, unitValue, totalValue: unitValue * units, ...values,
@@ -137,6 +144,7 @@ function recommend(row, ctx) {
     return done('use', t('rules.reason.collection', { names }));
   }
   // 2c. Opplåsninger (farger, oppskrifter, minis)
+  if (facts.unlockUnknown) return done('keep', t('rules.reason.unlockUnknown', { what: facts.unlockName }));
   if (facts.unlockDup === false) return done('use', t('rules.reason.unlockNew', { what: facts.unlockName }));
 
   // 3. Behold-liste og toppgear
