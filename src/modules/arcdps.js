@@ -6,7 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { t } = require('../i18n');
-const { request, LIMITS } = require('../network');
+const { request, failure, LIMITS } = require('../network');
 
 const ARC_URL = 'https://www.deltaconnected.com/arcdps/x64/d3d11.dll';
 const ARC_MD5_URL = 'https://www.deltaconnected.com/arcdps/x64/d3d11.dll.md5sum';
@@ -48,28 +48,32 @@ async function detectDir() {
 function md5File(file) { return crypto.createHash('md5').update(fs.readFileSync(file)).digest('hex'); }
 
 let md5Cache = null, md5Pending = null;
-function remoteMd5({ force = false } = {}) {
+function remoteMd5({ force = false, signal } = {}) {
+  if (signal?.aborted) return Promise.reject(failure('ABORT_ERR'));
   if (!force && md5Cache && Date.now() - md5Cache.at < 5 * 60000) return Promise.resolve(md5Cache.value);
-  if (!force && md5Pending) return md5Pending;
-  const pending = request(ARC_MD5_URL, { headers: { 'User-Agent': 'gw2-overlay' } }, {}, async (res) => {
+  if (!force && !signal && md5Pending) return md5Pending;
+  const pending = request(ARC_MD5_URL, { headers: { 'User-Agent': 'gw2-overlay' } }, { signal }, async (res, task) => {
     if (!res.ok) throw new Error(t('arcdps.md5Failed', { status: res.status }));
     const m = (await res.text()).trim().match(/^[0-9a-f]{32}/i);
     if (!m) throw new Error(t('arcdps.md5Format'));
+    task.signal.throwIfAborted();
     const value = m[0].toLowerCase(); md5Cache = { at: Date.now(), value }; return value;
   });
-  if (force) return pending;
+  if (force || signal) return pending;
   md5Pending = pending.finally(() => { md5Pending = null; });
   return md5Pending;
 }
 
-async function status(gw2Dir) {
+async function status(gw2Dir, { signal } = {}) {
+  if (signal?.aborted) throw failure('ABORT_ERR');
   const dir = isGameDir(gw2Dir) ? gw2Dir : await detectDir();
   const out = { gw2Dir: dir, validDir: isGameDir(dir), installed: false, localMd5: '', remoteMd5: '', updateAvailable: false, running: await gameRunning(), error: '' };
+  if (signal?.aborted) throw failure('ABORT_ERR');
   if (!out.validDir) return out;
   const dll = path.join(dir, 'd3d11.dll');
   if (fs.existsSync(dll)) { out.installed = true; try { out.localMd5 = md5File(dll); } catch { /* låst */ } }
-  try { out.remoteMd5 = await remoteMd5(); out.updateAvailable = out.installed && !!out.localMd5 && out.localMd5 !== out.remoteMd5; }
-  catch (e) { out.error = e.message; }
+  try { out.remoteMd5 = await remoteMd5({ signal }); out.updateAvailable = out.installed && !!out.localMd5 && out.localMd5 !== out.remoteMd5; }
+  catch (e) { if (signal?.aborted) throw failure('ABORT_ERR'); out.error = e.message; }
   out.bridge = bridgeStatus(dir);
   return out;
 }

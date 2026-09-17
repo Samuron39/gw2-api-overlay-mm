@@ -16,3 +16,14 @@ test('ArcDPS: ugyldig sjekksum avvises', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => new Response('<html>error</html>'));
   await assert.rejects(arcdps.remoteMd5({ force: true }));
 });
+
+test('ArcDPS: avbrutt sjekksum påvirker ikke en annen forespørsel', async (t) => {
+  const controller = new AbortController(); let calls = 0;
+  t.mock.method(globalThis, 'fetch', async () => { calls++; return calls === 1 ? new Promise(() => {}) : new Response('b'.repeat(32)); });
+  const a = arcdps.remoteMd5({ force: true, signal: controller.signal });
+  const rejected = assert.rejects(a, { code: 'ABORT_ERR' });
+  await new Promise(setImmediate);
+  const b = arcdps.remoteMd5({ force: true }); controller.abort();
+  await rejected; assert.equal(await b, 'b'.repeat(32));
+  await assert.rejects(arcdps.remoteMd5({ signal: controller.signal }), { code: 'ABORT_ERR' });
+});

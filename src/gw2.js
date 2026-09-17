@@ -81,12 +81,14 @@ async function mapLimit(items, limit, fn) {
   return out;
 }
 
-async function fetchItems(ids) {
+async function fetchItems(ids, { signal } = {}) {
+  if (signal?.aborted) throw failure('ABORT_ERR');
   const unique = [...new Set(ids)];
   const missing = unique.filter((id) => !itemCache.has(id));
   if (missing.length) {
     const groups = chunks(missing, CHUNK);
-    const res = await mapLimit(groups, CONCURRENCY, (g) => get('/items', { params: { ids: g.join(',') }, bulk: true }));
+    const res = await mapLimit(groups, CONCURRENCY, (g) => get('/items', { params: { ids: g.join(',') }, bulk: true, signal }));
+    if (signal?.aborted) throw failure('ABORT_ERR');
     for (const arr of res) for (const it of arr) itemCache.set(it.id, it);
     persistItems();
   }

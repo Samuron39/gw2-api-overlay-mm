@@ -87,3 +87,14 @@ test('GW2: mapLimit begrenser samtidighet og beholder rekkefølge', async () => 
   const result = await gw2.mapLimit([1, 2, 3, 4, 5], 2, async value => { active++; max = Math.max(max, active); await turn(); active--; return value * 2; });
   assert.deepEqual(result, [2, 4, 6, 8, 10]); assert.equal(max, 2);
 });
+
+test('GW2: fetchItems videresender avbrytelse og starter ikke nye batches etterpå', async (t) => {
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (_url, opts) => { calls++; assert.ok(opts.signal); return new Promise(() => {}); });
+  const controller = new AbortController();
+  const pending = gw2.fetchItems(Array.from({ length: 1000 }, (_, i) => 900000 + i), { signal: controller.signal });
+  const rejected = assert.rejects(pending, { code: 'ABORT_ERR' });
+  await turn(); assert.equal(calls, 4); controller.abort(); await rejected;
+  assert.equal(calls, 4);
+  await assert.rejects(gw2.fetchItems([], { signal: controller.signal }), { code: 'ABORT_ERR' });
+});

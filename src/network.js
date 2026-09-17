@@ -51,15 +51,23 @@ async function request(url, init = {}, options = {}, consume = (res) => res.json
   try {
     task.signal.throwIfAborted();
     const fetchImpl = options.fetchImpl || globalThis.fetch;
-    res = await task.wait(Promise.resolve().then(() => fetchImpl(url, { ...init, signal: task.signal })));
+    res = await task.wait(Promise.resolve().then(() => fetchImpl(url, { ...init, signal: task.signal })).then((response) => {
+      // En egendefinert fetch kan ignorere signalet og levere etter tidsgrensen.
+      if (task.signal.aborted) { discard(response); throw task.signal.reason; }
+      return response;
+    }));
     return await task.wait(Promise.resolve().then(() => consume(res, task)));
   } catch (e) {
     if (task.signal.aborted) throw task.signal.reason;
     throw e;
   } finally {
     task.dispose();
-    if (res?.body && !res.body.locked) { try { Promise.resolve(res.body.cancel()).catch(() => {}); } catch { /* lest/lukket */ } }
+    discard(res);
   }
+}
+
+function discard(res) {
+  if (res?.body && !res.body.locked) { try { Promise.resolve(res.body.cancel()).catch(() => {}); } catch { /* lest/lukket */ } }
 }
 
 function delay(ms, signal) {

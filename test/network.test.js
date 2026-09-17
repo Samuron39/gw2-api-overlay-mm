@@ -39,6 +39,16 @@ test('request: allerede avbrutt starter ikke fetch', async () => {
   await assert.rejects(request('https://test.invalid', {}, { signal: controller.signal, fetchImpl: () => { assert.fail('fetch skal ikke starte'); } }), { code: 'ABORT_ERR' });
 });
 
+test('request: et fetch-svar som kommer etter tidsgrensen lukkes uten å bli lest', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let finish, cancelled = false;
+  const pending = request('https://test.invalid', {}, { timeoutMs: 10, fetchImpl: () => new Promise(resolve => { finish = resolve; }) }, () => assert.fail('sent svar skal ikke leses'));
+  const rejected = assert.rejects(pending, { code: 'TIMEOUT' });
+  await turn(); t.mock.timers.tick(10); await rejected;
+  finish(new Response(new ReadableStream({ cancel() { cancelled = true; } })));
+  await turn(); assert.equal(cancelled, true);
+});
+
 test('delay: venting kan avbrytes uten å vente på neste retry', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const controller = new AbortController();
