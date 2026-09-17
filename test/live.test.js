@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const dgram = require('node:dgram');
 const live = require('../src/live');
 
-const PORT = 47599;
+let PORT = 0; // OS velger en ledig testport, også når flere worktrees testes samtidig
 const SELF = { id: 100, name: 'Alfa', prof: 1, elite: 62, self: 1, team: 1 };
 const OTHER = { id: 101, name: 'Beta', prof: 4, elite: 55, self: 0, team: 1 };
 const GOLEM = { id: 200, name: 'Golem', prof: 0x1234, elite: 0xffffffff, self: 0, team: 2 };
@@ -48,6 +48,7 @@ const cd = (s, skill) => s.cooldowns.find((c) => c.skill === skill);
 test.before(async () => {
   live.start(PORT);
   await new Promise((r) => live.socket.once('listening', r));
+  PORT = live.socket.address().port;
   client = dgram.createSocket('udp4');
 });
 

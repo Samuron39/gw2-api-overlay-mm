@@ -46,6 +46,7 @@ function ev(o) {
   b[51] = o.act ?? 0;      // is_activation
   b[52] = o.rem ?? 0;      // is_buffremove
   b[56] = o.sc ?? 0;       // is_statechange
+  b.writeUInt32LE(o.stack ?? 0, 60); // nyere buffs: pad61–64 er trackable stack-id
   return b;
 }
 
@@ -184,6 +185,43 @@ test('boon-uptime: påføring med varighet og fjerning av alle stacks', () => {
   near(alfa.boons.fury, 0, 'Alfa fury');
   near(beta.boons.quickness, 0, 'Beta quickness');
   for (const key of ['quickness', 'alacrity', 'fury', 'protection', 'might']) assert.ok(key in alfa.boons, key);
+});
+
+function eventOffset(b) {
+  const skills = 20 + b.readUInt32LE(16) * AGENT;
+  return skills + 4 + b.readUInt32LE(skills) * SKILL;
+}
+
+test('nyere EVTC: 67–72 og buff-resultat 14–18 gir samme kamp som eldre format', () => {
+  for (const result of [14, 15, 16, 17, 18]) {
+    const b = buildLog();
+    for (let off = eventOffset(b); off < b.length; off += EV) {
+      if (b[off + 49] === 1 && b.readInt32LE(off + 28) > 0) b[off + 50] = result;
+      if (b[off + 49] === 1 && b.readInt32LE(off + 24) > 0) { b[off + 56] = 69; b[off + 49] = 0; }
+      if (b[off + 52] === 1) { b[off + 56] = 72; b[off + 52] = 0; b[off + 49] = 0; }
+      if (b[off + 51]) { b[off + 56] = 67; b[off + 51] = 0; }
+    }
+    const r = parse(write(`modern-${result}.evtc`, b));
+    sjekkStandardLogg(r);
+    near(r.players[0].boons.quickness, 0.2, 'Quickness');
+    near(r.players[1].boons.fury, 0.5, 'Fury');
+  }
+});
+
+test('nyere buff-initial/change/single-remove bruker riktig mottaker og stack-id', () => {
+  const base = buildLog();
+  const header = base.subarray(0, eventOffset(base));
+  const events = [
+    ev({ sc: 9, time: 1000 }),
+    ev({ sc: 18, time: 1000, src: BETA, dst: ALFA, value: 5000, buffDmg: 10000, skill: 740, stack: 10 }),
+    ev({ sc: 69, time: 1000, src: BETA, dst: ALFA, value: 3000, skill: 740, stack: 11 }),
+    ev({ sc: 70, time: 2000, dst: ALFA, value: -3000, overstack: 1000, skill: 740, stack: 10 }),
+    ev({ sc: 71, time: 2500, src: ALFA, dst: BETA, value: 1500, skill: 740, stack: 11 }),
+    ev({ sc: 10, time: 11000 }),
+  ];
+  const r = parse(write('modern-stacks.evtc', Buffer.concat([header, ...events])));
+  near(r.players.find(p => p.name === 'Alfa').boons.might, 0.2, 'Might aktiv 1000–3000');
+  near(r.players.find(p => p.name === 'Beta').boons.might, 0, 'Avsender får ikke buffen');
 });
 
 test('boss-utfall: uten død brukes siste HP-oppdatering, reward-event teller som seier', () => {

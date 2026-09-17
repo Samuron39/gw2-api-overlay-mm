@@ -58,6 +58,8 @@ class Live extends EventEmitter {
     this.accounts = new Map(); // agent-id -> kontonavn (fra agent-registrering, dst.name)
     this.selfInst = 0; // egen instans-id, for å hoppe over egne minioner i squad-regnskapet
     this.lastRaw = null; // rå kampregnskap for forrige kamp, så forsinket squad-skade kan legges til etter kampslutt
+    this.recentFights = []; // kort, begrenset historikk for forsinket healing etter flere raske kampgrenser
+    this.sessionEpoch = 0; // hindrer sene hendelser fra å gjenopplive en nullstilt økt
     // ---------- Mottatt skade og dødslogg ----------
     // Ringbuffer med de siste LAST_HITS treffene mot deg (nyeste sist), uavhengig av kamp; tømmes ved kampstart.
     this.lastHits = []; // { time, skill, name, source, amount, kind: 'strike'|'cond' }
@@ -366,6 +368,8 @@ class Live extends EventEmitter {
     this.sessionFights++;
   }
   resetSession() {
+    this.sessionEpoch++;
+    if (this.fight) this.fight.sessionEpoch = this.sessionEpoch;
     this.sessionBase = this.emptyRaw();
     this.sessionFights = 0;
     this.sessionStartedAt = Date.now();
@@ -389,6 +393,7 @@ class Live extends EventEmitter {
     // Forrige kamp foldes IKKE inn i økta her: andres siste treff kommer 2–3 s forsinket, og har neste kamp alt startet,
     // legges de på forrige kamp (se fightFor). sessionSnapshot teller en ufoldet forrige kamp med; foldingen skjer i endFight.
     this.fight = {
+      sessionEpoch: this.sessionEpoch,
       start: t, last: t, total: 0, taken: 0, targets: new Map(), skills: new Map(), squad: new Map(), takenSrc: new Map(), takenSkills: new Map(),
       // healing: heal = egen healing gjort (inkl. barrier), barrier = barrier-delen av den, healSkills per skill,
       // healReceived = healing mottatt (også egen), healSources per kilde, squadHeal = andres healing (ext-kanalen)
@@ -415,8 +420,10 @@ class Live extends EventEmitter {
   // mens man står stille) skal ikke starte en kamp, det gjør bare kamp-inn og egne treff.
   addHeal(h) {
     const amt = Number(h.value) || 0;
-    if (amt <= 0 || !this.fight) return;
-    const f = this.fight;
+    // API-README:102: area/ext er 2–3 s forsinket. Hendelsestiden velger kampen,
+    // også når neste kamp er ferdig og den opprinnelige er foldet inn i økta.
+    const f = h.ch === 'ext' ? this.fightFor(h.time, true) : this.fight;
+    if (amt <= 0 || !f) return;
     const srcSelf = h.src?.self === 1 || (this.selfInst > 0 && h.srcMaster === this.selfInst);
     const dstSelf = h.dst?.self === 1;
     if (h.src?.name) this.agents.set(h.src.id, { id: h.src.id, name: h.src.name, prof: h.src.prof, elite: h.src.elite, self: h.src.self });
@@ -425,8 +432,13 @@ class Live extends EventEmitter {
       // Fra healing stats-utvidelsen (2–3 s forsinket): egne hendelser er duplikater av local-kanalen og hoppes over.
       // Andres healing (squad-medlemmer som deler live) er eneste vei til en squad-liste.
       if (srcSelf || !h.src) return;
-      const sq = f.squadHeal.get(h.src.id) || { id: h.src.id, name: h.src.name || '', heal: 0 };
-      sq.heal += amt; if (h.src.name) sq.name = h.src.name; f.squadHeal.set(h.src.id, sq);
+      const add = (raw) => {
+        const sq = raw.squadHeal.get(h.src.id) || { id: h.src.id, name: h.src.name || '', heal: 0 };
+        sq.heal += amt; if (h.src.name) sq.name = h.src.name; raw.squadHeal.set(h.src.id, sq);
+      };
+      add(f);
+      if (f.folded && f.sessionEpoch === this.sessionEpoch && this.sessionBase) add(this.sessionBase);
+      if (f === this.lastRaw) this.lastFight = this.summarize(f, f.end);
       this.healSeen = true; this.dirty = true;
       return;
     }
@@ -461,6 +473,8 @@ class Live extends EventEmitter {
     f.end = Math.max(t, f.last);
     this.foldLastIntoSession(); // kampen før denne er nå trygt ferdig med etterslep fra evtc-kanalen
     this.lastRaw = f; // squad-skade som kommer forsinket etter kampslutt legges til her (se addSquadDamage)
+    this.recentFights.push(f);
+    this.recentFights = this.recentFights.filter(r => f.end - r.end <= 30000).slice(-16);
     if (f.total > 0 || f.taken > 0 || f.squad.size || f.heal > 0 || f.healReceived > 0) this.lastFight = this.summarize(f, f.end);
     this.dirty = true;
   }
@@ -570,8 +584,16 @@ class Live extends EventEmitter {
   // Hvilket regnskap et forsinket area-treff med hendelsestid t hører til: pågående kamp, eller forrige kamp når treffet
   // skjedde i den (fra 1 s før start til 1 s etter slutt). Etterslepet er 2–3 s, så forrige kamp må fortsatt ta imot treff
   // selv om neste kamp alt er i gang. null = ingen kamp treffet hører til (lenge etter kampslutt: ingen ny kamp startes).
-  fightFor(t) {
+  fightFor(t, includeHistory = false) {
     const f = this.fight, r = this.lastRaw;
+    if (includeHistory) {
+      // Eksakte intervaller først, så toleransen på ett sekund ikke velger neste kamp.
+      if (f && t >= f.start) return f;
+      for (let i = this.recentFights.length - 1; i >= 0; i--) {
+        const old = this.recentFights[i];
+        if (t >= old.start && t <= old.end) return old;
+      }
+    }
     if (r && t <= r.end + 1000 && t >= r.start - 1000 && (!f || t < f.start)) return r;
     if (f && t >= f.start - 1000) return f;
     return null;
@@ -701,7 +723,11 @@ class Live extends EventEmitter {
     const out = [];
     for (const [skill, b] of map) {
       let alive = 0, last = 0;
-      for (const e of b.expiries) if (e > now || !known) { alive++; if (e > last) last = e; }
+      for (const e of b.expiries) if (e > now || !known) {
+        alive++; if (e > last) last = e;
+        // Stack-antall må oppdateres ved første utløp, selv når ringen viser siste utløp.
+        if (known && (this.nextExpiry == null || e < this.nextExpiry)) this.nextExpiry = e;
+      }
       if (!alive) { map.delete(skill); continue; }
       if (alive !== b.expiries.length) b.expiries = b.expiries.filter((e) => e > now);
       out.push({ skill, name: b.name, stacks: alive, remainingMs: last - now, max: b.dur || 0, src: b.src });
@@ -718,12 +744,9 @@ class Live extends EventEmitter {
       if (now - c.castStart > 10 * 60e3) { this.cooldowns.delete(skill); continue; }
       cooldowns.push({ skill, name: c.name, castStart: c.castStart, castDur: c.castDur, fired: c.fired, sinceMs: now - (c.fired ? c.firedAt : c.castStart + c.castDur) });
     }
+    this.nextExpiry = null;
     const buffs = this.buffList(this.buffs);
     const tbuffs = tmap ? this.buffList(tmap) : [];
-    let next = null;
-    for (const b of buffs) if (next == null || b.remainingMs < next) next = b.remainingMs;
-    for (const b of tbuffs) if (next == null || b.remainingMs < next) next = b.remainingMs;
-    this.nextExpiry = next == null ? null : now + next;
     return {
       connected: this.connected, arcVersion: this.arcVersion, inCombat: this.inCombat, weaponSet: this.weaponSet,
       self: this.self, buffs,
