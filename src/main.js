@@ -25,13 +25,10 @@ const APP_VERSION = require('../package.json').version;
 const { DEMO, TEST_MODE } = cfg;
 app.setName('gw2-inventory-overlay'); // fast navn så konfig-mappa er den samme i utvikling og pakket versjon
 
-if (TEST_MODE) {
-  // Testkjøringer får egen userData så de aldri rører brukerens konfig
-  app.setPath('userData', path.join(app.getPath('temp'), 'gw2-overlay-test'));
-} else if (!app.requestSingleInstanceLock()) {
-  // Én instans om gangen, ellers skriver de over hverandres konfig
-  app.quit();
-}
+const canStart = require('./runtime').prepare(app, TEST_MODE);
+if (!canStart) app.quit();
+else {
+app.on('second-instance', () => { win.showWheel(); win.openModule(win.currentModule || 'inventory', { toggle: false }); });
 
 ipc.register();
 
@@ -39,7 +36,7 @@ ipc.register();
 app.whenReady().then(async () => {
   cfg.init({
     path: path.join(app.getPath('userData'), 'config.json'),
-    extra: () => ({ demo: DEMO, dpsDefaultDir: dps.DEFAULT_DIR, appVersion: app.getVersion() }),
+    extra: () => ({ demo: DEMO, dpsDefaultDir: TEST_MODE ? path.join(app.getPath('userData'), 'evtc-test') : dps.DEFAULT_DIR, appVersion: app.getVersion() }),
     systemLocale: app.getLocale(),
   });
   log.init(app);
@@ -51,17 +48,16 @@ app.whenReady().then(async () => {
   win.createWheel();
   win.createPanel();
   win.setupAutoHide();
-  mumble.start();
-  win.startDpsWatch();
+  if (!TEST_MODE) { mumble.start(); win.startDpsWatch(); }
 
   // Live-data fra ArcDPS-broen og de små overlay-vinduene (buffs, debuffs, target, skill-bar)
   overlays.init({ config, webPreferences: win.webPreferences, icon: win.APP_ICON, saveSoon: cfg.saveSoon, testMode: TEST_MODE });
   live.on('update', (snap) => { win.broadcast('live:state', snap); overlays.broadcast('live:state', snap); });
-  live.start();
+  if (!TEST_MODE) live.start();
   mumble.on('state', (s) => overlays.broadcast('mumble:state', s));
 
   // Hurtigtast: vis/skjul panelet med siste modul
-  globalShortcut.register('CommandOrControl+Shift+G', () => win.openModule(win.currentModule || 'inventory'));
+  if (!TEST_MODE) globalShortcut.register('CommandOrControl+Shift+G', () => win.openModule(win.currentModule || 'inventory'));
 
   // Automatisk oppdatering fra GitHub Releases (bare pakket app, aldri i testmodus). electron-updater logger til app.log med scope "update".
   const short = (x) => String(x?.message || x).split(String.fromCharCode(10))[0].split(String.fromCharCode(13)).join('').split(' Headers:')[0].slice(0, 300);
@@ -72,11 +68,11 @@ app.whenReady().then(async () => {
     if (s.status !== 'downloaded' || !s.version || notifiedVersion === s.version) return;
     notifiedVersion = s.version;
     win.showBalloon(t('update.readyTitle'), t('update.readyBody', { v: s.version }));
-    win.openModule('settings', { toggle: false });
+    if (!mumble.state?.ui?.gameFocus) win.openModule('settings', { toggle: false, inactive: true });
   };
   updater.init({ app, config, testMode: TEST_MODE, log: updLog, onStatus: (s) => { win.broadcast('update:status', s); notifyUpdate(s); } });
 
-  win.createTray();
+  if (!TEST_MODE) win.createTray();
   // Sjekk for ny versjon hver gang spillet startes (i tillegg til ved oppstart og hver 6. time)
   await win.startFollowGame({ onGameStart: () => { if (config.autoUpdate !== false) { log.info('update', 'Spillet startet, sjekker for ny versjon'); updater.check().catch(() => {}); } } });
 
@@ -107,11 +103,30 @@ app.whenReady().then(async () => {
     app.quit();
   }
 });
+}
 
-app.on('before-quit', () => { win.setQuitting(); mumble.stop(); log.info('app', 'Avslutter'); });
+let shutdown = null, flushed = false;
+app.on('before-quit', (e) => {
+  if (!canStart || flushed) return;
+  e.preventDefault();
+  if (shutdown) return;
+  win.setQuitting(); win.stop?.(); mumble.stop(); live.stop(); cfg.flush();
+  globalShortcut.unregisterAll(); log.info('app', 'Avslutter');
+  shutdown = (async () => {
+    let timer;
+    try {
+      await Promise.race([
+        Promise.all([gw2.flushCache?.(), dps.dispose?.()]),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Cache-lagring tok over 5 sekunder')), 5000); }),
+      ]);
+    } catch (err) { log.warn('app', 'Siste cache kunne ikke lagres', err); }
+    finally { clearTimeout(timer); flushed = true; app.quit(); }
+  })();
+});
 
 // Renderer-feil fra alle vinduer (hjul, panel, overlay-vinduer) i loggen
 app.on('web-contents-created', (_e, wc) => {
+  require('./security').guardNavigation(wc);
   wc.on('console-message', (ev, level, message, line, sourceId) => {
     const lvl = ev?.level ?? level;
     if (lvl !== 3 && lvl !== 'error') return;

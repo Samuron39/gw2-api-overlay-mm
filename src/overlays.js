@@ -3,6 +3,8 @@
 // strekkes og låses. Låst = klikk går gjennom til spillet. Ulåst = redigeringsmodus (dra hvor som helst, strekk i kantene).
 const { BrowserWindow, screen } = require('electron');
 const path = require('path');
+const { windowPatch } = require('./config-validation');
+const { clamp } = require('./window-state');
 
 const DEFAULTS = {
   buffs: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 40, mode: 'both', filter: 'boons', showNames: false, showIcons: true, opacity: 1, direction: 'row' },
@@ -21,25 +23,37 @@ let ctx = null;
 
 function cfgFor(type) { return { ...DEFAULTS[type], ...((ctx.config.overlays || {})[type] || {}) }; }
 
+function boundsFor(type, c) {
+  const primary = screen.getPrimaryDisplay().workArea;
+  const x = c.x ?? Math.round(primary.x + primary.width / 2 - c.w / 2);
+  const y = c.y ?? Math.round(primary.y + primary.height - c.h - 160 - (type === 'skillbar' ? 0 : type.startsWith('dps') ? 300 + (type === 'dps2' ? 60 : type === 'dps3' ? 120 : 0) : 140));
+  const area = screen.getDisplayNearestPoint({ x, y }).workArea;
+  return { ...clamp(x, y, c.w, c.h, area), width: Math.round(c.w), height: Math.round(c.h) };
+}
+function saveBounds(type, w) {
+  const b = w.getBounds();
+  Object.assign(ctx.config.overlays[type] ||= {}, { x: b.x, y: b.y, w: b.width, h: b.height });
+  ctx.saveSoon();
+}
+
 function apply(type) {
   const c = cfgFor(type);
   const w = wins.get(type);
   if (!c.enabled) { if (w && !w.isDestroyed()) { w.close(); } wins.delete(type); return; }
   if (!w || w.isDestroyed()) create(type, c);
   else {
+    w.setBounds(boundsFor(type, c));
+    saveBounds(type, w);
     w.setIgnoreMouseEvents(!!c.locked, { forward: true });
     w.setResizable(!c.locked);
     w.setOpacity(Number(c.opacity) || 1);
-    w.webContents.send('overlays:changed', { type, config: c });
+    w.webContents.send('overlays:changed', { type, config: cfgFor(type) });
   }
 }
 
 function create(type, c) {
-  const disp = screen.getPrimaryDisplay().workArea;
-  const x = c.x ?? Math.round(disp.x + disp.width / 2 - c.w / 2);
-  const y = c.y ?? Math.round(disp.y + disp.height - c.h - 160 - (type === 'skillbar' ? 0 : type.startsWith('dps') ? 300 + (type === 'dps2' ? 60 : type === 'dps3' ? 120 : 0) : 140));
   const w = new BrowserWindow({
-    x, y, width: c.w, height: c.h, minWidth: 80, minHeight: 40,
+    ...boundsFor(type, c), minWidth: 80, minHeight: 40,
     transparent: true, frame: false, alwaysOnTop: true, skipTaskbar: true, hasShadow: false, resizable: !c.locked, show: !suspended,
     focusable: false, title: `GW2 Overlay ${type}`, icon: ctx.icon, opacity: Number(c.opacity) || 1, webPreferences: ctx.webPreferences,
   });
@@ -48,10 +62,11 @@ function create(type, c) {
   w.setIgnoreMouseEvents(!!c.locked, { forward: true });
   w.webContents.once('did-finish-load', () => { const z = Number(ctx.config.uiScale) || 1; if (z !== 1) w.webContents.setZoomFactor(z); });
   w.loadFile(path.join(__dirname, 'renderer', 'overlay.html'), { query: { type } });
-  const save = () => { if (w.isDestroyed()) return; const b = w.getBounds(); const cur = (ctx.config.overlays[type] ||= {}); Object.assign(cur, { x: b.x, y: b.y, w: b.width, h: b.height }); ctx.saveSoon(); };
+  const save = () => { if (!w.isDestroyed()) saveBounds(type, w); };
   w.on('moved', save); w.on('resized', save);
   w.on('closed', () => { if (wins.get(type) === w) wins.delete(type); });
   wins.set(type, w);
+  saveBounds(type, w);
 }
 
 function init(c) {
@@ -68,7 +83,8 @@ function getAll() {
 }
 
 function set(type, patch) {
-  if (!DEFAULTS[type]) throw new Error('Ukjent overlay ' + type);
+  if (!Object.hasOwn(DEFAULTS, type)) throw new Error('Ukjent overlay ' + type);
+  patch = windowPatch(patch, Object.keys(DEFAULTS[type]));
   ctx.config.overlays[type] = { ...(ctx.config.overlays[type] || {}), ...patch };
   if (!ctx.testMode) apply(type);
   return cfgFor(type);

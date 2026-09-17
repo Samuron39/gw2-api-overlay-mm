@@ -3,6 +3,7 @@
 // Rotasjon ved 2 MB: app.log -> app.log.1 -> app.log.2. Linjer logget før init() bufres og skrives ved init.
 const fs = require('fs');
 const path = require('path');
+const secrets = require('./secrets');
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const KEEP = 2; // antall roterte filer som beholdes (app.log.1, app.log.2)
@@ -34,6 +35,7 @@ function rotate() {
 }
 
 function append(line) {
+  line = secrets.redact(line);
   if (!file) { pending.push(line); if (pending.length > 500) pending.shift(); return; }
   const bytes = Buffer.byteLength(line, 'utf8') + 1;
   if (size + bytes > MAX_BYTES) rotate();
@@ -45,13 +47,13 @@ function fmtExtra(extra) {
   if (extra == null) return '';
   if (extra instanceof Error) return (extra.stack || extra.message || String(extra)).split('\n').map((s) => s.trim()).join(' | ');
   if (typeof extra === 'string') return extra;
-  try { return JSON.stringify(extra); } catch { return String(extra); }
+  try { return secrets.stringify(extra); } catch { return String(extra); }
 }
 
 function write(level, scope, msg, extra) {
   const text = String(msg ?? '').replace(/\r?\n/g, ' | ');
   const ex = fmtExtra(extra);
-  const line = `${new Date().toISOString()} ${level.padEnd(5)} [${scope}] ${text}${ex ? ' ' + ex : ''}`;
+  const line = secrets.redact(`${new Date().toISOString()} ${level.padEnd(5)} [${scope}] ${text}${ex ? ' ' + ex : ''}`);
   const out = level === 'ERROR' ? console.error : level === 'WARN' ? console.warn : console.log;
   out(line);
   append(line);
@@ -73,7 +75,7 @@ function tail(n = 200) {
     lines.unshift(...arr.slice(-n));
     if (lines.length >= n) break;
   }
-  return lines.slice(-n);
+  return lines.slice(-n).map(secrets.redact);
 }
 
 function logPath() { return dir; }

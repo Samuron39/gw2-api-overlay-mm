@@ -12,13 +12,16 @@ const MODULES = [
   { id: 'guides', icon: '📖' },
   { id: 'settings', icon: '⚙️' },
 ].map((m) => ({ ...m, label: () => T.t('module.' + m.id) }));
-const size = Math.min(window.innerWidth, window.innerHeight - 34);
-const cx = size / 2, cy = size / 2, R = size / 2 - 2, r = size * 0.19;
+let size, cx, cy, R, r, enabledModules = null;
 const svg = document.getElementById('svg');
-svg.setAttribute('width', size); svg.setAttribute('height', size);
 const center = document.getElementById('center');
+function geometry() {
+size = Math.min(window.innerWidth, window.innerHeight - 34);
+cx = size / 2; cy = size / 2; R = size / 2 - 2; r = size * 0.19;
+svg.setAttribute('width', size); svg.setAttribute('height', size);
 center.style.width = center.style.height = (r * 2 - 6) + 'px';
 center.style.left = (cx - r + 3) + 'px'; center.style.top = (cy - r + 3) + 'px';
+}
 
 const pt = (rad, ang) => [cx + rad * Math.cos(ang), cy + rad * Math.sin(ang)];
 const gap = 0.035;
@@ -26,6 +29,8 @@ let active = null;
 
 // Tegner segmentene for modulene som er slått på (Innstillinger er alltid med)
 function build(enabledIds) {
+  enabledModules = enabledIds;
+  geometry();
   const enabled = MODULES.filter((m) => m.id === 'settings' || !enabledIds || enabledIds.includes(m.id));
   svg.innerHTML = '';
   const n = enabled.length;
@@ -48,9 +53,11 @@ function build(enabledIds) {
   });
 }
 build(null);
+window.addEventListener('resize', () => build(enabledModules));
 
 // Statuslinja under hjulet: karakter og kart fra MumbleLink, ellers hvorfor vi ikke har posisjon
 const mapNames = {};
+const pendingMaps = new Map();
 let lastMumble = null;
 function statusText() {
   const s = lastMumble;
@@ -91,7 +98,11 @@ async function onMumble(s) {
   const dot = document.getElementById('dot');
   dot.classList.toggle('on', !!s.running);
   if (s.running && s.mapId && !mapNames[s.mapId]) {
-    try { const r = await window.api.invoke('gw2:maps', [s.mapId]); mapNames[s.mapId] = r[s.mapId]?.name || T.t('wheel.map', { id: s.mapId }); } catch { mapNames[s.mapId] = T.t('wheel.map', { id: s.mapId }); }
+    if (!pendingMaps.has(s.mapId)) pendingMaps.set(s.mapId, window.api.invoke('gw2:maps', [s.mapId])
+      .then((r) => { mapNames[s.mapId] = r[s.mapId]?.name || T.t('wheel.map', { id: s.mapId }); })
+      .catch(() => { mapNames[s.mapId] = T.t('wheel.map', { id: s.mapId }); })
+      .finally(() => pendingMaps.delete(s.mapId)));
+    await pendingMaps.get(s.mapId);
   }
   setLabel(null);
 }
@@ -122,7 +133,7 @@ document.addEventListener('mouseleave', () => { if (!ignoring) { ignoring = true
 window.api.on('mumble:state', onMumble);
 window.api.on('wheel:locked', ({ locked }) => setLocked(locked));
 window.api.on('panel:visible', ({ visible, module }) => setActive(visible ? module : null));
-window.api.on('config:changed', async (c) => { if (await T.sync(c)) applyStatic(); build(c.wheelModules || null); applyFollow(c); });
+window.api.on('config:changed', async (c) => { if (await T.sync(c)) applyStatic(); if (JSON.stringify(c.wheelModules || null) !== JSON.stringify(enabledModules)) build(c.wheelModules || null); applyFollow(c); });
 T.load().then(() => {
   applyStatic();
   window.api.invoke('config:get').then((c) => { setLocked(!!c.wheel?.locked); build(c.wheelModules || null); applyFollow(c); });

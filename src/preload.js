@@ -3,18 +3,18 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 const INVOKE = new Set([
   'config:get', 'config:set', 'i18n:get',
-  'inv:refresh', 'ai:models', 'ai:providers', 'ai:prioritize', 'ai:chat',
-  'timers:data', 'gw2:maps', 'mumble:get', 'daily:get',
+  'inv:refresh', 'ai:models', 'ai:providers', 'ai:prioritize', 'ai:chat', 'ai:cancel',
+  'timers:data', 'gw2:maps', 'mumble:get', 'daily:get', 'daily:worldbosses',
   'dps:list', 'dps:parse', 'dps:upload',
   'tp:get', 'chars:get', 'chars:review', 'guild:get',
-  'wheel:ignoreMouse', 'win:drag', 'app:setStartup',
-  'arc:status', 'arc:install', 'arc:uninstall', 'arc:installBridge', 'gw2:detectDir', 'gw2:pickDir',
+  'wheel:ignoreMouse', 'win:drag',
+  'arc:status', 'arc:install', 'arc:installBridge', 'gw2:detectDir', 'gw2:pickDir',
   'live:get', 'live:record', 'live:resetSession', 'overlays:get', 'overlays:set', 'overlays:ignoreMouse', 'skills:get', 'skills:setRotation', 'skills:suggest', 'skills:icons',
   'clipboard:write', 'game:paste', 'open:wiki', 'open:url',
   'panel:open', 'panel:show', 'panel:close', 'panel:state', 'wheel:setLocked', 'app:quit', 'app:hide',
   'log:open', 'log:report',
   'setup:check', 'setup:installArc', 'setup:done',
-  'update:check', 'update:install',
+  'update:check', 'update:install', 'update:get',
   'guides:list', 'guides:get',
 ]);
 const EVENTS = new Set([

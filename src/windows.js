@@ -10,6 +10,7 @@ const mumble = require('./mumble');
 const arcdps = require('./modules/arcdps');
 const overlays = require('./overlays');
 const i18n = require('./i18n');
+const windowState = require('./window-state');
 
 const { TEST_MODE } = cfg;
 const { t } = i18n;
@@ -21,6 +22,25 @@ let panelWin = null;
 let panelReady = null;
 let currentModule = null;
 let quitting = false;
+let wheelWanted = true, panelWanted = false, manuallyHidden = false;
+let wheelForced = false;
+let gameRunning = null, autoHidden = false, hideTimer = null, followTimer = null;
+let pollRunning = false;
+
+function reconcileVisibility() {
+  const c = cfg.config;
+  const visible = windowState.visibility({ wheelWanted, panelWanted, manuallyHidden, wheelForced, gameRunning, followGame: !TEST_MODE && c.followGame, autoHidden: !TEST_MODE && c.autoHide && autoHidden });
+  for (const [w, show] of [[wheelWin, visible.wheel], [panelWin, visible.panel]]) {
+    if (!w || w.isDestroyed()) continue;
+    if (show && !w.isVisible()) w.showInactive();
+    else if (!show && w.isVisible()) w.hide();
+  }
+  overlays.setSuspended(!visible.overlays);
+  broadcast('panel:visible', { visible: visible.panel, module: currentModule });
+}
+function showWheel() { wheelWanted = true; wheelForced = true; manuallyHidden = false; autoHidden = false; reconcileVisibility(); }
+function hideAll() { wheelWanted = false; wheelForced = false; panelWanted = false; manuallyHidden = true; reconcileVisibility(); }
+function stop() { clearTimeout(hideTimer); clearInterval(followTimer); hideTimer = null; followTimer = null; }
 
 function broadcast(channel, payload) {
   for (const w of [wheelWin, panelWin]) if (w && !w.isDestroyed()) w.webContents.send(channel, payload);
@@ -28,10 +48,7 @@ function broadcast(channel, payload) {
 
 function clampToScreen(x, y, w, h) {
   const disp = screen.getDisplayNearestPoint({ x: x ?? 0, y: y ?? 0 }).workArea;
-  return {
-    x: Math.min(Math.max(x, disp.x), disp.x + disp.width - w),
-    y: Math.min(Math.max(y, disp.y), disp.y + disp.height - h),
-  };
+  return windowState.clamp(x, y, w, h, disp);
 }
 
 function createWheel() {
@@ -69,17 +86,20 @@ function createPanel() {
   const saveBounds = () => { const b = panelWin.getBounds(); Object.assign(cfg.config.panel, { x: b.x, y: b.y, width: b.width, height: b.height }); cfg.saveSoon(); };
   panelWin.on('moved', saveBounds);
   panelWin.on('resized', saveBounds);
-  panelWin.on('close', (e) => { if (!quitting) { e.preventDefault(); panelWin.hide(); broadcast('panel:visible', { visible: false, module: currentModule }); } });
+  panelWin.on('close', (e) => { if (!quitting) { e.preventDefault(); closePanel(); } });
 }
 
-async function openModule(id, { toggle = true } = {}) {
+async function openModule(id, { toggle = true, inactive = false } = {}) {
   if (!panelWin) return;
   if (toggle && panelWin.isVisible() && currentModule === id) {
-    panelWin.hide();
+    panelWanted = false; panelWin.hide();
     broadcast('panel:visible', { visible: false, module: currentModule });
     return;
   }
   currentModule = id;
+  panelWanted = true;
+  autoHidden = false;
+  clearTimeout(hideTimer); hideTimer = null;
   const config = cfg.config;
   if (config.panel.x == null && wheelWin) {
     const wb = wheelWin.getBounds();
@@ -87,12 +107,15 @@ async function openModule(id, { toggle = true } = {}) {
     panelWin.setPosition(pos.x, pos.y);
   }
   await panelReady;
+  if (!panelWin || panelWin.isDestroyed() || currentModule !== id || !panelWanted) return;
   panelWin.webContents.send('panel:module', { id });
-  if (!panelWin.isVisible()) panelWin.show();
+  if (inactive) { if (!panelWin.isVisible()) panelWin.showInactive(); }
+  else { panelWin.show(); panelWin.focus(); }
   broadcast('panel:visible', { visible: true, module: id });
 }
 
 function closePanel() {
+  panelWanted = false;
   if (panelWin) { panelWin.hide(); broadcast('panel:visible', { visible: false, module: currentModule }); }
 }
 
@@ -105,11 +128,14 @@ function applyScale() {
   const scale = Math.max(0.5, Math.min(2.5, Number(config.uiScale) || 1));
   if (wheelWin && !wheelWin.isDestroyed()) {
     const base = Math.max(140, Math.min(320, config.wheel.size || 200));
-    const w = Math.round(base * scale), h = Math.round((base + 34) * scale);
-    wheelWin.setMinimumSize(w, h); wheelWin.setMaximumSize(w, h);
     const b = wheelWin.getBounds();
-    wheelWin.setBounds({ x: b.x, y: b.y, width: w, height: h });
-    wheelWin.webContents.setZoomFactor(scale);
+    const area = screen.getDisplayNearestPoint({ x: b.x, y: b.y }).workArea;
+    const wheelScale = Math.min(scale, area.width / base, area.height / (base + 34));
+    const w = Math.floor(base * wheelScale), h = Math.floor((base + 34) * wheelScale);
+    wheelWin.setMinimumSize(1, 1); wheelWin.setMaximumSize(10000, 10000);
+    wheelWin.setBounds({ ...windowState.clamp(b.x, b.y, w, h, area), width: w, height: h });
+    wheelWin.setMinimumSize(w, h); wheelWin.setMaximumSize(w, h);
+    wheelWin.webContents.setZoomFactor(wheelScale);
   }
   if (panelWin && !panelWin.isDestroyed()) panelWin.webContents.setZoomFactor(scale);
   overlays.setZoom(scale);
@@ -117,7 +143,7 @@ function applyScale() {
 
 function applyConfig(prev) {
   const config = cfg.config;
-  if (prev.uiScale !== config.uiScale) applyScale();
+  if (prev.uiScale !== config.uiScale || prev.wheel.size !== config.wheel.size) applyScale();
   if (panelWin) {
     if (prev.panel.pinned !== config.panel.pinned) panelWin.setAlwaysOnTop(!!config.panel.pinned, 'screen-saver');
     if (prev.panel.opacity !== config.panel.opacity) panelWin.setOpacity(Number(config.panel.opacity) || 1);
@@ -131,31 +157,35 @@ function applyConfig(prev) {
   if (languageChanged) { i18n.setLanguage(config.language); setTrayMenu(); }
   broadcast('config:changed', cfg.publicConfig());
   if (languageChanged) overlays.broadcast('config:changed', cfg.publicConfig()); // overlay-vinduene henter ny ordbok
+  if (prev.autoHide !== config.autoHide || prev.followGame !== config.followGame) {
+    clearTimeout(hideTimer); hideTimer = null;
+    if (!config.autoHide) autoHidden = false;
+    reconcileVisibility();
+  }
 }
 
 function startDpsWatch() {
+  if (TEST_MODE) return;
   const dir = cfg.config.dpsLogDir || dps.DEFAULT_DIR;
   dps.watch(dir, (r) => broadcast('dps:new', r));
 }
 
 // Auto-skjul: når verken spillet eller overlayen har fokus i 2 s, skjul; vis igjen når spillet får fokus
 function setupAutoHide() {
-  let hiddenByAuto = false, panelWasVisible = false, hideTimer = null;
   const overlayFocused = () => [wheelWin, panelWin].some((w) => w && !w.isDestroyed() && w.isFocused());
   mumble.on('state', (s) => {
     broadcast('mumble:state', s);
     if (!cfg.config.autoHide || TEST_MODE) return;
     const gameFocus = !!(s.running && s.ui?.gameFocus);
     if (!gameFocus && !overlayFocused()) {
-      if (!hideTimer && !hiddenByAuto) hideTimer = setTimeout(() => {
+      if (!hideTimer && !autoHidden) hideTimer = setTimeout(() => {
         hideTimer = null;
-        if (overlayFocused() || (mumble.state.running && mumble.state.ui?.gameFocus)) return;
-        panelWasVisible = !!panelWin?.isVisible();
-        wheelWin?.hide(); panelWin?.hide(); overlays.setSuspended(true); hiddenByAuto = true;
+        if (!cfg.config.autoHide || overlayFocused() || (mumble.state.running && mumble.state.ui?.gameFocus)) return;
+        autoHidden = true; reconcileVisibility();
       }, 2000);
     } else {
       if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-      if (hiddenByAuto && gameFocus) { hiddenByAuto = false; wheelWin?.showInactive(); if (panelWasVisible) panelWin?.showInactive(); overlays.setSuspended(false); }
+      if (autoHidden) { autoHidden = false; reconcileVisibility(); }
     }
   });
 }
@@ -165,7 +195,7 @@ let tray = null;
 function setTrayMenu() {
   if (!tray) return;
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: t('tray.showWheel'), click: () => { wheelWin?.show(); } },
+    { label: t('tray.showWheel'), click: showWheel },
     { label: t('tray.openPanel'), click: () => openModule(currentModule || 'inventory', { toggle: false }) },
     { label: t('tray.setup'), click: () => openModule('setup', { toggle: false }) },
     { label: t('tray.settings'), click: () => openModule('settings', { toggle: false }) },
@@ -179,7 +209,7 @@ function createTray() {
     tray = new Tray(nativeImage.createFromPath(iconPath));
     tray.setToolTip('GW2 Overlay');
     setTrayMenu();
-    tray.on('click', () => { if (wheelWin?.isVisible()) wheelWin.hide(); else wheelWin?.show(); });
+    tray.on('click', () => { if (wheelWin?.isVisible()) { wheelWanted = false; reconcileVisibility(); } else showWheel(); });
     tray.on('balloon-click', () => openModule('settings', { toggle: false }));
   } catch (e) { console.error('Tray:', e.message); }
 }
@@ -187,20 +217,27 @@ function createTray() {
 // Følg spillet: vis hjulet når Gw2-64.exe kjører, skjul når det avsluttes. Spillstart meldes til onGameStart
 // (oppdateringssjekk) uansett om «følg spillet» er på.
 async function startFollowGame({ onGameStart } = {}) {
-  let gameWasRunning = null;
+  if (TEST_MODE) return;
+  clearInterval(followTimer);
   const pollGame = async () => {
-    if (TEST_MODE) return;
-    const running = await arcdps.gameRunning();
-    if (running === gameWasRunning) return;
-    const wasKnown = gameWasRunning != null;
-    gameWasRunning = running;
-    if (running && wasKnown) { try { onGameStart?.(); } catch (e) { log.warn('app', 'onGameStart: ' + e.message); } }
-    if (!cfg.config.followGame) return;
-    if (running) { wheelWin?.showInactive(); overlays.setSuspended(false); }
-    else { wheelWin?.hide(); panelWin?.hide(); overlays.setSuspended(true); }
+    if (pollRunning || quitting) return;
+    pollRunning = true;
+    try {
+      const running = await arcdps.gameRunning();
+      if (quitting) return;
+      const changed = running !== gameRunning, wasKnown = gameRunning != null;
+      if (changed) wheelForced = false;
+      gameRunning = running;
+      if (changed && running && wasKnown) {
+        if (cfg.config.followGame) { wheelWanted = true; manuallyHidden = false; }
+        try { onGameStart?.(); } catch (e) { log.warn('app', 'onGameStart: ' + e.message); }
+      }
+      if (changed && !running && cfg.config.followGame) panelWanted = false;
+      reconcileVisibility();
+    } finally { pollRunning = false; }
   };
-  if (!TEST_MODE) { gameWasRunning = await arcdps.gameRunning(); if (cfg.config.followGame && !gameWasRunning) { wheelWin?.hide(); overlays.setSuspended(true); } }
-  setInterval(pollGame, 5000);
+  await pollGame();
+  followTimer = setInterval(() => pollGame().catch((e) => log.warn('app', 'Spillstatus', e)), 5000);
 }
 
 // Liten popup fra systemstatusfeltet (Windows-ballong). Klikk åpner Innstillinger.
@@ -215,6 +252,7 @@ module.exports = {
   webPreferences, APP_ICON,
   createWheel, createPanel, openModule, closePanel, panelState, broadcast, clampToScreen, applyConfig, startDpsWatch,
   setupAutoHide, createTray, startFollowGame, setQuitting, applyScale, showBalloon,
+  showWheel, hideAll, stop, reconcileVisibility,
   get wheelWin() { return wheelWin; },
   get panelWin() { return panelWin; },
   get currentModule() { return currentModule; },

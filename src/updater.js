@@ -10,10 +10,10 @@ const INTERVAL = 6 * 60 * 60 * 1000;
 let opts = null;
 let autoUpdater = null;
 let checking = null; // pågående checkForUpdates()
-let state = { status: 'idle', version: null, percent: 0, error: '', appVersion: '' };
+let state = { revision: 0, status: 'idle', version: null, percent: 0, error: '', appVersion: '' };
 
 function set(patch) {
-  state = { ...state, ...patch };
+  state = { ...state, ...patch, revision: state.revision + 1 };
   try { opts?.onStatus?.(state); } catch (e) { opts?.log?.error?.('onStatus feilet: ' + e.message); }
   return state;
 }
@@ -25,8 +25,8 @@ function autoAllowed() { return opts?.config?.autoUpdate !== false; }
 
 function init(o) {
   opts = o;
-  state.appVersion = o.app.getVersion();
-  if (!enabled()) { state.status = 'dev'; return; }
+  set({ appVersion: o.app.getVersion(), status: enabled() ? 'idle' : 'dev' });
+  if (!enabled()) return;
 
   ({ autoUpdater } = require('electron-updater'));
   autoUpdater.autoDownload = true;
@@ -78,6 +78,6 @@ function install() {
   return true;
 }
 
-function getState() { return state; }
+function getState() { return { ...state }; }
 
 module.exports = { init, check, install, getState };

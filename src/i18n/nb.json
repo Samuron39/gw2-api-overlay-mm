@@ -2,7 +2,6 @@
   "lang.name": "Norsk bokmål",
   "lang.locale": "nb-NO",
   "ai.language": "norsk",
-
   "module.inventory": "Inventory",
   "module.daily": "I dag",
   "module.timers": "Tidsplan",
@@ -12,7 +11,6 @@
   "module.characters": "Karakterer",
   "module.guild": "Guild",
   "module.settings": "Innstillinger",
-
   "common.refresh": "Oppdater",
   "common.error": "Feil: {message}",
   "common.noApiKey": "Legg inn API-nøkkel under Innstillinger.",
@@ -29,7 +27,6 @@
   "common.time.dh": "{d}d {h}t",
   "common.time.hm": "{h}t {m}m",
   "common.time.ms": "{m}m {s}s",
-
   "wheel.title": "GW2 Overlay",
   "wheel.notFound": "GW2 ikke funnet",
   "wheel.noPosition": "Ingen posisjon ({error})",
@@ -40,25 +37,20 @@
   "wheel.locked": "Låst",
   "wheel.dragToMove": "Dra for å flytte",
   "wheel.quit": "Avslutt overlay",
-
   "panel.title": "GW2 Overlay-panel",
   "panel.dragToMove": "Dra for å flytte panelet",
   "panel.pinned": "Øverst",
   "panel.pinnedTitle": "Hold panelet over spillet",
   "panel.opacity": "Gjennomsiktighet",
   "panel.close": "Skjul panel",
-
   "tray.showWheel": "Vis hjulet",
   "tray.openPanel": "Åpne panel",
   "tray.settings": "Innstillinger",
   "tray.quit": "Avslutt",
-
   "main.pickGameDirFirst": "Velg spillmappa under Innstillinger først.",
   "main.pickDirTitle": "Velg mappa der Gw2-64.exe ligger",
   "main.notGameDir": "Fant ikke Gw2-64.exe i den mappa.",
-
   "mumble.noHelper": "Fant ikke hjelperen {exe} ({code}). Bygg den med `cargo build --release` i helper/.",
-
   "overlay.hint": "{label}: dra for å flytte, strekk i kantene. Lås i panelet (Live).",
   "overlay.label.buffs": "Buffs",
   "overlay.label.debuffs": "Conditions på deg",
@@ -71,7 +63,6 @@
   "overlay.rotation": "rotasjon {pos}/{total}",
   "overlay.noRotation": "ingen rotasjon",
   "overlay.noLive": "ingen live-data",
-
   "settings.language": "Språk / Language",
   "settings.gw2": "Guild Wars 2",
   "settings.apiKey": "API-nøkkel",
@@ -141,7 +132,6 @@
   "settings.gameNotFound": "Fant ikke Gw2-64.exe automatisk. Bruk «Velg mappe».",
   "settings.dirPicked": "Mappe valgt. Trykk Lagre.",
   "settings.noDownload": "Ingen nedlastet oppdatering å installere.",
-
   "inventory.table": "Tabell",
   "inventory.ai": "AI-rådgiver",
   "inventory.search": "Søk item…",
@@ -192,7 +182,6 @@
   "inventory.noApiKey": "Ingen API-nøkkel. Legg den inn under Innstillinger.",
   "inventory.collectionIndex": "Samlingsindeks: {message}",
   "inventory.fetchFirst": "Hent inventory først.",
-
   "rules.action.tp": "Selg på TP",
   "rules.action.vendor": "Selg til vendor",
   "rules.action.salvage": "Salvage",
@@ -243,7 +232,6 @@
   "rules.reason.ectoNote": ". Salvage gir ~{c}c i ecto",
   "rules.reason.skinNote": ". Skinnet er ikke låst opp, salvage hvis du vil ha det",
   "rules.reason.listedNote": ". Du har allerede dette ute for salg",
-
   "gw2.httpError": "GW2 API {status} på {endpoint}",
   "gw2.missingPerms": "API-nøkkelen mangler tillatelser: {list}",
   "gw2.softPerms": "Nøkkelen mangler {list}: samlinger og skinn sjekkes ikke",
@@ -251,10 +239,8 @@
   "gw2.source.shared": "Delte plasser",
   "gw2.source.materials": "Materiallager",
   "gw2.currency": "Valuta {id}",
-
   "ai.noAnswer": "Modellen brukte hele token-budsjettet på å tenke uten å svare. Prøv igjen eller velg en modell som tenker mindre.",
   "ai.badJson": "Modellen svarte ikke med gyldig JSON:\n{text}",
-
   "daily.fetching": "Henter dagens status…",
   "daily.resets": "Daglig reset om {daily} · ukentlig om {weekly}",
   "daily.unavailable": "Ikke tilgjengelig (krever tillatelsen progression).",
@@ -283,7 +269,6 @@
   "daily.src.mapChests": "Kartkister",
   "daily.src.mapChestsToday": "Kartkister i dag",
   "daily.src.craftingToday": "Daglig crafting i dag",
-
   "timers.allExpansions": "Alle utvidelser",
   "timers.edit": "Velg hva som vises",
   "timers.loadFailed": "Kunne ikke laste tidsplaner: {message}",
@@ -304,7 +289,6 @@
   "timers.noGame": "Kopierte {link}. Spillet kjører ikke, lim inn selv med Ctrl+V.",
   "timers.noHelper": "Kopierte {link}. Hjelperen mangler, lim inn selv med Ctrl+V.",
   "timers.noFocus": "Kopierte {link}, men fikk ikke fokus på spillet ({reason}). Lim inn selv med Ctrl+V.",
-
   "tp.sells": "Salg ute",
   "tp.buys": "Kjøpsordrer",
   "tp.history": "Historikk",
@@ -344,7 +328,6 @@
   "tp.src.buyHistory": "Kjøpshistorikk",
   "tp.src.sellHistory": "Salgshistorikk",
   "tp.src.delivery": "Leveringsboks",
-
   "dps.how": "Slik virker det",
   "dps.howTitle": "Slik virker DPS-modulen",
   "dps.refreshList": "Oppdater liste",
@@ -399,7 +382,6 @@
   "dps.uploaded": "Lastet opp: {url}",
   "dps.uploadFailed": "Opplasting feilet: {message}",
   "dps.reportStatus": "dps.report svarte {status}",
-
   "live.bridge": "ArcDPS-bro",
   "live.checking": "Sjekker…",
   "live.installBridge": "Installer broen i ArcDPS",
@@ -483,7 +465,6 @@
   "live.noBoonSkills": "Ingen av skillene gir boons ifølge API-et.",
   "live.saved": "Lagret for «{build}» og sendt til skill-baren.",
   "live.suggestFailed": "AI-forslag feilet: {message}",
-
   "characters.fetching": "Henter karakterer…",
   "characters.fetched.one": "{n} karakter hentet.",
   "characters.fetched.other": "{n} karakterer hentet.",
@@ -508,7 +489,6 @@
   "characters.unknown": "ukjent",
   "characters.issue.emptyInfusion": "{slot}: {n} tom(me) infusion-slot(s)",
   "characters.notFound": "Fant ikke karakteren.",
-
   "guild.log": "Logg",
   "guild.stash": "Lager",
   "guild.treasury": "Treasury",
@@ -549,7 +529,6 @@
   "guild.ev.upgrade": "{user} {action} oppgradering {id}{count}",
   "guild.ev.influence": "{n} deltok ({activity})",
   "guild.ev.mission": "Guild mission: {state}",
-
   "arcdps.md5Failed": "Sjekksum-nedlasting feilet ({status})",
   "arcdps.md5Format": "Uventet sjekksum-format",
   "arcdps.notGameDir": "Fant ikke Gw2-64.exe i mappa.",
@@ -559,7 +538,6 @@
   "arcdps.md5Mismatch": "Sjekksummen stemmer ikke ({got} vs {expected}). Installerer ikke.",
   "arcdps.notDll": "Fila er ikke en Windows-DLL. Installerer ikke.",
   "arcdps.bridgeMissing": "Broen (arcdps_gw2overlay_bridge.dll) finnes ikke i denne installasjonen.",
-
   "skills.noCharacter": "Ingen karakter fra spillet ennå (MumbleLink). Gå inn i verden med en karakter.",
   "skills.noBuilds": "Fikk ingen builds fra API-et. Nøkkelen trenger tillatelsen builds.",
   "skills.fetchFirst": "Hent skill-baren først.",
@@ -567,7 +545,6 @@
   "settings.uiScale": "Skalering av hjul, panel og overlay-vinduer (virker med en gang)",
   "settings.upd.noReleases": "Ingen utgivelse er publisert ennå, så det finnes ingenting å oppdatere til.",
   "wheel.hide": "Skjul overlayen (ligger i systemstatusfeltet og viser seg når spillet starter)",
-
   "module.setup": "Kom i gang",
   "tray.setup": "Kom i gang",
   "setup.intro": "Gå gjennom stegene før du bruker overlayen i spillet. Hvert steg sjekkes automatisk, og knappene ordner det som mangler. Du finner veiviseren igjen på fanen «Kom i gang».",
@@ -629,7 +606,6 @@
   "setup.ai.ok": "LM Studio svarer og {model} er lastet.",
   "setup.doneOn": "Veiviseren vises ikke ved oppstart lenger.",
   "setup.doneOff": "Veiviseren vises ved oppstart igjen.",
-
   "settings.aiProvider": "AI-leverandør",
   "settings.aiKey": "API-nøkkel",
   "settings.aiUrl": "Adresse (OpenAI-kompatibel, ender på /v1)",
@@ -705,7 +681,6 @@
   "overlay.dps.session": "hele økta",
   "overlay.dps.sessionLine": "{fights} kamper · {dur} i kamp · snitt {avg} · totalt {total}",
   "overlay.dps.noSession": "Ingen kamper i økta ennå",
-  "overlay.dps.hps": "HPS",
   "live.win.dps2": "DPS-måler 2",
   "live.win.dps3": "DPS-måler 3",
   "live.view": "Visning",
@@ -774,5 +749,32 @@
   "ai.down": "{name} svarer ikke på {url} ({message}). Kjører LM Studio med serveren på, eller er nettet nede?",
   "daily.pasteNow": "{name} nå ({time})",
   "daily.pasteNext": "{name} om {m} min ({time})",
-  "daily.pasteWpTitle": "Lim inn i chatten: {line}"
+  "daily.pasteWpTitle": "Lim inn i chatten: {line}",
+  "config.invalidJson": "Konfigfilen er skadet. Standardinnstillinger brukes inntil oppsettet er gjenopprettet.",
+  "config.invalidFields": "Ugyldige innstillinger ble erstattet: {fields}.",
+  "config.backupAt": "Originalen er bevart i {path}.",
+  "config.backupFailed": "Kunne ikke bevare originalkonfigen ({code}). Automatisk lagring er stoppet.",
+  "config.readFailed": "Kunne ikke lese konfig ({code}). Filen blir ikke overskrevet.",
+  "config.writeFailed": "Kunne ikke lagre konfig ({code}). Originalen er beholdt.",
+  "config.noPath": "Ingen konfigsti.",
+  "config.invalidPatch": "Ugyldig innstilling: {field}.",
+  "security.sender": "Forespørselen kom fra et ukjent vindu.",
+  "security.testBlocked": "Denne handlingen er slått av i isolert testmodus.",
+  "security.logPath": "Velg en EVTC-logg i den konfigurerte loggmappen.",
+  "ai.requestBusy": "Denne AI-forespørselen kjører allerede.",
+  "common.cancel": "Avbryt",
+  "common.cancelled": "Avbrutt",
+  "live.suggestionSaved": "AI-forslaget er bevart. Bruk det når du vil erstatte dette utkastet.",
+  "live.applySuggestion": "Bruk AI-forslaget",
+  "network.cancelled": "Forespørselen ble avbrutt.",
+  "network.timeout": "Forespørselen tok for lang tid. Prøv igjen.",
+  "ai.providerError": "{name} meldte en feil under genereringen. Prøv igjen.",
+  "ai.incomplete": "AI-svaret ble avbrutt eller nådde en grense. Prøv igjen.",
+  "ai.invalidResponse": "AI-tjenesten returnerte et ugyldig svar.",
+  "ai.emptyAnswer": "AI-tjenesten returnerte ikke noe svar. Prøv igjen.",
+  "ai.networkError": "Kunne ikke kontakte {name} ({code}).",
+  "gw2.unlockUnknown": "Ukjent opplåsningsstatus: {endpoint} kunne ikke hentes.",
+  "rules.reason.unlockUnknown": "Behold foreløpig: kunne ikke kontrollere om {what} allerede er låst opp.",
+  "skills.unknownProfession": "Ukjent profesjon. Venter på gyldige karakterdata.",
+  "mumble.exited": "Hjelperen avsluttet ({code})."
 }

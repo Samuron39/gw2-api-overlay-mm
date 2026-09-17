@@ -2,7 +2,6 @@
   "lang.name": "English",
   "lang.locale": "en-GB",
   "ai.language": "English",
-
   "module.inventory": "Inventory",
   "module.daily": "Today",
   "module.timers": "Timers",
@@ -12,7 +11,6 @@
   "module.characters": "Characters",
   "module.guild": "Guild",
   "module.settings": "Settings",
-
   "common.refresh": "Refresh",
   "common.error": "Error: {message}",
   "common.noApiKey": "Enter an API key in Settings.",
@@ -29,7 +27,6 @@
   "common.time.dh": "{d}d {h}h",
   "common.time.hm": "{h}h {m}m",
   "common.time.ms": "{m}m {s}s",
-
   "wheel.title": "GW2 Overlay",
   "wheel.notFound": "GW2 not found",
   "wheel.noPosition": "No position ({error})",
@@ -40,25 +37,20 @@
   "wheel.locked": "Locked",
   "wheel.dragToMove": "Drag to move",
   "wheel.quit": "Quit overlay",
-
   "panel.title": "GW2 Overlay panel",
   "panel.dragToMove": "Drag to move the panel",
   "panel.pinned": "On top",
   "panel.pinnedTitle": "Keep the panel above the game",
   "panel.opacity": "Opacity",
   "panel.close": "Hide panel",
-
   "tray.showWheel": "Show wheel",
   "tray.openPanel": "Open panel",
   "tray.settings": "Settings",
   "tray.quit": "Quit",
-
   "main.pickGameDirFirst": "Choose the game folder in Settings first.",
   "main.pickDirTitle": "Choose the folder containing Gw2-64.exe",
   "main.notGameDir": "Gw2-64.exe was not found in that folder.",
-
   "mumble.noHelper": "Helper not found: {exe} ({code}). Build it with `cargo build --release` in helper/.",
-
   "overlay.hint": "{label}: drag to move, resize at the edges. Lock it in the panel (Live).",
   "overlay.label.buffs": "Buffs",
   "overlay.label.debuffs": "Conditions on you",
@@ -71,7 +63,6 @@
   "overlay.rotation": "rotation {pos}/{total}",
   "overlay.noRotation": "no rotation",
   "overlay.noLive": "no live data",
-
   "settings.language": "Language / Språk",
   "settings.gw2": "Guild Wars 2",
   "settings.apiKey": "API key",
@@ -141,7 +132,6 @@
   "settings.gameNotFound": "Could not find Gw2-64.exe automatically. Use \"Choose folder\".",
   "settings.dirPicked": "Folder chosen. Press Save.",
   "settings.noDownload": "No downloaded update to install.",
-
   "inventory.table": "Table",
   "inventory.ai": "AI advisor",
   "inventory.search": "Search items…",
@@ -192,7 +182,6 @@
   "inventory.noApiKey": "No API key. Enter one in Settings.",
   "inventory.collectionIndex": "Collection index: {message}",
   "inventory.fetchFirst": "Fetch the inventory first.",
-
   "rules.action.tp": "Sell on TP",
   "rules.action.vendor": "Sell to vendor",
   "rules.action.salvage": "Salvage",
@@ -243,7 +232,6 @@
   "rules.reason.ectoNote": ". Salvage gives ~{c}c in ecto",
   "rules.reason.skinNote": ". The skin is not unlocked, salvage if you want it",
   "rules.reason.listedNote": ". You already have this listed for sale",
-
   "gw2.httpError": "GW2 API {status} on {endpoint}",
   "gw2.missingPerms": "The API key is missing permissions: {list}",
   "gw2.softPerms": "The key is missing {list}: collections and skins are not checked",
@@ -251,10 +239,8 @@
   "gw2.source.shared": "Shared slots",
   "gw2.source.materials": "Material storage",
   "gw2.currency": "Currency {id}",
-
   "ai.noAnswer": "The model spent the whole token budget thinking without answering. Try again or choose a model that thinks less.",
   "ai.badJson": "The model did not answer with valid JSON:\n{text}",
-
   "daily.fetching": "Fetching today's status…",
   "daily.resets": "Daily reset in {daily} · weekly in {weekly}",
   "daily.unavailable": "Not available (requires the progression permission).",
@@ -283,7 +269,6 @@
   "daily.src.mapChests": "Map chests",
   "daily.src.mapChestsToday": "Map chests today",
   "daily.src.craftingToday": "Daily crafting today",
-
   "timers.allExpansions": "All expansions",
   "timers.edit": "Choose what to show",
   "timers.loadFailed": "Could not load timers: {message}",
@@ -304,7 +289,6 @@
   "timers.noGame": "Copied {link}. The game is not running, paste it yourself with Ctrl+V.",
   "timers.noHelper": "Copied {link}. The helper is missing, paste it yourself with Ctrl+V.",
   "timers.noFocus": "Copied {link}, but could not focus the game ({reason}). Paste it yourself with Ctrl+V.",
-
   "tp.sells": "Selling",
   "tp.buys": "Buy orders",
   "tp.history": "History",
@@ -344,7 +328,6 @@
   "tp.src.buyHistory": "Buy history",
   "tp.src.sellHistory": "Sell history",
   "tp.src.delivery": "Delivery box",
-
   "dps.how": "How it works",
   "dps.howTitle": "How the DPS module works",
   "dps.refreshList": "Refresh list",
@@ -399,7 +382,6 @@
   "dps.uploaded": "Uploaded: {url}",
   "dps.uploadFailed": "Upload failed: {message}",
   "dps.reportStatus": "dps.report responded with {status}",
-
   "live.bridge": "ArcDPS bridge",
   "live.checking": "Checking…",
   "live.installBridge": "Install the bridge in ArcDPS",
@@ -483,7 +465,6 @@
   "live.noBoonSkills": "None of the skills give boons according to the API.",
   "live.saved": "Saved for \"{build}\" and sent to the skill bar.",
   "live.suggestFailed": "AI suggestion failed: {message}",
-
   "characters.fetching": "Fetching characters…",
   "characters.fetched.one": "{n} character fetched.",
   "characters.fetched.other": "{n} characters fetched.",
@@ -508,7 +489,6 @@
   "characters.unknown": "unknown",
   "characters.issue.emptyInfusion": "{slot}: {n} empty infusion slot(s)",
   "characters.notFound": "Character not found.",
-
   "guild.log": "Log",
   "guild.stash": "Stash",
   "guild.treasury": "Treasury",
@@ -549,7 +529,6 @@
   "guild.ev.upgrade": "{user} {action} upgrade {id}{count}",
   "guild.ev.influence": "{n} participated ({activity})",
   "guild.ev.mission": "Guild mission: {state}",
-
   "arcdps.md5Failed": "Checksum download failed ({status})",
   "arcdps.md5Format": "Unexpected checksum format",
   "arcdps.notGameDir": "Gw2-64.exe was not found in the folder.",
@@ -559,7 +538,6 @@
   "arcdps.md5Mismatch": "The checksum does not match ({got} vs {expected}). Not installing.",
   "arcdps.notDll": "The file is not a Windows DLL. Not installing.",
   "arcdps.bridgeMissing": "The bridge (arcdps_gw2overlay_bridge.dll) is not present in this installation.",
-
   "skills.noCharacter": "No character from the game yet (MumbleLink). Enter the world with a character.",
   "skills.noBuilds": "No builds received from the API. The key needs the builds permission.",
   "skills.fetchFirst": "Fetch the skill bar first.",
@@ -567,7 +545,6 @@
   "settings.uiScale": "Scale of wheel, panel and overlay windows (applies immediately)",
   "settings.upd.noReleases": "No release has been published yet, so there is nothing to update to.",
   "wheel.hide": "Hide the overlay (stays in the system tray and appears when the game starts)",
-
   "module.setup": "Get started",
   "tray.setup": "Get started",
   "setup.intro": "Go through these steps before using the overlay in the game. Each step is checked automatically, and the buttons fix what is missing. You can always come back via the \"Get started\" tab.",
@@ -629,7 +606,6 @@
   "setup.ai.ok": "LM Studio responds and {model} is loaded.",
   "setup.doneOn": "The guide will no longer show at startup.",
   "setup.doneOff": "The guide will show at startup again.",
-
   "settings.aiProvider": "AI provider",
   "settings.aiKey": "API key",
   "settings.aiUrl": "Address (OpenAI-compatible, ending in /v1)",
@@ -705,7 +681,6 @@
   "overlay.dps.session": "whole session",
   "overlay.dps.sessionLine": "{fights} fights · {dur} in combat · avg {avg} · total {total}",
   "overlay.dps.noSession": "No fights this session yet",
-  "overlay.dps.hps": "HPS",
   "live.win.dps2": "DPS meter 2",
   "live.win.dps3": "DPS meter 3",
   "live.view": "View",
@@ -774,5 +749,32 @@
   "ai.down": "{name} does not respond at {url} ({message}). Is LM Studio running with the server on, or is the network down?",
   "daily.pasteNow": "{name} now ({time})",
   "daily.pasteNext": "{name} in {m} min ({time})",
-  "daily.pasteWpTitle": "Paste into chat: {line}"
+  "daily.pasteWpTitle": "Paste into chat: {line}",
+  "config.invalidJson": "The configuration file is damaged. Defaults are used until recovery.",
+  "config.invalidFields": "Invalid settings were replaced: {fields}.",
+  "config.backupAt": "The original is preserved at {path}.",
+  "config.backupFailed": "Could not preserve the original configuration ({code}). Automatic saving is blocked.",
+  "config.readFailed": "Could not read configuration ({code}). The file will not be overwritten.",
+  "config.writeFailed": "Could not save configuration ({code}). The original was preserved.",
+  "config.noPath": "No configuration path.",
+  "config.invalidPatch": "Invalid setting: {field}.",
+  "security.sender": "The request came from an unknown window.",
+  "security.testBlocked": "This action is disabled in isolated test mode.",
+  "security.logPath": "Select an EVTC log inside the configured log directory.",
+  "ai.requestBusy": "This AI request is already running.",
+  "common.cancel": "Cancel",
+  "common.cancelled": "Cancelled",
+  "live.suggestionSaved": "The AI suggestion was kept. Apply it to replace this draft.",
+  "live.applySuggestion": "Apply AI suggestion",
+  "network.cancelled": "The request was cancelled.",
+  "network.timeout": "The request timed out. Try again.",
+  "ai.providerError": "{name} reported an error during generation. Try again.",
+  "ai.incomplete": "The AI response was interrupted or reached a limit. Try again.",
+  "ai.invalidResponse": "The AI service returned an invalid response.",
+  "ai.emptyAnswer": "The AI service returned no answer. Try again.",
+  "ai.networkError": "Could not contact {name} ({code}).",
+  "gw2.unlockUnknown": "Unknown unlock status: {endpoint} could not be fetched.",
+  "rules.reason.unlockUnknown": "Keep for now: could not check whether {what} is already unlocked.",
+  "skills.unknownProfession": "Unknown profession. Waiting for valid character data.",
+  "mumble.exited": "The helper exited ({code})."
 }

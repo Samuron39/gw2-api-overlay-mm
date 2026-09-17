@@ -4,6 +4,8 @@
 const fs = require('fs');
 const log = require('./log');
 const i18n = require('./i18n');
+const secrets = require('./secrets');
+const validation = require('./config-validation');
 
 const DEFAULT_CONFIG = {
   apiKey: '',
@@ -37,66 +39,108 @@ const DEFAULT_CONFIG = {
 };
 
 const DEMO = !!process.env.GW2_DEMO;
-const TEST_MODE = !!process.env.GW2_SHOT;
+const TEST_MODE = DEMO || !!process.env.GW2_SHOT;
 
 let configPath = '';
-let config = { ...DEFAULT_CONFIG };
+let config = structuredClone(DEFAULT_CONFIG);
 let lastSaveError = '';
+let loadWarning = '';
+let blocked = false;
+let recoveryFile = '';
 let saveTimer = null;
 let extras = () => ({}); // felt som legges på publicConfig() (demo, dpsDefaultDir, appVersion), satt av main.js
 let systemLocale = ''; // Windows-språket (app.getLocale()), brukes bare når konfigen ikke har valgt språk ennå
 
 // path: konfigfila. extra: funksjon som gir ekstra felt til publicConfig(). systemLocale: for språkvalg ved første start
 function init({ path, extra, systemLocale: loc }) {
+  clearTimeout(saveTimer); saveTimer = null;
   configPath = path;
+  lastSaveError = ''; loadWarning = ''; blocked = false; recoveryFile = '';
   if (extra) extras = extra;
   if (loc) systemLocale = loc;
 }
 
 function loadConfig() {
   let saved = null;
-  try { saved = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch { saved = null; }
-  if (saved) config = { ...DEFAULT_CONFIG, ...saved, wheel: { ...DEFAULT_CONFIG.wheel, ...(saved.wheel || {}) }, panel: { ...DEFAULT_CONFIG.panel, ...(saved.panel || {}) } };
-  else config = { ...DEFAULT_CONFIG };
+  let original;
+  try {
+    original = fs.readFileSync(configPath);
+    try { saved = JSON.parse(original.toString('utf8')); }
+    catch { loadWarning = i18n.t('config.invalidJson'); }
+  } catch (e) {
+    if (e.code !== 'ENOENT') { blocked = true; lastSaveError = i18n.t('config.readFailed', { code: e.code || 'IO' }); }
+  }
+  secrets.rememberConfig(saved);
+  const normalized = validation.normalize(original && !loadWarning ? saved : {}, DEFAULT_CONFIG);
+  config = normalized.config;
+  if (normalized.invalid.length) loadWarning = i18n.t('config.invalidFields', { fields: normalized.invalid.join(', ') });
+  if (loadWarning && original) {
+    const backup = configPath + '.broken-' + Date.now() + '-' + require('crypto').randomUUID();
+    try {
+      fs.writeFileSync(backup, original, { flag: 'wx', mode: 0o600 });
+      if (!fs.readFileSync(backup).equals(original)) throw new Error('VERIFY');
+      recoveryFile = backup;
+      loadWarning += ' ' + i18n.t('config.backupAt', { path: backup });
+    } catch (e) {
+      blocked = true;
+      lastSaveError = i18n.t('config.backupFailed', { code: e.code || 'VERIFY' });
+    }
+  }
   // Første start (eller konfig fra før språkvalget fantes): følg Windows-språket. Et lagret valg røres aldri.
   if (!saved || !saved.language) { config.language = i18n.languageForLocale(systemLocale); log.info('config', 'Språk valgt fra systemet: ' + systemLocale + ' -> ' + config.language); }
   if (!config.lmModel) config.lmModel = DEFAULT_CONFIG.lmModel;
   if (!config.aiProviders || typeof config.aiProviders !== 'object') config.aiProviders = {};
   i18n.setLanguage(config.language);
+  secrets.rememberConfig(config);
+  if (lastSaveError || loadWarning) log.warn('config', lastSaveError || loadWarning);
 }
 
 // Lagrer konfig og kontrollerer at fila faktisk ble skrevet. Skriver først til .tmp og døper om (atomisk);
-// svikter omdøpingen (låst fil, antivirus) skrives fila direkte. Avvik logges, så feilrapporten viser hva som skjedde.
+// Feil ved omdøping skal aldri føre til direkte overskriving av originalfilen.
 function saveConfig() {
-  if (!configPath) { lastSaveError = 'Ingen konfigsti'; log.error('config', lastSaveError); return; }
+  if (blocked) return false;
+  if (!configPath) { lastSaveError = i18n.t('config.noPath'); log.error('config', lastSaveError); return false; }
+  secrets.rememberConfig(config);
   const data = JSON.stringify(config, null, 2);
   const tmp = configPath + '.tmp';
   try {
-    try {
-      fs.writeFileSync(tmp, data);
-      fs.renameSync(tmp, configPath);
-    } catch (e) {
-      log.warn('config', 'Omdøping feilet, skriver direkte: ' + e.message);
-      try { fs.unlinkSync(tmp); } catch { /* ingen tmp */ }
-      fs.writeFileSync(configPath, data);
-    }
+    fs.writeFileSync(tmp, data, { mode: 0o600 });
+    if (fs.readFileSync(tmp, 'utf8') !== data) throw new Error('VERIFY');
+    fs.renameSync(tmp, configPath);
     const back = fs.readFileSync(configPath, 'utf8');
     if (back !== data) throw new Error('Fila på disk stemmer ikke med det som ble skrevet (' + back.length + ' vs ' + data.length + ' tegn)');
     lastSaveError = '';
     log.debug('config', 'Lagret ' + data.length + ' tegn til ' + configPath);
+    return true;
   } catch (e) {
-    lastSaveError = e.message;
-    log.error('config', 'Kunne ikke lagre konfig: ' + configPath, e.message);
+    try { fs.unlinkSync(tmp); } catch { /* originalen røres ikke */ }
+    lastSaveError = i18n.t('config.writeFailed', { code: e.code || 'VERIFY' });
+    log.error('config', lastSaveError);
+    return false;
   }
 }
 
-function saveSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(saveConfig, 400); }
+function saveSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { saveTimer = null; saveConfig(); }, 400); }
 
-function publicConfig() { return { ...config, configPath, lastSaveError, ...extras() }; }
+function applyPatch(patch) {
+  let clean;
+  try { clean = validation.validatePatch(patch, DEFAULT_CONFIG); }
+  catch (e) { throw new Error(i18n.t('config.invalidPatch', { field: String(e.message).slice(0, 80) })); }
+  for (const [key, value] of Object.entries(clean)) {
+    if (['wheel', 'panel'].includes(key)) Object.assign(config[key], value);
+    else if (['aiProviders', 'overlays'].includes(key)) {
+      for (const [id, v] of Object.entries(value)) config[key][id] = { ...(config[key][id] || {}), ...v };
+    } else config[key] = value;
+  }
+  secrets.rememberConfig(config);
+  return config;
+}
+function flush() { clearTimeout(saveTimer); if (saveTimer) { saveTimer = null; return saveConfig(); } return true; }
+function publicConfig() { return { ...config, configPath, lastSaveError: lastSaveError || loadWarning, recoveryFile, ...extras() }; }
 
 module.exports = {
   DEFAULT_CONFIG, DEMO, TEST_MODE,
-  init, loadConfig, saveConfig, saveSoon, publicConfig,
+  init, loadConfig, saveConfig, saveSoon, publicConfig, applyPatch, flush,
   // config byttes ut ved loadConfig(), så bruk getteren i stedet for å holde på objektet før lasting
   get config() { return config; },
   get configPath() { return configPath; },

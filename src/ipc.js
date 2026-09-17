@@ -25,16 +25,42 @@ const ai = require('./ai');
 const aiProviders = require('./ai-providers');
 const log = require('./log');
 const i18n = require('./i18n');
+const secrets = require('./secrets');
+const security = require('./security');
+const { plain, safeKey, rotation: validateRotation } = require('./config-validation');
 
 const { DEMO, TEST_MODE } = cfg;
 const { t } = i18n;
 const APP_VERSION = require('../package.json').version;
+const TEST_BLOCKED = new Set(['arc:install', 'arc:installBridge', 'setup:installArc', 'gw2:detectDir', 'gw2:pickDir', 'game:paste', 'update:install', 'dps:upload']);
+const aiTasks = new Map();
+async function aiTask(event, options, run) {
+  const requestId = typeof options?.requestId === 'string' && options.requestId.length <= 128 ? options.requestId : require('crypto').randomUUID();
+  const key = event.sender.id + ':' + requestId;
+  if (aiTasks.has(key)) throw new Error(t('ai.requestBusy'));
+  const controller = new AbortController(); aiTasks.set(key, controller);
+  const cancel = () => controller.abort();
+  event.sender.once('destroyed', cancel);
+  try {
+    return await run({ signal: controller.signal, onProgress: (p) => {
+      if (!event.sender.isDestroyed()) event.sender.send('ai:progress', { ...p, requestId });
+    } });
+  } finally { aiTasks.delete(key); event.sender.removeListener('destroyed', cancel); }
+}
 
 // IPC-handler med logging: feil logges med kanalnavn og kastes videre til renderer
 function handle(channel, fn) {
   ipcMain.handle(channel, async (e, ...args) => {
-    try { return await fn(e, ...args); }
-    catch (err) { log.error('ipc', channel + ': ' + (err?.message || err)); throw err; }
+    try {
+      if (!security.trustedSender(e)) throw new Error(t('security.sender'));
+      if (TEST_MODE && TEST_BLOCKED.has(channel)) throw new Error(t('security.testBlocked'));
+      return await fn(e, ...args);
+    }
+    catch (err) {
+      const message = secrets.redact(err?.message || err);
+      log.error('ipc', channel + ': ' + message);
+      throw new Error(message);
+    }
   });
 }
 
@@ -46,13 +72,10 @@ function register() {
   handle('config:set', (_e, patch) => {
     const config = cfg.config;
     const prev = JSON.parse(JSON.stringify(config));
-    const { wheel, panel, aiProviders: ap, ...rest } = patch || {};
-    Object.assign(config, rest);
-    if (ap) { config.aiProviders = config.aiProviders || {}; for (const [id, v] of Object.entries(ap)) config.aiProviders[id] = { ...(config.aiProviders[id] || {}), ...v }; }
-    if (wheel) Object.assign(config.wheel, wheel);
-    if (panel) Object.assign(config.panel, panel);
-    cfg.saveConfig();
+    cfg.applyPatch(patch);
+    const saved = cfg.saveConfig();
     win.applyConfig(prev);
+    if (!saved) throw new Error(cfg.lastSaveError);
     return cfg.publicConfig();
   });
   // Ordboka for valgt språk (lagt oppå nb) pluss lista over språk som finnes i src/i18n/
@@ -60,31 +83,34 @@ function register() {
 
   // ---------- Inventory og AI ----------
   handle('inv:refresh', () => inventory.refresh(cfg.config, DEMO));
-  const progress = (p) => broadcast('ai:progress', p);
+  handle('ai:cancel', (e, requestId) => { const controller = aiTasks.get(e.sender.id + ':' + requestId); controller?.abort(); return !!controller; });
   handle('ai:models', () => ai.listModels(cfg.config));
   handle('ai:providers', () => ({ providers: aiProviders.list(), current: ai.describe(cfg.config) }));
-  handle('ai:prioritize', () => inventory.prioritize(cfg.config, { onProgress: progress }));
-  handle('ai:chat', (_e, history) => inventory.chat(cfg.config, history, { onProgress: progress }));
+  handle('ai:prioritize', (e, options) => aiTask(e, options, (opts) => inventory.prioritize(cfg.config, opts)));
+  handle('ai:chat', (e, history, options) => aiTask(e, options, (opts) => inventory.chat(cfg.config, history, opts)));
 
   // ---------- Tidsplan, I dag, kart, MumbleLink ----------
   handle('timers:data', () => timers.getData());
   handle('daily:get', (_e, force) => { if (force) daily.invalidate(); return daily.fetchDaily(cfg.config.apiKey); });
+  handle('daily:worldbosses', (_e, force) => daily.fetchWorldbosses(cfg.config.apiKey, { force: !!force }));
   handle('gw2:maps', (_e, ids) => gw2.fetchMaps(ids));
   handle('mumble:get', () => mumble.state);
 
   // ---------- Guider: bossliste og AI-utdrag fra wikien (chat-linjer limes inn via game:paste, lenka åpnes via open:url) ----------
   handle('guides:list', () => guides.list());
-  handle('guides:get', (_e, id, refresh) => guides.get(cfg.config, id, { refresh: !!refresh, onProgress: progress }));
+  handle('guides:get', (e, id, refresh, options) => aiTask(e, options, (opts) => guides.get(cfg.config, id, { ...opts, refresh: !!refresh })));
 
   // ---------- DPS ----------
-  handle('dps:list', () => { const dir = cfg.config.dpsLogDir || dps.DEFAULT_DIR; return { dir, exists: fs.existsSync(dir), logs: dps.listLogs(dir) }; });
-  handle('dps:parse', (_e, file) => dps.parseLog(file));
-  handle('dps:upload', (_e, file) => dps.upload(file));
+  const logDir = () => cfg.config.dpsLogDir || (TEST_MODE ? path.join(app.getPath('userData'), 'evtc-test') : dps.DEFAULT_DIR);
+  const checkedLog = (file) => { try { return security.logFile(logDir(), file); } catch { throw new Error(t('security.logPath')); } };
+  handle('dps:list', async () => { const dir = logDir(); return { dir, exists: fs.existsSync(dir), logs: await dps.listLogs(dir) }; });
+  handle('dps:parse', (_e, file) => dps.parseLog(checkedLog(file)));
+  handle('dps:upload', (_e, file) => dps.upload(checkedLog(file)));
 
   // ---------- Trading Post, karakterer, guild ----------
   handle('tp:get', (_e, force) => { if (force) tp.invalidate(); return tp.fetchTp(cfg.config.apiKey); });
   handle('chars:get', (_e, force) => { if (force) characters.invalidate(); return characters.fetchCharacters(cfg.config.apiKey); });
-  handle('chars:review', (_e, name) => characters.review(cfg.config, name, dps, cfg.config.dpsLogDir || dps.DEFAULT_DIR));
+  handle('chars:review', (e, name, options) => aiTask(e, options, (opts) => characters.review(cfg.config, name, dps, logDir(), opts)));
   handle('guild:get', (_e, force) => { if (force) guild.invalidate(); return guild.fetchGuilds(cfg.config.apiKey); });
 
   // ---------- ArcDPS og broen ----------
@@ -94,7 +120,6 @@ function register() {
     if (!dir) throw new Error(t('main.pickGameDirFirst'));
     return arcdps.install(dir);
   });
-  handle('arc:uninstall', () => arcdps.uninstall(cfg.config.gw2Dir));
   handle('arc:installBridge', async () => {
     const dir = arcdps.isGameDir(cfg.config.gw2Dir) ? cfg.config.gw2Dir : await arcdps.detectDir();
     if (!dir) throw new Error(t('main.pickGameDirFirst'));
@@ -102,7 +127,11 @@ function register() {
   });
 
   // ---------- Kom i gang-veiviseren ----------
-  handle('setup:check', () => setup.check(cfg.config, { gw2, arcdps, dps, ai, mumble }));
+  handle('setup:check', () => setup.check(cfg.config, TEST_MODE ? {
+    gw2, arcdps: { isGameDir: () => false, detectDir: async () => '', gameRunning: async () => false },
+    dps: { DEFAULT_DIR: path.join(app.getPath('userData'), 'test-logs'), listLogs: async () => [] },
+    ai: { describe: () => ai.describe(cfg.config), listModels: async () => [] }, mumble: { state: { running: false } },
+  } : { gw2, arcdps, dps, ai, mumble }));
   // ArcDPS og broen i ett: samme knapp i veiviseren
   handle('setup:installArc', async () => {
     const dir = arcdps.isGameDir(cfg.config.gw2Dir) ? cfg.config.gw2Dir : await arcdps.detectDir();
@@ -124,8 +153,13 @@ function register() {
   // Låst overlay-vindu slipper klikk gjennom; verktøylinja i DPS-vinduet ber om klikk mens pekeren er over den
   handle('overlays:ignoreMouse', (_e, type, ignore) => { const w = overlays.get(type); if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(!!ignore, { forward: true }); return true; });
   handle('skills:get', (_e, opts) => skills.getSkillbar(cfg.config, live.snapshot(), mumble.state, opts || {}));
-  handle('skills:setRotation', (_e, key, rotation) => { const config = cfg.config; config.rotations = config.rotations || {}; config.rotations[key] = rotation; cfg.saveConfig(); overlays.broadcast('skills:changed', { key }); return true; });
-  handle('skills:suggest', (_e, key) => skills.suggestRotation(cfg.config, key, { onProgress: progress }));
+  handle('skills:setRotation', (_e, key, rotation) => {
+    if (typeof key !== 'string' || !key || !safeKey(key) || key.length > 512 || (!plain(rotation) && !Array.isArray(rotation))) throw new Error(t('config.invalidPatch', { field: 'rotation' }));
+    cfg.config.rotations[key] = validateRotation(rotation);
+    if (!cfg.saveConfig()) throw new Error(cfg.lastSaveError);
+    overlays.broadcast('skills:changed', { key }); return true;
+  });
+  handle('skills:suggest', (e, key, options) => aiTask(e, options, (opts) => skills.suggestRotation(cfg.config, key, opts)));
   handle('skills:icons', async (_e, ids) => { const { byId } = await skills.fetchIndex(); const out = {}; for (const id of ids || []) if (byId[id]?.icon) out[id] = byId[id].icon; return out; }); // ikon-URL per skill-id, for effekter uten lokalt ikon
 
   // ---------- Spillmappe ----------
@@ -142,6 +176,7 @@ function register() {
   // Manuell flytting av hjul og overlay-vinduer: start husker vindusposisjon og pekerens skjermposisjon, move flytter relativt
   const drags = new Map();
   handle('win:drag', (e, d) => {
+    if (!plain(d) || !['start', 'move', 'end'].includes(d.phase) || (d.phase !== 'end' && (!Number.isFinite(d.x) || !Number.isFinite(d.y)))) return false;
     const w = d?.target === 'wheel' ? win.wheelWin : overlays.get(d?.target);
     if (!w || w.isDestroyed()) return false;
     if (d.phase === 'start') { const b = w.getBounds(); drags.set(e.sender.id, { x: b.x, y: b.y, w: b.width, h: b.height, px: d.x, py: d.y }); return true; }
@@ -150,14 +185,13 @@ function register() {
     drags.delete(e.sender.id); w.emit('moved'); return true;
   });
   handle('wheel:ignoreMouse', (_e, ignore) => { const w = win.wheelWin; if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(!!ignore, { forward: true }); });
-  handle('app:setStartup', (_e, on) => { app.setLoginItemSettings({ openAtLogin: !!on, path: process.execPath, args: app.isPackaged ? [] : [path.resolve(__dirname, '..')] }); return app.getLoginItemSettings().openAtLogin; });
 
   handle('clipboard:write', (_e, text) => { clipboard.writeText(String(text)); return true; });
   // Lim inn tekst i spillets chat: kopier, gi GW2 fokus, Enter (hvis chatten ikke allerede er åpen), Ctrl+V.
   handle('game:paste', (_e, text) => new Promise((resolve) => {
-    clipboard.writeText(String(text));
     if (mumble.state?.error) return resolve({ ok: false, reason: 'NOHELPER' }); // hjelperen kunne ikke startes: si det, ikke "spillet kjører ikke"
     if (!mumble.state?.running) return resolve({ ok: false, reason: 'NOGAME' });
+    clipboard.writeText(String(text));
     const args = ['paste'];
     if (mumble.state?.ui?.textboxFocus) args.push('--no-enter');
     const { execFile } = require('child_process');
@@ -168,7 +202,10 @@ function register() {
     });
   }));
   handle('open:wiki', (_e, name) => shell.openExternal('https://wiki.guildwars2.com/wiki/Special:Search?search=' + encodeURIComponent(name)));
-  handle('open:url', (_e, url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); });
+  handle('open:url', (_e, url) => {
+    try { const parsed = new URL(url); if (!['http:', 'https:'].includes(parsed.protocol)) return false; return shell.openExternal(parsed.href); }
+    catch { return false; }
+  });
 
   // ---------- Panel og app ----------
   handle('panel:open', (_e, id) => openModule(id));
@@ -177,7 +214,7 @@ function register() {
   handle('panel:state', () => win.panelState());
   handle('wheel:setLocked', (_e, locked) => { const config = cfg.config; const prev = JSON.parse(JSON.stringify(config)); config.wheel.locked = !!locked; cfg.saveConfig(); win.applyConfig(prev); return config.wheel.locked; });
   handle('app:quit', () => { win.setQuitting(); app.quit(); });
-  handle('app:hide', () => { win.wheelWin?.hide(); win.panelWin?.hide(); }); // ligger i systemstatusfeltet og venter på spillet
+  handle('app:hide', () => win.hideAll()); // brukerens valg beholdes gjennom alt-tab
 
   // ---------- Feilsøking: loggmappe og feilrapport (uten hemmeligheter) til utklippstavla ----------
   handle('log:open', async () => { const r = await shell.openPath(log.path()); if (r) throw new Error(r); return log.path(); });
@@ -226,13 +263,15 @@ function register() {
       '--- Siste 200 logglinjer ---',
       ...log.tail(200),
     ];
-    const text = lines.join('\n');
+    secrets.rememberConfig(config);
+    const text = secrets.redact(lines.join('\n'));
     clipboard.writeText(text);
     return text;
   });
 
   // ---------- Oppdatering: manuell sjekk fra Innstillinger, og installer nedlastet versjon (avslutter og starter på nytt) ----------
   handle('update:check', () => updater.check());
+  handle('update:get', () => updater.getState());
   handle('update:install', () => { const ok = updater.install(); if (ok) win.setQuitting(); return ok; });
 }
 
