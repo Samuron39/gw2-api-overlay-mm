@@ -7,6 +7,8 @@ const ECTO_ID = 19721;
 const TP_FEE = 0.85; // 5 % listing + 10 % salg
 
 // Basismaterialer per nivåtrinn (T1..T6) brukt til å anslå salvage-verdi.
+// Iron Ore (19699) står bevisst i to trinn: jern brukes også til stål og kan salvages fra nivå 19–53.
+// https://wiki.guildwars2.com/wiki/Iron_Ore (kontrollert 17.09.2026). Nivåtrinnene er grove estimater.
 const TIER = {
   cloth:   [19718, 19739, 19741, 19743, 19748, 19745],
   leather: [19719, 19728, 19730, 19731, 19729, 19732],

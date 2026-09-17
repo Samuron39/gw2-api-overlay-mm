@@ -28,8 +28,13 @@ function item(over = {}) {
 
 const row = (it, over = {}) => ({ item: it, count: 1, binding: null, sourceType: 'character', ...over });
 
-test('etiketter: hver handling har norsk etikett og svaret bruker den', () => {
-  for (const a of ['tp', 'vendor', 'salvage', 'deposit', 'keep', 'open', 'use', 'stored']) assert.ok(ACTION_LABEL[a], a);
+test('etiketter: hver handling har norsk etikett og svaret bruker den', (t) => {
+  const i18n = require('../src/i18n'); i18n.setLanguage('nb'); t.after(() => i18n.setLanguage('nb'));
+  const nb = require('../src/i18n/nb.json');
+  for (const a of ['tp', 'vendor', 'salvage', 'deposit', 'keep', 'open', 'use', 'stored']) {
+    assert.equal(ACTION_LABEL[a], nb['rules.action.' + a]);
+    assert.notEqual(ACTION_LABEL[a], 'rules.action.' + a);
+  }
   const r = recommend(row(item({ type: 'Bag' })), ctx());
   assert.equal(r.action, 'keep');
   assert.equal(r.label, ACTION_LABEL.keep);

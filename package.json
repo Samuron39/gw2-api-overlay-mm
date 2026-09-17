@@ -5,17 +5,19 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test \"test/**/*.test.js\"",
-    "predist": "node scripts/check-native.js",
+    "test": "node scripts/test.js",
+    "predist": "npm run build:native",
     "dist": "electron-builder --win --dir",
-    "predist:installer": "node scripts/check-native.js",
+    "predist:installer": "npm run build:native",
     "dist:installer": "electron-builder --win nsis",
-    "prerelease": "node scripts/check-native.js",
-    "release": "electron-builder --win nsis --publish always"
+    "prerelease": "npm run build:native",
+    "release": "electron-builder --win nsis --publish always",
+    "check": "node scripts/check-syntax.js",
+    "build:native": "node scripts/build-native.js"
   },
   "license": "MIT",
   "devDependencies": {
-    "electron": "latest",
+    "electron": "44.3.0",
     "electron-builder": "^25.1.8"
   },
   "build": {
@@ -66,5 +68,8 @@
   },
   "dependencies": {
     "electron-updater": "^6.8.9"
+  },
+  "engines": {
+    "node": ">=22.18.0 <23"
   }
 }

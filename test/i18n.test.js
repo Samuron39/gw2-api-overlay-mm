@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const i18n = require('../src/i18n');
+test.afterEach(() => i18n.setLanguage('nb'));
 
 const DIR = path.join(__dirname, '..', 'src', 'i18n');
 const nb = JSON.parse(fs.readFileSync(path.join(DIR, 'nb.json'), 'utf8'));
