@@ -8,6 +8,7 @@ const path = require('path');
 const ai = require('../ai');
 const log = require('../log');
 const { t } = require('../i18n');
+const { request, failure } = require('../network');
 
 const WIKI = 'https://wiki.guildwars2.com';
 const USER_AGENT = 'gw2-overlay';
@@ -86,12 +87,13 @@ function writeCache(id, obj) {
   try { fs.writeFileSync(p, JSON.stringify(obj, null, 1)); } catch (e) { log.warn('guides', 'Kunne ikke skrive cache: ' + e.message); }
 }
 
-async function wikiGet(params) {
+async function wikiGet(params, signal) {
   const url = new URL(WIKI + '/api.php');
   for (const [k, v] of Object.entries({ format: 'json', redirects: 1, ...params })) url.searchParams.set(k, v);
-  const res = await _deps.fetch(url, { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' } });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  return res.json();
+  return request(url, { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' } }, { signal, fetchImpl: _deps.fetch }, async (res) => {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  });
 }
 
 // Grov rensing av wikitekst når TextExtracts ikke gir noe: maler, filer, lenker, tabeller og HTML bort
@@ -108,15 +110,15 @@ function stripWikitext(w) {
 }
 
 // Sidetekst: prop=extracts (ren tekst) først, action=parse&prop=wikitext som reserve
-async function fetchWikiText(page) {
+async function fetchWikiText(page, signal) {
   let text = '';
   try {
-    const j = await wikiGet({ action: 'query', prop: 'extracts', explaintext: 1, titles: page });
+    const j = await wikiGet({ action: 'query', prop: 'extracts', explaintext: 1, titles: page }, signal);
     const p = Object.values(j.query?.pages || {})[0];
     if (p && !('missing' in p)) text = String(p.extract || '');
-  } catch (e) { log.warn('guides', 'extracts feilet for ' + page + ': ' + e.message); }
+  } catch (e) { if (signal?.aborted) throw failure('ABORT_ERR'); log.warn('guides', 'extracts feilet for ' + page + ': ' + e.message); }
   if (text.trim().length < 200) {
-    const j = await wikiGet({ action: 'parse', prop: 'wikitext', page });
+    const j = await wikiGet({ action: 'parse', prop: 'wikitext', page }, signal);
     text = stripWikitext(j.parse?.wikitext?.['*']);
   }
   if (!text.trim()) throw new Error(t('guides.wikiEmpty', { page }));
@@ -143,7 +145,7 @@ function parseJson(text) {
   try { return JSON.parse(text); } catch { /* prøv å finne objektet */ }
   const m = String(text).match(/\{[\s\S]*\}/);
   if (m) { try { return JSON.parse(m[0]); } catch { /* gi opp */ } }
-  throw new Error(t('ai.badJson', { text: String(text).slice(0, 500) }));
+  throw new Error(t('ai.invalidResponse'));
 }
 
 function buildMessages(entry, wikiText, language) {
@@ -156,7 +158,8 @@ function buildMessages(entry, wikiText, language) {
 
 // Utdrag for én boss. Nytt AI-kall bare når cache mangler, språket er et annet eller refresh er satt.
 // Uten AI-leverandør eller nett returneres lista/lenka fortsatt, med error-felt (og eventuelt et gammelt utdrag som stale).
-async function get(cfg, id, { refresh = false, language, onProgress } = {}) {
+async function get(cfg, id, { refresh = false, language, onProgress, signal } = {}) {
+  if (signal?.aborted) throw failure('ABORT_ERR');
   const entry = find(id);
   if (!entry) throw new Error(t('guides.unknownId', { id }));
   const lang = language || _deps.ai.answerLanguage();
@@ -169,14 +172,15 @@ async function get(cfg, id, { refresh = false, language, onProgress } = {}) {
   if (d.needsKey && !d.hasKey) return fail('NOAI', t('guides.noAi'));
 
   let wikiText;
-  try { wikiText = await fetchWikiText(entry.page); }
-  catch (e) { log.warn('guides', 'wiki feilet for ' + entry.page + ': ' + e.message); return fail('NET', t('guides.wikiFailed', { message: e.message })); }
+  try { wikiText = await fetchWikiText(entry.page, signal); }
+  catch (e) { if (signal?.aborted) throw failure('ABORT_ERR'); log.warn('guides', 'wiki feilet for ' + entry.page + ': ' + e.message); return fail('NET', t('guides.wikiFailed', { message: e.message })); }
 
   let guide;
   try {
-    const text = await _deps.ai.completeText(cfg, buildMessages(entry, wikiText, lang), { jsonSchema: GUIDE_SCHEMA, maxTokens: 6000, onProgress });
+    const text = await _deps.ai.completeText(cfg, buildMessages(entry, wikiText, lang), { jsonSchema: GUIDE_SCHEMA, maxTokens: 6000, onProgress, signal });
+    if (signal?.aborted) throw failure('ABORT_ERR');
     guide = normalizeGuide(parseJson(text));
-  } catch (e) { log.warn('guides', 'AI feilet for ' + id + ': ' + e.message); return fail('AI', e.message); }
+  } catch (e) { if (signal?.aborted) throw failure('ABORT_ERR'); log.warn('guides', 'AI feilet for ' + id + ': ' + e.message); return fail('AI', e.message); }
   if (!guide.summary.length && !guide.chat.length) return fail('AI', t('ai.badJson', { text: '' }));
 
   const rec = { title: entry.name, page: entry.page, language: lang, fetchedAt: Date.now(), summary: guide.summary, chat: guide.chat, tips: guide.tips, model: d.model || d.name };

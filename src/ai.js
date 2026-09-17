@@ -4,6 +4,7 @@
 // Systemprompten er norsk, men modellen bes svare på språket brukeren har valgt (ai.language i språkfila).
 const { t } = require('./i18n');
 const providers = require('./ai-providers');
+const { request, LIMITS } = require('./network');
 
 function target(cfg) {
   const r = providers.resolve(cfg);
@@ -12,11 +13,12 @@ function target(cfg) {
   return r;
 }
 
-async function listModels(cfg) {
+async function listModels(cfg, opts = {}) {
   const r = target(cfg);
-  const res = await fetch(r.url + '/models', { headers: providers.headers(r) });
-  if (!res.ok) throw new Error(t('ai.status', { name: r.name, status: res.status }));
-  return providers.parseModels(await res.json());
+  return request(r.url + '/models', { headers: providers.headers(r) }, opts, async (res) => {
+    if (!res.ok) throw new Error(t('ai.status', { name: r.name, status: res.status }));
+    return providers.parseModels(await res.json());
+  });
 }
 
 // Kort beskrivelse til UI-et: leverandør og modell
@@ -27,36 +29,76 @@ async function complete(cfg, messages, opts = {}) {
   // Resonneringsmodeller (Qwen3, Gemma 4) tenker først og legger tenkingen i delta.reasoning_content.
   // Tenkingen teller mot token-budsjettet, så det må være romslig, ellers blir svaret tomt.
   const body = providers.buildBody(r, messages, opts); // stream: true, ellers stopper Node etter 5 min uten svarhoder
-  let res;
-  try { res = await fetch(r.url + '/chat/completions', { method: 'POST', headers: providers.headers(r), body: JSON.stringify(body) }); }
-  catch (e) { throw new Error(t('ai.down', { name: r.name, url: r.url, message: e.cause?.code || e.message })); }
-  if (res.status === 429) throw new Error(t('ai.rateLimited', { name: r.name }));
-  if (!res.ok) throw new Error(t('ai.error', { name: r.name, status: res.status, text: (await res.text()).slice(0, 300) }));
-
-  let content = '';
-  let reasoning = '';
-  let buffer = '';
-  const decoder = new TextDecoder();
-  for await (const chunk of res.body) {
-    buffer += decoder.decode(chunk, { stream: true });
-    let nl;
-    while ((nl = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, nl).trim();
-      buffer = buffer.slice(nl + 1);
-      if (!line.startsWith('data:')) continue;
-      const payload = line.slice(5).trim();
-      if (payload === '[DONE]') continue;
-      try {
-        const j = JSON.parse(payload);
-        const d = j.choices?.[0]?.delta || {};
-        if (d.reasoning_content) { reasoning += d.reasoning_content; opts.onProgress?.({ reasoning: reasoning.length, content: content.length }); }
-        if (d.content) { content += d.content; opts.onProgress?.({ reasoning: reasoning.length, content: content.length }); }
-      } catch { /* ufullstendig linje, ignorer */ }
-    }
+  const fail = (key) => { const e = new Error(t(key, { name: r.name })); e.aiResponse = true; return e; };
+  try {
+    return await request(r.url + '/chat/completions', { method: 'POST', headers: providers.headers(r), body: JSON.stringify(body) }, {
+      signal: opts.signal, timeoutMs: opts.timeoutMs ?? LIMITS.aiTotalMs,
+      firstByteMs: opts.firstByteMs ?? LIMITS.aiFirstByteMs, idleMs: opts.idleMs ?? LIMITS.aiIdleMs,
+    }, async (res, task) => {
+      if (res.status === 429) throw fail('ai.rateLimited');
+      if (!res.ok) { const e = new Error(t('ai.status', { name: r.name, status: res.status })); e.aiResponse = true; throw e; }
+      let content = '', reasoning = 0, complete = false, done = false;
+      const accept = (j, json = false) => {
+        if (!j || typeof j !== 'object') throw fail('ai.invalidResponse');
+        if (j.error) throw fail('ai.providerError');
+        const c = j.choices?.[0];
+        if (!c) return;
+        if (c.finish_reason && c.finish_reason !== 'stop') throw fail('ai.incomplete');
+        if (c.finish_reason === 'stop') complete = true;
+        const d = (json ? c.message : c.delta) || {};
+        if (typeof d.reasoning_content === 'string') reasoning += d.reasoning_content.length;
+        if (typeof d.content === 'string') content += d.content;
+        if (d.reasoning_content || d.content) opts.onProgress?.({ reasoning, content: content.length });
+      };
+      const type = res.headers?.get?.('content-type') || '';
+      if (/application\/(?:[\w.+-]+\+)?json\b/i.test(type)) {
+        let j;
+        try {
+          if (res.body) {
+            const decoder = new TextDecoder(); let text = '';
+            for await (const chunk of task.chunks(res.body)) text += decoder.decode(chunk, { stream: true });
+            j = JSON.parse(text + decoder.decode());
+          } else j = await res.json();
+        } catch (e) { if (task.signal.aborted) throw e; throw fail('ai.invalidResponse'); }
+        accept(j, true); complete = true;
+      } else {
+        if (!res.body) throw fail('ai.invalidResponse');
+        let buffer = '', event = '', data = [];
+        const decoder = new TextDecoder();
+        const dispatch = () => {
+          if (event === 'error') throw fail('ai.providerError');
+          const payload = data.join('\n').trim(); data = []; event = '';
+          if (!payload) return;
+          if (payload === '[DONE]') { complete = true; done = true; return; }
+          let j;
+          try { j = JSON.parse(payload); } catch { throw fail('ai.invalidResponse'); }
+          accept(j);
+        };
+        const line = (value) => {
+          value = value.replace(/\r$/, '');
+          if (!value) dispatch();
+          else if (value.startsWith('data:')) data.push(value.slice(5).replace(/^ /, ''));
+          else if (value.startsWith('event:')) event = value.slice(6).trim();
+        };
+        for await (const chunk of task.chunks(res.body)) {
+          buffer += decoder.decode(chunk, { stream: true });
+          let nl;
+          while (!done && (nl = buffer.indexOf('\n')) >= 0) { line(buffer.slice(0, nl)); buffer = buffer.slice(nl + 1); }
+          if (done) break;
+        }
+        if (!done) { buffer += decoder.decode(); if (buffer) line(buffer); dispatch(); }
+      }
+      if (!complete || /<think>(?:(?!<\/think>)[\s\S])*$/.test(content)) throw fail('ai.incomplete');
+      content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+      if (!content) throw fail('ai.emptyAnswer');
+      return content;
+    });
+  } catch (e) {
+    if (e.aiResponse || e.code === 'ABORT_ERR' || e.code === 'TIMEOUT') throw e;
+    // Nettfeil kan inneholde URL eller innsendte nøkler. Del bare en kjent feilkode.
+    const code = e.cause?.code || e.code || '';
+    throw new Error(t('ai.networkError', { name: r.name, code: /^[A-Z0-9_]{1,40}$/.test(code) ? code : 'FETCH_FAILED' }));
   }
-  content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-  if (!content && reasoning) throw new Error(t('ai.noAnswer'));
-  return content;
 }
 
 function gold(c) {
@@ -77,6 +119,7 @@ function buildContext(data, maxRows = 60) {
   const fs = data.freeSlots || {};
   const charFree = Object.entries(fs.characters || {}).map(([n, v]) => `${n} ${v.free}/${v.total}`).join(', ');
   lines.push(`Ledige plasser: bank ${fs.bank?.free ?? '?'}/${fs.bank?.total ?? '?'}; karakterer: ${charFree || 'ingen data'}.`);
+  if (data.errors?.length) lines.push('Ufullstendig datagrunnlag: ' + data.errors.join('; ') + '. Ikke tolk manglende data som bekreftet fravær.');
 
   const totals = {};
   for (const r of data.rows) {
@@ -143,7 +186,7 @@ function parseJson(text) {
   try { return JSON.parse(text); } catch { /* prøv å finne objektet */ }
   const m = text.match(/\{[\s\S]*\}/);
   if (m) { try { return JSON.parse(m[0]); } catch { /* gi opp */ } }
-  throw new Error(t('ai.badJson', { text: text.slice(0, 500) }));
+  throw new Error(t('ai.invalidResponse'));
 }
 
 async function prioritize(cfg, data, opts = {}) {
@@ -152,7 +195,7 @@ async function prioritize(cfg, data, opts = {}) {
     { role: 'system', content: SYSTEM() },
     { role: 'user', content: `${ctx}\n\nLag en prioritert oppryddingsplan med 5 til 12 steg. Start med det som frigjør mest plass eller gir mest gull for minst innsats. Nevn eksplisitt hvis noe i lista bør beholdes selv om regelmotoren sier selg, og hvorfor. Svar som JSON, med tekstene på ${answerLanguage()}.` },
   ];
-  const text = await complete(cfg, messages, { jsonSchema: PLAN_SCHEMA, maxTokens: 8000, onProgress: opts.onProgress });
+  const text = await complete(cfg, messages, { ...opts, jsonSchema: PLAN_SCHEMA, maxTokens: 8000 });
   return parseJson(text);
 }
 
@@ -162,7 +205,7 @@ async function chat(cfg, data, history, opts = {}) {
     { role: 'system', content: SYSTEM() + '\n\nSpillerens inventory:\n' + ctx },
     ...history.slice(-10),
   ];
-  return complete(cfg, messages, { maxTokens: 4000, onProgress: opts.onProgress });
+  return complete(cfg, messages, { ...opts, maxTokens: 4000 });
 }
 
 module.exports = { listModels, describe, prioritize, chat, buildContext, answerLanguage, completeText: (cfg, messages, opts = {}) => complete(cfg, messages, { maxTokens: 4000, ...opts }) };

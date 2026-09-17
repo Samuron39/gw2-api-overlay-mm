@@ -249,3 +249,28 @@ test('get: ukjent id kaster', async () => {
   fakeEnv();
   await assert.rejects(() => guides.get({}, 'finnes-ikke'), /finnes-ikke/);
 });
+
+test('get: avbrutt wiki-kall starter ikke fallback eller AI', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gw2-guides-cancel-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true })); guides.init(dir);
+  const calls = fakeEnv();
+  const controller = new AbortController(); let fetches = 0;
+  guides._deps.fetch = async (_url, options) => { fetches++; assert.ok(options.signal); return new Promise(() => {}); };
+  const pending = guides.get({}, 'raid-spirit-vale', { signal: controller.signal });
+  const rejected = assert.rejects(pending, { code: 'ABORT_ERR' });
+  await new Promise(setImmediate); controller.abort(); await rejected;
+  assert.equal(fetches, 1); assert.equal(calls.ai, 0);
+  assert.equal(fs.existsSync(path.join(dir, 'guides', 'raid-spirit-vale.json')), false);
+});
+
+test('get: et sent AI-svar etter avbrudd skrives ikke til cache', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gw2-guides-cancel-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true })); guides.init(dir);
+  fakeEnv(); const controller = new AbortController();
+  guides._deps.ai.completeText = async (_cfg, _messages, options) => {
+    assert.equal(options.signal, controller.signal); controller.abort();
+    return JSON.stringify({ summary: ['Gammelt svar'], chat: [], tips: [] });
+  };
+  await assert.rejects(guides.get({}, 'raid-spirit-vale', { signal: controller.signal }), { code: 'ABORT_ERR' });
+  assert.equal(fs.existsSync(path.join(dir, 'guides', 'raid-spirit-vale.json')), false);
+});

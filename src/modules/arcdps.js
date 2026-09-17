@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { t } = require('../i18n');
+const { request, LIMITS } = require('../network');
 
 const ARC_URL = 'https://www.deltaconnected.com/arcdps/x64/d3d11.dll';
 const ARC_MD5_URL = 'https://www.deltaconnected.com/arcdps/x64/d3d11.dll.md5sum';
@@ -46,12 +47,19 @@ async function detectDir() {
 
 function md5File(file) { return crypto.createHash('md5').update(fs.readFileSync(file)).digest('hex'); }
 
-async function remoteMd5() {
-  const res = await fetch(ARC_MD5_URL, { headers: { 'User-Agent': 'gw2-overlay' } });
-  if (!res.ok) throw new Error(t('arcdps.md5Failed', { status: res.status }));
-  const m = (await res.text()).trim().match(/^[0-9a-f]{32}/i);
-  if (!m) throw new Error(t('arcdps.md5Format'));
-  return m[0].toLowerCase();
+let md5Cache = null, md5Pending = null;
+function remoteMd5({ force = false } = {}) {
+  if (!force && md5Cache && Date.now() - md5Cache.at < 5 * 60000) return Promise.resolve(md5Cache.value);
+  if (!force && md5Pending) return md5Pending;
+  const pending = request(ARC_MD5_URL, { headers: { 'User-Agent': 'gw2-overlay' } }, {}, async (res) => {
+    if (!res.ok) throw new Error(t('arcdps.md5Failed', { status: res.status }));
+    const m = (await res.text()).trim().match(/^[0-9a-f]{32}/i);
+    if (!m) throw new Error(t('arcdps.md5Format'));
+    const value = m[0].toLowerCase(); md5Cache = { at: Date.now(), value }; return value;
+  });
+  if (force) return pending;
+  md5Pending = pending.finally(() => { md5Pending = null; });
+  return md5Pending;
 }
 
 async function status(gw2Dir) {
@@ -69,13 +77,14 @@ async function status(gw2Dir) {
 async function install(gw2Dir) {
   if (!isGameDir(gw2Dir)) throw new Error(t('arcdps.notGameDir'));
   if (await gameRunning()) throw new Error(t('arcdps.gameRunning'));
-  const expected = await remoteMd5();
-  const res = await fetch(ARC_URL, { headers: { 'User-Agent': 'gw2-overlay' } });
-  if (!res.ok) throw new Error(t('arcdps.downloadFailed', { status: res.status }));
-  const buf = Buffer.from(await res.arrayBuffer());
+  const expected = await remoteMd5({ force: true }); // fersk sum til selve installasjonen
+  const buf = await request(ARC_URL, { headers: { 'User-Agent': 'gw2-overlay' } }, { timeoutMs: LIMITS.transferMs }, async (res) => {
+    if (!res.ok) throw new Error(t('arcdps.downloadFailed', { status: res.status }));
+    return Buffer.from(await res.arrayBuffer());
+  });
   const got = crypto.createHash('md5').update(buf).digest('hex');
   if (got !== expected) throw new Error(t('arcdps.md5Mismatch', { got, expected }));
-  if (buf.readUInt16LE(0) !== 0x5a4d) throw new Error(t('arcdps.notDll'));
+  if (buf.length < 2 || buf.readUInt16LE(0) !== 0x5a4d) throw new Error(t('arcdps.notDll'));
   const target = path.join(gw2Dir, 'd3d11.dll');
   if (fs.existsSync(target)) {
     const backup = path.join(gw2Dir, 'd3d11.dll.bak');
@@ -127,4 +136,4 @@ function uninstall(gw2Dir) {
   return true;
 }
 
-module.exports = { detectDir, isGameDir, gameRunning, status, install, uninstall, bridgeStatus, installBridge, ARC_URL };
+module.exports = { detectDir, isGameDir, gameRunning, status, install, uninstall, bridgeStatus, installBridge, remoteMd5, ARC_URL };
