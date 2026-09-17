@@ -75,7 +75,7 @@ curl -sL https://github.com/Samuron39/gw2-api-overlay-mm/releases/latest/downloa
   `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` (symlenker i arkivet feiler uten utviklermodus).
 - Broen (`bridge/target/release/gw2overlay_bridge.dll`) bygges med `cargo build --release` i `bridge/` FØR release
   (`scripts/check-native.js` stopper deg ellers). Eieren installerer ny bro via Live-fanen; si fra når broen er endret.
-- Siste utgitte versjon: 0.4.4 (15. sept 2026).
+- Gjeldende utgivelsesversjon: 0.4.5 (17. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
 
 ## 5. ArcDPS: målte fakta (build 20260816), ikke antakelser
 
@@ -138,7 +138,7 @@ UDP-opptak `opptak-2026-09-13.log` samme sted. Siter README-linjer i kodekomment
 ## 9. Stabilisering 17. september 2026
 
 - Alle R01–R16 i `docs/REVIEW-2026-09-16.md` er implementert på stabiliseringsgrenen; full status og gjenstående spilltest står i
-  `docs/VALIDERING-2026-09-17.md`. Versjonen er fortsatt 0.4.4, ingen ny release er publisert.
+  `docs/VALIDERING-2026-09-17.md`. Rettelsene leveres i 0.4.5; utgivelsesnotater står i `docs/releases/0.4.5.md`.
 - 232 automatiske tester; `npm run check` kontrollerer syntaks. Node 22.18.x brukes til utvikling, Electron er låst til 44.3.0.
 - `npm run build:native` bygger begge Rust-delene med Cargo.lock og skriver kilde-/binærmanifest. Pakking kjører dette automatisk.
 - DEMO og SHOT får hver sin `run-*`-profil i temp, uten produksjonstjenester. `scripts/smoke-electron.js` tester kilde/pakket app isolert.

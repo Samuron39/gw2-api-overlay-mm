@@ -2,6 +2,8 @@
 
 Dato: 17. september 2026. Utgangspunkt `4887e3e` (0.4.4). Arbeidsgren `codex/stabilisering-20260917`.
 
+Oppfølging: Brukeren har etter denne valideringen godkjent publisering som **0.4.5**. Rapporten nedenfor beskriver stabiliseringsarbeidet før publisering. Se `docs/releases/0.4.5.md` og GitHub Releases for utgivelsen.
+
 Alle 16 kodefunn i gjennomgangen er rettet, med regresjonsdekning. Arbeidet omfatter også tilleggspunktene i den godkjente planen: IPC/navigasjon, tidsgrenser, cache, loggwatcher, Mumble-restart, native-bygg, CI og dokumentasjon. Versjon 0.4.4 er beholdt. Ingen push, publisering eller installering over eierens app er utført. Broens kildekode/protokoll er uendret.
 
 ## Hva som er rettet
