@@ -92,17 +92,17 @@ test('Oppdatering: hendelse før snapshot vinner, også ved gjenåpning', async 
 });
 
 const bar = (key) => ({ ok: true, key, buildName: key, rotation: { steps: [], upkeep: [] }, all: [{ id: 111, name: 'Skill', buffs: [] }], boonNames: [], builds: [{ tab: 1, name: 'A' }, { tab: 2, name: 'B' }], sets: { A: { types: [] } }, weaponSet: 'A', upkeepSuggestions: [] });
-function liveHarness() {
-  const response = deferred(); let current = 'A';
+function liveHarness(responses = [deferred()]) {
+  let current = 'A', suggestions = 0;
   const h = renderer(['live'], (ch, arg) => {
     if (ch === 'live:get') return {};
     if (ch === 'overlays:get') return Object.fromEntries(['buffs', 'debuffs', 'target', 'skillbar', 'dps', 'dps2', 'dps3'].map((k) => [k, { enabled: false, iconSize: 40, opacity: 1 }]));
     if (ch === 'arc:status') return {};
     if (ch === 'skills:get') return bar(current);
-    if (ch === 'skills:suggest') return response.promise;
+    if (ch === 'skills:suggest') return responses[suggestions++].promise;
     return true;
   });
-  return { ...h, response, switchTo: (key) => { current = key; } };
+  return { ...h, response: responses[0], switchTo: (key) => { current = key; } };
 }
 test('Live: forslag for A kan ikke lagres i B og bevares når A åpnes igjen', async () => {
   const h = liveHarness(), root = h.root(); await h.modules.live.mount(root); await flush();
@@ -121,6 +121,8 @@ test('Live: forslag for A kan ikke lagres i B og bevares når A åpnes igjen', a
 test('Live: manuell redigering under AI bevares til forslaget uttrykkelig brukes', async () => {
   const h = liveHarness(), root = h.root(); await h.modules.live.mount(root); await flush();
   const request = root.querySelector('#lvSuggest').dispatch('click');
+  h.switchTo('B'); await root.querySelector('#lvBuild').dispatch('change'); await flush();
+  h.switchTo('A'); await root.querySelector('#lvBuild').dispatch('change'); await flush();
   await root.querySelector('#lvAdd').dispatch('click');
   h.response.resolve({ rotasjon: [{ skill: 111, note: 'AI' }], forklaring: 'AI' }); await request;
   await root.querySelector('#lvSave').dispatch('click');
@@ -128,6 +130,56 @@ test('Live: manuell redigering under AI bevares til forslaget uttrykkelig brukes
   await root.querySelector('#lvApplySuggestion').dispatch('click');
   await root.querySelector('#lvSave').dispatch('click');
   assert.equal(h.calls.filter((c) => c.channel === 'skills:setRotation').at(-1).args[1].steps[0].note, 'AI');
+});
+
+test('Live: et avbrutt gammelt AI-svar erstatter aldri et nyere svar for samme build', async () => {
+  const first = deferred(), second = deferred();
+  const h = liveHarness([first, second]), root = h.root(); await h.modules.live.mount(root); await flush();
+  const old = root.querySelector('#lvSuggest').dispatch('click');
+  await root.querySelector('#lvCancel').dispatch('click');
+  const next = root.querySelector('#lvSuggest').dispatch('click');
+  second.resolve({ rotasjon: [{ skill: 111, note: 'NY' }] }); await next;
+  first.resolve({ rotasjon: [{ skill: 111, note: 'GAMMEL' }] }); await old;
+  await root.querySelector('#lvSave').dispatch('click');
+  assert.equal(h.calls.filter((c) => c.channel === 'skills:setRotation').at(-1).args[1].steps[0].note, 'NY');
+  assert.ok(h.calls.some((c) => c.channel === 'ai:cancel'));
+});
+
+test('Mislykket nøkkellagring beholder utkastet og viser aldri lagret-status', async () => {
+  const h = renderer(['setup'], (ch) => {
+    if (ch === 'setup:check') return setupStatus();
+    if (ch === 'config:set') throw new Error('DISK_FULL');
+  });
+  const root = h.root(); h.modules.setup.mount(root); await flush();
+  const key = root.querySelector('#suKey'); key.value = 'FAKE-UTKAST'; await key.dispatch('input');
+  await root.querySelector('#suKeySave').dispatch('click');
+  assert.equal(key.value, 'FAKE-UTKAST');
+  assert.match(h.statuses.at(-1)[0], /saveFailed.*DISK_FULL/); assert.equal(h.statuses.at(-1)[1], true);
+  assert.equal(h.statuses.some(([text]) => text === 'setup.key.saved'), false);
+});
+
+test('Mislykket innstillingslagring beholder feltene og håndterer avvisningen', async () => {
+  const h = renderer(['settings'], (ch) => {
+    if (ch === 'ai:providers') return { providers: [{ id: 'local', name: 'LM Studio' }] };
+    if (ch === 'update:get') return { revision: 1, status: 'idle' };
+    if (ch === 'config:set') throw new Error('DISK_FULL');
+  }, { keepList: [], apiKey: '', materialCap: 250, minTp: 0 });
+  const root = h.root(); await h.modules.settings.mount(root);
+  const key = root.querySelector('#apiKey'); key.value = 'FAKE-UTKAST'; await key.dispatch('input');
+  await root.querySelector('#saveBtn').dispatch('click');
+  assert.equal(key.value, 'FAKE-UTKAST'); assert.match(h.statuses.at(-1)[0], /saveFailed.*DISK_FULL/);
+  assert.equal(h.calls.some((c) => c.channel === 'panel:show'), false);
+  h.modules.settings.unmount();
+  const next = h.root(); await h.modules.settings.mount(next);
+  assert.equal(next.querySelector('#apiKey').value, 'FAKE-UTKAST');
+});
+
+test('Tomt numerisk felt får forrige gyldige verdi, ikke null', async () => {
+  const { number } = require('../src/renderer/ui-state');
+  assert.equal(number('', 3, 0, 8), 3);
+  assert.equal(number('0', 3, 0, 8), 0);
+  assert.equal(number('abc', 3, 0, 8), 3);
+  assert.equal(number('100', 3, 0, 8), 8);
 });
 
 test('Tidsplan oppdaterer nedtelling uten å erstatte waypoint-knappen eller hente kontodata', async () => {

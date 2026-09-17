@@ -217,13 +217,14 @@
     $('#aiProvider', el).addEventListener('change', (e) => { fillProvider(Panel.config, e.target.value); for (const id of ['aiKey', 'aiUrl', 'lmModel']) draft.delete(id); });
     $('#aiKeyLink', el).addEventListener('click', (e) => { const u = e.currentTarget.dataset.url; if (u) window.api.invoke('open:url', u); });
     // Språk: lagres med en gang; hovedprosessen sender config:changed, og panelet monterer modulen på nytt
-    $('#language', el).addEventListener('change', async (e) => { Panel.config = await window.api.invoke('config:set', { language: e.target.value }); });
+    $('#language', el).addEventListener('change', (e) => Panel.saveConfig({ language: e.target.value }, mounted));
     $('#apiLink', el).addEventListener('click', (e) => { e.preventDefault(); window.api.invoke('open:url', 'https://account.arena.net/applications'); });
     $('#modelsBtn', el).addEventListener('click', async () => {
       const valid = mounted.request('models');
       const provider = $('#aiProvider', el).value;
       try {
-        Panel.config = await window.api.invoke('config:set', providerPatch());
+        const saved = await Panel.saveConfig(providerPatch(), mounted);
+        if (!saved) return;
         if (!valid()) return;
         const models = await window.api.invoke('ai:models');
         if (!valid() || $('#aiProvider', el).value !== provider) return;
@@ -252,11 +253,12 @@
         wheelModules: [...root.querySelectorAll('.modToggle')].filter((cb) => cb.checked).map((cb) => cb.value),
       };
       const prevKey = Panel.config?.apiKey || '';
-      Panel.config = await window.api.invoke('config:set', patch);
-      if (!Panel.config.lastSaveError && savedRevision === draftRevision) draft.clear();
+      const saved = await Panel.saveConfig(patch, mounted);
+      if (!saved) return;
+      if (!saved.lastSaveError && savedRevision === draftRevision) draft.clear();
       if (!mounted.valid()) return;
-      $('#cfgErr', root).textContent = Panel.config.lastSaveError ? t('settings.lastSaveFailed', { error: Panel.config.lastSaveError }) : '';
-      if (Panel.config.lastSaveError) { setStatus(t('settings.saveFailed', { error: Panel.config.lastSaveError }), true); return; }
+      $('#cfgErr', root).textContent = saved.lastSaveError ? t('settings.lastSaveFailed', { error: saved.lastSaveError }) : '';
+      if (saved.lastSaveError) { setStatus(t('settings.saveFailed', { error: saved.lastSaveError }), true); return; }
       if (patch.apiKey && patch.apiKey !== prevKey) {
         setStatus(t('settings.savedFetching'));
         window.api.invoke('panel:show', 'inventory');
@@ -268,7 +270,7 @@
     });
     $('#quitBtn', el).addEventListener('click', () => window.api.invoke('app:quit'));
     $('#uiScale', el).addEventListener('input', (e) => { $('#uiScaleVal', root).textContent = Math.round(Number(e.target.value) * 100) + ' %'; });
-    $('#uiScale', el).addEventListener('change', async (e) => { Panel.config = await window.api.invoke('config:set', { uiScale: Number(e.target.value) || 1 }); });
+    $('#uiScale', el).addEventListener('change', (e) => Panel.saveConfig({ uiScale: Panel.number(e.target.value, 1, 0.6, 2.2) }, mounted));
     $('#logOpenBtn', el).addEventListener('click', async () => {
       try { const p = await window.api.invoke('log:open'); setStatus(t('settings.opened', { path: p })); }
       catch (e) { setStatus(t('settings.openLogFailed', { message: e.message }), true); }

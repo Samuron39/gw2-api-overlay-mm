@@ -27,7 +27,14 @@
     return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback;
   }
   const requestId = (kind) => `${kind}-${Date.now()}-${++nextRequest}`;
-  const api = { lifecycle, number, requestId };
+  async function saveConfig(patch, owner) {
+    try { return await window.api.invoke('config:set', patch); }
+    catch (e) {
+      if (!owner || owner.valid()) Panel.setStatus(T.t('settings.saveFailed', { error: e.message }), true);
+      return null;
+    }
+  }
+  const api = { lifecycle, number, requestId, saveConfig };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else target.UiState = api;
 })(globalThis);

@@ -184,7 +184,7 @@
       const revision = keyRevision;
       const key = $('#suKey', root).value.trim();
       if (!key) { setStatus(t('setup.key.empty'), true); return; }
-      await window.api.invoke('config:set', { apiKey: key });
+      if (!(await Panel.saveConfig({ apiKey: key }, mounted))) return;
       if (revision === keyRevision) { keyDraft = ''; if (mounted.valid()) keyInput.value = ''; }
       if (!mounted.valid()) return;
       setStatus(t('setup.key.saved'));
@@ -193,11 +193,11 @@
     $('#suGameDetect', root)?.addEventListener('click', async () => {
       const d = await window.api.invoke('gw2:detectDir');
       if (!mounted.valid()) return;
-      if (d) { await window.api.invoke('config:set', { gw2Dir: d }); if (!mounted.valid()) return; setStatus(t('settings.foundGame', { dir: d })); await runCheck(); }
+      if (d) { if (!(await Panel.saveConfig({ gw2Dir: d }, mounted)) || !mounted.valid()) return; setStatus(t('settings.foundGame', { dir: d })); await runCheck(); }
       else setStatus(t('settings.gameNotFound'), true);
     });
     $('#suGamePick', root)?.addEventListener('click', async () => {
-      try { const d = await window.api.invoke('gw2:pickDir'); if (d) { await window.api.invoke('config:set', { gw2Dir: d }); if (mounted.valid()) await runCheck(); } }
+      try { const d = await window.api.invoke('gw2:pickDir'); if (d && mounted.valid() && await Panel.saveConfig({ gw2Dir: d }, mounted) && mounted.valid()) await runCheck(); }
       catch (e) { setStatus(e.message, true); }
     });
     $('#suArcInstall', root)?.addEventListener('click', async () => {
@@ -209,7 +209,8 @@
     });
     const startup = async () => {
       const patch = { followGame: $('#suFollow', root).checked, launchAtStartup: $('#suLaunch', root).checked };
-      Panel.config = await window.api.invoke('config:set', patch);
+      const saved = await Panel.saveConfig(patch, mounted);
+      if (!saved) return;
       if (!mounted.valid()) return;
       if (last) { last.startup = patch; render(); }
     };
@@ -238,9 +239,9 @@
     root = el;
     el.innerHTML = template();
     $('#suDone', el).checked = !!Panel.config?.setupDone;
-    $('#suLanguage', el).addEventListener('change', async (e) => { Panel.config = await window.api.invoke('config:set', { language: e.target.value }); });
+    $('#suLanguage', el).addEventListener('change', (e) => Panel.saveConfig({ language: e.target.value }, mounted));
     $('#suCheck', el).addEventListener('click', runCheck);
-    $('#suDone', el).addEventListener('change', async (e) => { await window.api.invoke('setup:done', e.target.checked); setStatus(t(e.target.checked ? 'setup.doneOn' : 'setup.doneOff')); });
+    $('#suDone', el).addEventListener('change', async (e) => { try { await window.api.invoke('setup:done', e.target.checked); setStatus(t(e.target.checked ? 'setup.doneOn' : 'setup.doneOff')); } catch (err) { setStatus(t('settings.saveFailed', { error: err.message }), true); } });
     mounted.own(Panel.onConfig((c) => { if (mounted.valid()) $('#suDone', el).checked = !!c.setupDone; }));
     render();
     runCheck();

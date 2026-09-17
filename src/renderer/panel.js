@@ -83,8 +83,12 @@ const Panel = (() => {
     config = await window.api.invoke('config:get');
     $('#pinned').checked = !!config.panel?.pinned;
     $('#opacity').value = config.panel?.opacity ?? 0.95;
-    $('#pinned').addEventListener('change', (e) => window.api.invoke('config:set', { panel: { pinned: e.target.checked } }));
-    $('#opacity').addEventListener('change', (e) => window.api.invoke('config:set', { panel: { opacity: Number(e.target.value) } }));
+    $('#pinned').addEventListener('change', async (e) => {
+      if (!(await UiState.saveConfig({ panel: { pinned: e.target.checked } }))) $('#pinned').checked = !!config.panel?.pinned;
+    });
+    $('#opacity').addEventListener('change', async (e) => {
+      if (!(await UiState.saveConfig({ panel: { opacity: Number(e.target.value) } }))) $('#opacity').value = config.panel?.opacity ?? 0.95;
+    });
     $('#closeBtn').addEventListener('click', () => window.api.invoke('panel:close'));
     window.api.on('panel:module', ({ id }) => show(id));
     window.api.on('config:changed', async (c) => {

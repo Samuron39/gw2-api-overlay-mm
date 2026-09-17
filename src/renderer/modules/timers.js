@@ -164,8 +164,12 @@
       window.api.invoke('panel:show', 'guides');
     }));
     root.querySelectorAll('.tm-toggle input').forEach((cb) => cb.addEventListener('change', async () => {
+      const wasHidden = hidden.has(cb.dataset.key);
       if (cb.checked) hidden.delete(cb.dataset.key); else hidden.add(cb.dataset.key);
-      await window.api.invoke('config:set', { timersHidden: [...hidden] });
+      if (!(await Panel.saveConfig({ timersHidden: [...hidden] }, mounted)) && mounted.valid()) {
+        if (wasHidden) hidden.add(cb.dataset.key); else hidden.delete(cb.dataset.key);
+        cb.checked = !wasHidden;
+      }
     }));
   }
 
