@@ -4,8 +4,10 @@
   const { $, esc, gold, setStatus } = Panel;
   const t = (k, v) => T.t(k, v);
   const RARITY_ORDER = ['Junk', 'Basic', 'Fine', 'Masterwork', 'Rare', 'Exotic', 'Ascended', 'Legendary'];
-  const state = { data: null, sort: { key: 'totalValue', dir: 'desc' }, chat: [], view: 'table', aiBusy: null };
+  const state = { data: null, sort: { key: 'totalValue', dir: 'desc' }, chat: [], view: 'table', aiBusy: null, plan: null, planError: '', input: '' };
   let root = null;
+  const life = Panel.lifecycle();
+  let scope = null;
   let offProgress = null;
 
   const template = () => `
@@ -47,6 +49,7 @@
         <span id="aiModelInfo" class="muted"></span>
         <div class="spacer"></div>
         <button id="planBtn" class="primary">${t('inventory.makePlan')}</button>
+        <button id="invCancel" hidden>${t('common.cancel')}</button>
       </div>
       <div id="plan" class="plan"></div>
       <div class="chat">
@@ -59,6 +62,9 @@
     </div>`;
 
   function mount(el) {
+    scope = life.start();
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
     root = el;
     el.innerHTML = template();
     el.querySelectorAll('.subtab').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
@@ -72,27 +78,39 @@
     $('#invRefresh', el).addEventListener('click', refresh);
     $('#planBtn', el).addEventListener('click', makePlan);
     $('#chatForm', el).addEventListener('submit', sendChat);
-    offProgress = window.api.on('ai:progress', (p) => {
+    $('#chatInput', el).value = state.input;
+    $('#chatInput', el).addEventListener('input', (e) => { state.input = e.target.value; });
+    $('#invCancel', el).addEventListener('click', () => {
+      const job = state.aiBusy; if (!job) return;
+      job.cancelled = true; state.aiBusy = null;
+      window.api.invoke('ai:cancel', job.id).catch(() => {});
+      if (job.kind === 'plan') state.planError = t('common.cancelled');
+      else state.chat.push({ role: 'assistant', content: t('common.cancelled') });
+      renderPlan(); renderChat(false);
+    });
+    offProgress = scope.on('ai:progress', (p) => {
+      if (!state.aiBusy || p.requestId !== state.aiBusy.id) return;
       const txt = p.content ? t('inventory.writing', { n: p.content }) : t('inventory.thinking', { n: p.reasoning });
-      if (state.aiBusy === 'plan') $('#plan', root).innerHTML = `<p class="muted">${esc(txt)}</p>`;
-      else if (state.aiBusy === 'chat') { const pe = $('#chatLog .pending', root); if (pe) pe.textContent = txt; }
+      if (state.aiBusy.kind === 'plan') $('#plan', root).innerHTML = `<p class="muted">${esc(txt)}</p>`;
+      else if (state.aiBusy.kind === 'chat') { const pe = $('#chatLog .pending', root); if (pe) pe.textContent = txt; }
     });
     updateModelInfo(Panel.config);
-    Panel.onConfig(updateModelInfo);
+    mounted.own(Panel.onConfig(updateModelInfo));
     setView(state.view);
     render();
-    renderChat(false);
+    renderPlan(); renderChat(state.aiBusy?.kind === 'chat');
     if (state.data) { fillSources(); }
     else if (Panel.config?.apiKey || Panel.config?.demo) refresh();
   }
 
-  function unmount() { offProgress?.(); offProgress = null; root = null; }
+  function unmount() { life.clear(); offProgress?.(); offProgress = null; root = null; }
 
   async function updateModelInfo(c) {
     if (!root || !c) return;
+    const valid = scope.request('model');
     let cur = null;
     try { cur = (await window.api.invoke('ai:providers')).current; } catch { /* faller tilbake til lokal */ }
-    if (!root) return;
+    if (!valid()) return;
     if (!cur || cur.provider === 'local') $('#aiModelInfo', root).textContent = c.lmModel ? t('inventory.modelInfo', { model: c.lmModel, url: c.lmUrl }) : t('inventory.noModel');
     else $('#aiModelInfo', root).textContent = cur.hasKey ? t('inventory.modelInfoCloud', { model: cur.model, name: cur.name }) : t('inventory.noKey', { name: cur.name });
   }
@@ -104,12 +122,14 @@
   }
 
   async function refresh() {
+    const valid = scope.request('refresh');
     const btn = $('#invRefresh', root);
     btn.disabled = true;
     setStatus(t('inventory.fetching'));
     try {
-      state.data = await window.api.invoke('inv:refresh');
-      if (!root) return; // brukeren byttet modul mens vi hentet
+      const result = await window.api.invoke('inv:refresh');
+      if (!valid()) return;
+      state.data = result;
       const d = state.data;
       const coins = d.wallet?.find((w) => w.id === 1)?.value || 0;
       let msg = t('inventory.fetched', { account: d.account?.name || '', n: d.rows.length, gold: (coins / 10000).toFixed(2) });
@@ -124,8 +144,8 @@
       setStatus(msg, !!d.errors?.length);
       fillSources();
       render();
-    } catch (e) { setStatus(t('common.error', { message: e.message }), true); }
-    finally { if (root) btn.disabled = false; }
+    } catch (e) { if (valid()) setStatus(t('common.error', { message: e.message }), true); }
+    finally { if (valid()) btn.disabled = false; }
   }
 
   function fillSources() {
@@ -161,6 +181,8 @@
   }
 
   function render() {
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted?.valid()) Panel.setStatus(...args); };
     if (!root) return;
     const tbody = $('#invTable tbody', root);
     root.querySelectorAll('th[data-sort]').forEach((th) => {
@@ -172,16 +194,16 @@
     renderSummary();
     if (!rows.length) { tbody.innerHTML = `<tr><td colspan="11" class="empty">${esc(t('inventory.noMatch'))}</td></tr>`; return; }
     tbody.innerHTML = rows.map((r) => {
-      const where = r.locations.map((l) => `${esc(l.source)} (${l.count})`).join(', ');
+      const where = r.locations.map((l) => `${esc(l.source)} (${esc(l.count)})`).join(', ');
       const bind = r.binding ? `<span class="bind">${esc(t(r.binding === 'Account' ? 'inventory.boundAccount' : 'inventory.boundSoul'))}</span>` : '';
       const FLAG = { collection: ['📘', t('inventory.flag.collection', { names: (r.collections || []).filter((c) => !c.has).map((c) => c.name).join(', ') })], skinLocked: ['🎨', t('inventory.flag.skinLocked')], unlockNew: ['🔓', t('inventory.flag.unlockNew')], unlockDup: ['♻️', t('inventory.flag.unlockDup')], listed: ['🏷️', t('inventory.flag.listed')] };
       const flagHtml = (r.flags || []).map((f) => FLAG[f] ? `<span class="flag" title="${esc(FLAG[f][1])}">${FLAG[f][0]}</span>` : '').join('');
       return `<tr>
-        <td class="name"><img src="${esc(r.icon)}" alt="" /><a href="#" data-wiki="${esc(r.name)}" class="r-${r.rarity}">${esc(r.name)}</a>${flagHtml}${bind}</td>
-        <td class="num">${r.count}</td>
-        <td class="r-${r.rarity} col-c">${r.rarity}${r.level ? ` <span class="bind">${esc(t('inventory.lvl', { n: r.level }))}</span>` : ''}</td>
+        <td class="name"><img src="${esc(r.icon)}" alt="" /><a href="#" data-wiki="${esc(r.name)}" class="r-${esc(r.rarity)}">${esc(r.name)}</a>${flagHtml}${bind}</td>
+        <td class="num">${esc(r.count)}</td>
+        <td class="r-${esc(r.rarity)} col-c">${esc(r.rarity)}${r.level ? ` <span class="bind">${esc(t('inventory.lvl', { n: r.level }))}</span>` : ''}</td>
         <td class="where">${where}</td>
-        <td><span class="badge ${r.action}">${esc(r.label)}</span></td>
+        <td><span class="badge ${esc(r.action)}">${esc(r.label)}</span></td>
         <td class="num col-b">${gold(r.unitValue)}</td><td class="num">${gold(r.totalValue)}</td><td class="num col-a">${gold(r.vendor)}</td>
         <td class="num col-a" title="${esc(t('inventory.tpTitle', { c: Math.round(r.tpInstant) }))}">${gold(r.tpList)}</td>
         <td class="num col-a">${gold(r.salvage)}</td>
@@ -212,35 +234,48 @@
   }
 
   async function makePlan() {
-    const btn = $('#planBtn', root);
-    btn.disabled = true; state.aiBusy = 'plan';
-    $('#plan', root).innerHTML = `<p class="muted">${esc(t('inventory.sending'))}</p>`;
+    if (state.aiBusy) return;
+    const job = { kind: 'plan', id: Panel.requestId('inventory-plan') };
+    state.aiBusy = job; state.planError = ''; renderPlan();
     try {
-      const plan = await window.api.invoke('ai:prioritize');
-      const steps = (plan.steg || []).sort((a, b) => a.prioritet - b.prioritet);
-      if (!root) return;
+      const plan = await window.api.invoke('ai:prioritize', { requestId: job.id });
+      if (!job.cancelled) state.plan = plan;
+    } catch (e) { if (!job.cancelled) state.planError = t('common.error', { message: e.message }); }
+    finally { if (state.aiBusy === job) state.aiBusy = null; renderPlan(); }
+  }
+
+  function renderPlan() {
+    if (!root) return;
+    $('#planBtn', root).disabled = !!state.aiBusy;
+    $('#invCancel', root).hidden = !state.aiBusy;
+    if (state.aiBusy?.kind === 'plan') { $('#plan', root).innerHTML = `<p class="muted">${esc(t('inventory.sending'))}</p>`; return; }
+    if (state.planError) { $('#plan', root).innerHTML = `<p class="status error">${esc(state.planError)}</p>`; return; }
+    const plan = state.plan;
+    if (plan) {
+      const steps = (plan.steg || []).slice().sort((a, b) => a.prioritet - b.prioritet);
       $('#plan', root).innerHTML = `
         <h4>${esc(t('inventory.planTitle'))}</h4>
         <p>${esc(plan.oppsummering)}</p>
         <ol>${steps.map((s) => `<li><b>${esc(s.hva)}</b> — ${esc(s.handling)}<br><span class="muted">${esc(s.hvorfor)}</span></li>`).join('')}</ol>
         ${(plan.advarsler || []).length ? '<p class="warn">' + plan.advarsler.map(esc).join('<br>') + '</p>' : ''}`;
-    } catch (e) { if (root) $('#plan', root).innerHTML = `<p class="status error">${esc(t('common.error', { message: e.message }))}</p>`; }
-    finally { state.aiBusy = null; if (root) btn.disabled = false; }
+    }
   }
 
   async function sendChat(e) {
     e.preventDefault();
+    if (state.aiBusy) return;
     const input = $('#chatInput', root);
     const text = input.value.trim();
     if (!text) return;
-    input.value = '';
+    input.value = ''; state.input = '';
     state.chat.push({ role: 'user', content: text });
-    state.aiBusy = 'chat';
+    const job = { kind: 'chat', id: Panel.requestId('inventory-chat') };
+    state.aiBusy = job; renderPlan();
     renderChat(true);
-    try { state.chat.push({ role: 'assistant', content: await window.api.invoke('ai:chat', state.chat) }); }
-    catch (err) { state.chat.push({ role: 'assistant', content: t('common.error', { message: err.message }) }); }
-    state.aiBusy = null;
-    renderChat(false);
+    try { const content = await window.api.invoke('ai:chat', state.chat.slice(), { requestId: job.id }); if (!job.cancelled) state.chat.push({ role: 'assistant', content }); }
+    catch (err) { if (!job.cancelled) state.chat.push({ role: 'assistant', content: t('common.error', { message: err.message }) }); }
+    if (state.aiBusy === job) state.aiBusy = null;
+    renderPlan(); renderChat(state.aiBusy?.kind === 'chat');
   }
 
   function renderChat(pending) {

@@ -4,6 +4,8 @@
   const { $, esc, gold, setStatus } = Panel;
   const t = (k, v) => T.t(k, v);
   let root = null;
+  const life = Panel.lifecycle();
+  let scope = null;
   let data = null;
   let view = 'sells';
 
@@ -21,29 +23,36 @@
     <div class="table-wrap"><table id="tpTable"><thead></thead><tbody></tbody></table></div>`;
 
   async function mount(el) {
+    scope = life.start();
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
     root = el;
     el.innerHTML = template();
     el.querySelectorAll('.subtab').forEach((b) => b.addEventListener('click', () => { view = b.dataset.view; el.querySelectorAll('.subtab').forEach((x) => x.classList.toggle('active', x === b)); render(); }));
     $('#tpRefresh', el).addEventListener('click', () => refresh(true));
     await refresh(false);
   }
-  function unmount() { root = null; }
+  function unmount() { life.clear(); root = null; }
 
   async function refresh(force) {
+    const valid = scope.request('refresh');
     if (!Panel.config?.apiKey) { setStatus(t('common.noApiKey'), true); return; }
     setStatus(t('tp.fetching'));
     try {
-      data = await window.api.invoke('tp:get', !!force);
-      if (!root) return;
+      const result = await window.api.invoke('tp:get', !!force);
+      if (!valid()) return;
+      data = result;
       setStatus(data.errors?.length ? t('common.partial', { errors: data.errors.join(' | ') }) : t('common.updatedAt', { time: new Date(data.fetchedAt).toLocaleTimeString(T.locale) }), !!data.errors?.length);
       render();
-    } catch (e) { setStatus(t('common.error', { message: e.message }), true); }
+    } catch (e) { if (valid()) setStatus(t('common.error', { message: e.message }), true); }
   }
 
   const when = (s) => { const d = new Date(s); return d.toLocaleDateString(T.locale, { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString(T.locale, { hour: '2-digit', minute: '2-digit' }); };
   const nameCell = (r) => `<td class="name"><img src="${esc(r.icon)}" alt="" /><a href="#" data-wiki="${esc(r.name)}">${esc(r.name)}</a></td>`;
 
   function render() {
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted?.valid()) Panel.setStatus(...args); };
     if (!root || !data) return;
     const s = data.summary;
     $('#tpBox', root).innerHTML = `
@@ -56,13 +65,13 @@
     const th = (k, cls = '') => `<th${cls ? ` class="${cls}"` : ''}>${esc(t(k))}</th>`;
     if (view === 'sells') {
       thead.innerHTML = `<tr>${th('common.item')}${th('common.count', 'num')}${th('tp.col.minPrice', 'num')}${th('tp.col.lowestNow', 'num')}${th('tp.col.net', 'num')}${th('tp.col.advice')}${th('tp.col.listedAt')}</tr>`;
-      tbody.innerHTML = data.sells.map((r) => `<tr>${nameCell(r)}<td class="num">${r.quantity}</td><td class="num">${gold(r.price)}</td><td class="num">${gold(r.lowest)}</td><td class="num">${gold(r.net)}</td><td class="${r.underbid ? 'down' : 'muted'}">${esc(r.advice)}</td><td class="muted">${when(r.created)}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">${esc(t('tp.noSells'))}</td></tr>`;
+      tbody.innerHTML = data.sells.map((r) => `<tr>${nameCell(r)}<td class="num">${esc(r.quantity)}</td><td class="num">${gold(r.price)}</td><td class="num">${gold(r.lowest)}</td><td class="num">${gold(r.net)}</td><td class="${r.underbid ? 'down' : 'muted'}">${esc(r.advice)}</td><td class="muted">${when(r.created)}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">${esc(t('tp.noSells'))}</td></tr>`;
     } else if (view === 'buys') {
       thead.innerHTML = `<tr>${th('common.item')}${th('common.count', 'num')}${th('tp.col.myBid', 'num')}${th('tp.col.highestNow', 'num')}${th('tp.col.lowestSell', 'num')}${th('tp.col.advice')}${th('tp.col.placed')}</tr>`;
-      tbody.innerHTML = data.buys.map((r) => `<tr>${nameCell(r)}<td class="num">${r.quantity}</td><td class="num">${gold(r.price)}</td><td class="num">${gold(r.highest)}</td><td class="num">${gold(r.lowestSell)}</td><td class="${r.overbid ? 'down' : 'muted'}">${esc(r.advice)}</td><td class="muted">${when(r.created)}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">${esc(t('tp.noBuys'))}</td></tr>`;
+      tbody.innerHTML = data.buys.map((r) => `<tr>${nameCell(r)}<td class="num">${esc(r.quantity)}</td><td class="num">${gold(r.price)}</td><td class="num">${gold(r.highest)}</td><td class="num">${gold(r.lowestSell)}</td><td class="${r.overbid ? 'down' : 'muted'}">${esc(r.advice)}</td><td class="muted">${when(r.created)}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">${esc(t('tp.noBuys'))}</td></tr>`;
     } else {
       thead.innerHTML = `<tr>${th('common.item')}${th('tp.col.type')}${th('common.count', 'num')}${th('tp.col.price', 'num')}${th('tp.col.net', 'num')}${th('tp.col.time')}</tr>`;
-      tbody.innerHTML = data.history.map((r) => `<tr>${nameCell(r)}<td class="${r.kind === 'sell' ? 'up' : 'down'}">${esc(t(r.kind === 'sell' ? 'tp.soldKind' : 'tp.boughtKind'))}</td><td class="num">${r.quantity}</td><td class="num">${gold(r.price)}</td><td class="num ${r.net >= 0 ? 'up' : 'down'}">${gold(r.net)}</td><td class="muted">${when(r.purchased || r.created)}</td></tr>`).join('') || `<tr><td colspan="6" class="empty">${esc(t('tp.noHistory'))}</td></tr>`;
+      tbody.innerHTML = data.history.map((r) => `<tr>${nameCell(r)}<td class="${r.kind === 'sell' ? 'up' : 'down'}">${esc(t(r.kind === 'sell' ? 'tp.soldKind' : 'tp.boughtKind'))}</td><td class="num">${esc(r.quantity)}</td><td class="num">${gold(r.price)}</td><td class="num ${r.net >= 0 ? 'up' : 'down'}">${gold(r.net)}</td><td class="muted">${when(r.purchased || r.created)}</td></tr>`).join('') || `<tr><td colspan="6" class="empty">${esc(t('tp.noHistory'))}</td></tr>`;
     }
     tbody.querySelectorAll('a[data-wiki]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); window.api.invoke('open:wiki', a.dataset.wiki); }));
   }

@@ -4,7 +4,22 @@
   const { $, esc, setStatus } = Panel;
   const t = (k, v) => T.t(k, v);
   let root = null;
+  const life = Panel.lifecycle();
+  let scope = null;
   let offUpdate = null;
+  let updateRevision = -1;
+  const draft = new Map();
+  let draftRevision = 0;
+  function restoreDraft() {
+    for (const [id, value] of draft) {
+      const field = $('#' + id, root); if (!field) continue;
+      if (field.type === 'checkbox') field.checked = value;
+      else {
+        if (field.tagName === 'SELECT' && ![...field.options].some((o) => o.value === value)) field.add(new Option(value, value));
+        field.value = value;
+      }
+    }
+  }
 
   const template = () => `
     <div class="settings">
@@ -166,6 +181,10 @@
 
   function showUpdate(s) {
     if (!root || !s) return;
+    if (Number.isFinite(s.revision)) {
+      if (s.revision < updateRevision) return;
+      updateRevision = s.revision;
+    }
     if (s.appVersion) $('#updVersion', root).textContent = s.appVersion;
     const el = $('#updStatus', root);
     el.textContent = updateText(s);
@@ -176,36 +195,55 @@
   }
 
   async function mount(el) {
+    scope = life.start();
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
     root = el;
     el.innerHTML = template();
+    updateRevision = -1;
+    offUpdate = mounted.on('update:status', showUpdate);
+    window.api.invoke('update:get').then((s) => { if (mounted.valid()) showUpdate(s); }).catch(() => {});
+    const remember = (e) => {
+      const f = e.target;
+      if (!f.id || !['INPUT', 'TEXTAREA', 'SELECT'].includes(f.tagName)) return;
+      draft.set(f.id, f.type === 'checkbox' ? f.checked : f.value); draftRevision++;
+    };
+    el.addEventListener('input', remember); el.addEventListener('change', remember);
     try { providers = (await window.api.invoke('ai:providers')).providers; } catch { providers = [{ id: 'local', name: 'LM Studio', needsKey: false, free: true }]; }
-    if (!root) return;
+    if (!mounted.valid()) return;
     fill(Panel.config);
-    $('#aiProvider', el).addEventListener('change', (e) => fillProvider(Panel.config, e.target.value));
+    if (draft.has('aiProvider')) fillProvider(Panel.config, draft.get('aiProvider'));
+    restoreDraft();
+    $('#aiProvider', el).addEventListener('change', (e) => { fillProvider(Panel.config, e.target.value); for (const id of ['aiKey', 'aiUrl', 'lmModel']) draft.delete(id); });
     $('#aiKeyLink', el).addEventListener('click', (e) => { const u = e.currentTarget.dataset.url; if (u) window.api.invoke('open:url', u); });
     // Språk: lagres med en gang; hovedprosessen sender config:changed, og panelet monterer modulen på nytt
     $('#language', el).addEventListener('change', async (e) => { Panel.config = await window.api.invoke('config:set', { language: e.target.value }); });
     $('#apiLink', el).addEventListener('click', (e) => { e.preventDefault(); window.api.invoke('open:url', 'https://account.arena.net/applications'); });
     $('#modelsBtn', el).addEventListener('click', async () => {
+      const valid = mounted.request('models');
+      const provider = $('#aiProvider', el).value;
       try {
         Panel.config = await window.api.invoke('config:set', providerPatch());
+        if (!valid()) return;
         const models = await window.api.invoke('ai:models');
+        if (!valid() || $('#aiProvider', el).value !== provider) return;
         const want = $('#lmModel', root).value;
         fillModels(models.includes(want) || !want ? models : [want, ...models], want || models[0]);
         setStatus(t('settings.modelsFound', { n: models.length }));
-      } catch (e) { setStatus(t('settings.modelsFailed', { message: e.message }), true); }
+      } catch (e) { if (valid()) setStatus(t('settings.modelsFailed', { message: e.message }), true); }
     });
     $('#saveBtn', el).addEventListener('click', async () => {
+      const savedRevision = draftRevision;
       const patch = {
         apiKey: $('#apiKey', root).value.trim(),
         ...providerPatch(),
-        materialCap: Number($('#materialCap', root).value) || 250,
-        minTp: Number($('#minTp', root).value) || 0,
+        materialCap: Panel.number($('#materialCap', root).value, 250, 250),
+        minTp: Panel.number($('#minTp', root).value, 0, 0),
         keepList: $('#keepList', root).value.split('\n').map((s) => s.trim()).filter(Boolean),
         dpsLogDir: $('#dpsLogDir', root).value.trim(),
         gw2Dir: $('#gw2Dir', root).value.trim(),
         followGame: $('#followGame', root).checked,
-        wheel: { size: Number($('#wheelSize', root).value) || 200 },
+        wheel: { size: Panel.number($('#wheelSize', root).value, 200, 140, 320) },
         uiScale: Number($('#uiScale', root).value) || 1,
         autoHide: $('#autoHide', root).checked,
         launchAtStartup: $('#launchAtStartup', root).checked,
@@ -215,7 +253,8 @@
       };
       const prevKey = Panel.config?.apiKey || '';
       Panel.config = await window.api.invoke('config:set', patch);
-      if (!root) return; // språkbytte monterte modulen på nytt
+      if (!Panel.config.lastSaveError && savedRevision === draftRevision) draft.clear();
+      if (!mounted.valid()) return;
       $('#cfgErr', root).textContent = Panel.config.lastSaveError ? t('settings.lastSaveFailed', { error: Panel.config.lastSaveError }) : '';
       if (Panel.config.lastSaveError) { setStatus(t('settings.saveFailed', { error: Panel.config.lastSaveError }), true); return; }
       if (patch.apiKey && patch.apiKey !== prevKey) {
@@ -240,18 +279,18 @@
     });
     $('#gw2Detect', el).addEventListener('click', async () => {
       const d = await window.api.invoke('gw2:detectDir');
+      if (!mounted.valid()) return;
       if (d) { $('#gw2Dir', root).value = d; setStatus(t('settings.foundGame', { dir: d })); } else setStatus(t('settings.gameNotFound'), true);
     });
     $('#gw2Pick', el).addEventListener('click', async () => {
-      try { const d = await window.api.invoke('gw2:pickDir'); if (d) { $('#gw2Dir', root).value = d; setStatus(t('settings.dirPicked')); } }
-      catch (e) { setStatus(e.message, true); }
+      try { const d = await window.api.invoke('gw2:pickDir'); if (d && mounted.valid()) { $('#gw2Dir', root).value = d; draft.set('gw2Dir', d); draftRevision++; setStatus(t('settings.dirPicked')); } }
+      catch (e) { if (mounted.valid()) setStatus(e.message, true); }
     });
     // Oppdatering: manuell sjekk, fremdrift fra hovedprosessen, og installer når nedlastingen er ferdig
-    offUpdate = window.api.on('update:status', showUpdate);
     $('#updCheck', el).addEventListener('click', async () => {
       showUpdate({ status: 'checking' });
-      try { showUpdate(await window.api.invoke('update:check')); }
-      catch (e) { showUpdate({ status: 'error', error: e.message }); }
+      try { const s = await window.api.invoke('update:check'); if (mounted.valid()) showUpdate(s); }
+      catch (e) { if (mounted.valid()) showUpdate({ status: 'error', error: e.message }); }
     });
     $('#updInstall', el).addEventListener('click', async () => {
       try { if (!(await window.api.invoke('update:install'))) setStatus(t('settings.noDownload'), true); }
@@ -259,7 +298,7 @@
     });
   }
 
-  function unmount() { offUpdate?.(); offUpdate = null; root = null; }
+  function unmount() { life.clear(); offUpdate?.(); offUpdate = null; root = null; }
 
   Panel.register({ id: 'settings', title: () => T.t('module.settings'), icon: '⚙️', mount, unmount });
 })();

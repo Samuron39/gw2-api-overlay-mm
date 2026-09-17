@@ -5,8 +5,12 @@
   const { $, esc, setStatus } = Panel;
   const t = (k, v) => T.t(k, v);
   let root = null;
+  const life = Panel.lifecycle();
+  let scope = null;
   let last = null; // siste sjekk
   let busy = false;
+  let keyRevision = 0;
+  let keyDraft = ''; // Bare i minnet, også ved fanebytte og språkbytte.
 
   const ICON = { ok: '✅', warn: '⚠️', bad: '❌', wait: '⏳', off: '⚪' };
 
@@ -34,6 +38,8 @@
   }
 
   function render() {
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted?.valid()) Panel.setStatus(...args); };
     if (!root) return;
     const s = last;
     const steps = [];
@@ -143,7 +149,21 @@
         `<button type="button" data-module="settings">${t('setup.openSettings')}</button>`));
     }
 
-    $('#suSteps', root).innerHTML = steps.join('');
+    const list = $('#suSteps', root);
+    const keyStep = $('#su-key', list);
+    if (!keyStep) list.innerHTML = steps.join('');
+    else {
+      // Behold selve nøkkelfeltet og fokuset mens en langsom statuskontroll fullfører.
+      const next = document.createElement('ol'); next.innerHTML = steps.join('');
+      for (const li of [...next.children]) {
+        const prev = $('#' + li.id, list);
+        if (li.id === 'su-key') {
+          prev.className = li.className;
+          $('.setup-status', prev).textContent = $('.setup-status', li).textContent;
+        } else if (prev) prev.replaceWith(li);
+        else list.appendChild(li);
+      }
+    }
     if (s) {
       const states = [...root.querySelectorAll('.setup-step')].map((li) => li.classList.contains('bad') ? 'bad' : li.classList.contains('warn') ? 'warn' : 'ok');
       const bad = states.filter((x) => x === 'bad').length, warn = states.filter((x) => x === 'warn').length;
@@ -153,22 +173,31 @@
   }
 
   function bindSteps() {
-    root.querySelectorAll('[data-url]').forEach((el) => el.addEventListener('click', (e) => { e.preventDefault(); window.api.invoke('open:url', el.dataset.url); }));
-    root.querySelectorAll('[data-module]').forEach((el) => el.addEventListener('click', () => window.api.invoke('panel:show', el.dataset.module)));
-    $('#suKeySave', root)?.addEventListener('click', async () => {
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
+    root.querySelectorAll('[data-url]').forEach((el) => { el.onclick = (e) => { e.preventDefault(); window.api.invoke('open:url', el.dataset.url); }; });
+    root.querySelectorAll('[data-module]').forEach((el) => { el.onclick = () => window.api.invoke('panel:show', el.dataset.module); });
+    const keyInput = $('#suKey', root);
+    if (keyInput.value !== keyDraft) keyInput.value = keyDraft;
+    keyInput.oninput = () => { keyDraft = keyInput.value; keyRevision++; };
+    $('#suKeySave', root).onclick = async () => {
+      const revision = keyRevision;
       const key = $('#suKey', root).value.trim();
       if (!key) { setStatus(t('setup.key.empty'), true); return; }
       await window.api.invoke('config:set', { apiKey: key });
+      if (revision === keyRevision) { keyDraft = ''; if (mounted.valid()) keyInput.value = ''; }
+      if (!mounted.valid()) return;
       setStatus(t('setup.key.saved'));
       await runCheck();
-    });
+    };
     $('#suGameDetect', root)?.addEventListener('click', async () => {
       const d = await window.api.invoke('gw2:detectDir');
-      if (d) { await window.api.invoke('config:set', { gw2Dir: d }); setStatus(t('settings.foundGame', { dir: d })); await runCheck(); }
+      if (!mounted.valid()) return;
+      if (d) { await window.api.invoke('config:set', { gw2Dir: d }); if (!mounted.valid()) return; setStatus(t('settings.foundGame', { dir: d })); await runCheck(); }
       else setStatus(t('settings.gameNotFound'), true);
     });
     $('#suGamePick', root)?.addEventListener('click', async () => {
-      try { const d = await window.api.invoke('gw2:pickDir'); if (d) { await window.api.invoke('config:set', { gw2Dir: d }); await runCheck(); } }
+      try { const d = await window.api.invoke('gw2:pickDir'); if (d) { await window.api.invoke('config:set', { gw2Dir: d }); if (mounted.valid()) await runCheck(); } }
       catch (e) { setStatus(e.message, true); }
     });
     $('#suArcInstall', root)?.addEventListener('click', async () => {
@@ -176,11 +205,12 @@
       btn.disabled = true; $('#su-arc .setup-status', root).textContent = t('dps.downloading');
       try { await window.api.invoke('setup:installArc'); setStatus(t('setup.arc.done')); }
       catch (e) { setStatus(t('common.error', { message: e.message }), true); }
-      await runCheck();
+      if (mounted.valid()) await runCheck();
     });
     const startup = async () => {
       const patch = { followGame: $('#suFollow', root).checked, launchAtStartup: $('#suLaunch', root).checked };
       Panel.config = await window.api.invoke('config:set', patch);
+      if (!mounted.valid()) return;
       if (last) { last.startup = patch; render(); }
     };
     $('#suFollow', root)?.addEventListener('change', startup);
@@ -189,30 +219,34 @@
 
   async function runCheck() {
     if (!root || busy) return;
+    const valid = scope.request('check');
     busy = true;
     const btn = $('#suCheck', root);
     btn.disabled = true; $('#suSummary', root).textContent = t('setup.checking');
-    try { last = await window.api.invoke('setup:check'); }
-    catch (e) { setStatus(t('common.error', { message: e.message }), true); }
-    finally { busy = false; }
-    if (!root) return;
+    try { const result = await window.api.invoke('setup:check'); if (valid()) last = result; }
+    catch (e) { if (valid()) setStatus(t('common.error', { message: e.message }), true); }
+    finally { if (valid()) busy = false; }
+    if (!valid()) return;
     btn.disabled = false;
     render();
   }
 
   function mount(el) {
+    scope = life.start();
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
     root = el;
     el.innerHTML = template();
     $('#suDone', el).checked = !!Panel.config?.setupDone;
     $('#suLanguage', el).addEventListener('change', async (e) => { Panel.config = await window.api.invoke('config:set', { language: e.target.value }); });
     $('#suCheck', el).addEventListener('click', runCheck);
     $('#suDone', el).addEventListener('change', async (e) => { await window.api.invoke('setup:done', e.target.checked); setStatus(t(e.target.checked ? 'setup.doneOn' : 'setup.doneOff')); });
-    Panel.onConfig((c) => { if (root) $('#suDone', root).checked = !!c.setupDone; });
+    mounted.own(Panel.onConfig((c) => { if (mounted.valid()) $('#suDone', el).checked = !!c.setupDone; }));
     render();
     runCheck();
   }
 
-  function unmount() { root = null; last = null; busy = false; }
+  function unmount() { life.clear(); root = null; last = null; busy = false; }
 
   Panel.register({ id: 'setup', title: () => T.t('module.setup'), icon: '🧭', mount, unmount });
 })();

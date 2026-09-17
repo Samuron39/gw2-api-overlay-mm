@@ -4,6 +4,8 @@
   const { $, esc, setStatus } = Panel;
   const t = (k, v) => T.t(k, v);
   let root = null;
+  const life = Panel.lifecycle();
+  let scope = null;
   let data = null;
   let timers = null;
   let tick = null;
@@ -17,24 +19,30 @@
     <div class="table-wrap"><div id="dyBody" class="dy-grid"></div></div>`;
 
   async function mount(el) {
+    scope = life.start();
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
     root = el;
     el.innerHTML = template();
     $('#dyRefresh', el).addEventListener('click', () => refresh(true));
+    tick = mounted.interval(renderResets, 1000);
     if (!timers) timers = await window.api.invoke('timers:data').catch(() => null);
+    if (!mounted.valid()) return;
     await refresh(false);
-    tick = setInterval(renderResets, 1000);
   }
-  function unmount() { clearInterval(tick); tick = null; root = null; }
+  function unmount() { life.clear(); clearInterval(tick); tick = null; root = null; }
 
   async function refresh(force) {
+    const valid = scope.request('refresh');
     if (!Panel.config?.apiKey) { setStatus(t('common.noApiKey'), true); return; }
     setStatus(t('daily.fetching'));
     try {
-      data = await window.api.invoke('daily:get', !!force);
-      if (!root) return;
+      const result = await window.api.invoke('daily:get', !!force);
+      if (!valid()) return;
+      data = result;
       setStatus(data.errors?.length ? t('common.partial', { errors: data.errors.join(' | ') }) : t('common.updatedAt', { time: new Date(data.fetchedAt).toLocaleTimeString(T.locale) }), !!data.errors?.length);
       render();
-    } catch (e) { setStatus(t('common.error', { message: e.message }), true); }
+    } catch (e) { if (valid()) setStatus(t('common.error', { message: e.message }), true); }
   }
 
   function fmt(ms) {
@@ -99,11 +107,11 @@
     if (!w) return `<section class="dy-card"><h3>${esc(title)}</h3><p class="muted">${esc(t('daily.unavailable'))}</p></section>`;
     const objs = (w.objectives || []).slice().sort((a, b) => (a.claimed - b.claimed) || a.title.localeCompare(b.title));
     return `<section class="dy-card">
-      <h3>${esc(title)} <span class="muted small">${w.meta_progress_current}/${w.meta_progress_complete}${w.meta_reward_claimed ? ' · ' + esc(t('daily.rewardClaimed')) : ''}</span></h3>
+      <h3>${esc(title)} <span class="muted small">${esc(w.meta_progress_current)}/${esc(w.meta_progress_complete)}${w.meta_reward_claimed ? ' · ' + esc(t('daily.rewardClaimed')) : ''}</span></h3>
       ${objs.map((o) => `<div class="dy-row ${o.claimed ? 'done' : ''}">
         <span class="dy-check">${o.claimed ? '✓' : (o.progress_current >= o.progress_complete ? '★' : '○')}</span>
-        <span class="dy-title">${esc(o.title)} <span class="muted small">${esc(o.track)} · ${o.acclaim} AA</span></span>
-        <span class="dy-prog"><span class="dy-bar" style="width:${Math.min(100, Math.round(o.progress_current / Math.max(1, o.progress_complete) * 100))}%"></span><span>${o.progress_current}/${o.progress_complete}</span></span>
+        <span class="dy-title">${esc(o.title)} <span class="muted small">${esc(o.track)} · ${esc(o.acclaim)} AA</span></span>
+        <span class="dy-prog"><span class="dy-bar" style="width:${Math.min(100, Math.round(o.progress_current / Math.max(1, o.progress_complete) * 100))}%"></span><span>${esc(o.progress_current)}/${esc(o.progress_complete)}</span></span>
       </div>`).join('') || `<p class="muted">${esc(t('daily.noObjectives'))}</p>`}
     </section>`;
   }
@@ -118,6 +126,8 @@
   }
 
   function render() {
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted?.valid()) Panel.setStatus(...args); };
     if (!root || !data) return;
     renderResets();
     const spawns = bossSpawns();
@@ -133,7 +143,7 @@
       </div>`).join('')}
     </section>`;
     const fracHtml = `<section class="dy-card"><h3>${esc(t('daily.fractals'))} <span class="muted small">${data.fractals.filter((f) => f.done).length}/${data.fractals.length}</span></h3>
-      ${data.fractals.map((f) => `<div class="dy-row ${f.done ? 'done' : ''}"><span class="dy-check">${f.done ? '✓' : '○'}</span><span class="dy-title">${esc(f.name)}<br><span class="muted small">${esc(f.requirement || '')}</span></span><span class="muted small">${f.current}/${f.max}</span></div>`).join('') || `<p class="muted">${esc(t('daily.noData'))}</p>`}
+      ${data.fractals.map((f) => `<div class="dy-row ${f.done ? 'done' : ''}"><span class="dy-check">${f.done ? '✓' : '○'}</span><span class="dy-title">${esc(f.name)}<br><span class="muted small">${esc(f.requirement || '')}</span></span><span class="muted small">${esc(f.current)}/${esc(f.max)}</span></div>`).join('') || `<p class="muted">${esc(t('daily.noData'))}</p>`}
     </section>`;
     $('#dyBody', root).innerHTML = [
       wizardSection(t('daily.wvDaily'), data.wizard.daily),

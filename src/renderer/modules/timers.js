@@ -4,6 +4,8 @@
   const { $, esc, setStatus } = Panel;
   const t = (k, v) => T.t(k, v);
   let root = null;
+  const life = Panel.lifecycle();
+  let scope = null;
   let data = null;
   let mumble = { running: false };
   let offMumble = null;
@@ -98,6 +100,9 @@
     <div class="table-wrap"><div id="tmList" class="tm-list"></div></div>`;
 
   async function mount(el) {
+    scope = life.start();
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
     root = el;
     el.innerHTML = template();
     hidden = new Set(Panel.config?.timersHidden || []);
@@ -105,23 +110,28 @@
       try { data = await window.api.invoke('timers:data'); }
       catch (e) { setStatus(t('timers.loadFailed', { message: e.message }), true); return; }
     }
+    if (!mounted.valid()) return;
     const cats = [...new Set(Object.values(data.events).map((e) => e.category).filter(Boolean))];
     $('#tmCategory', el).innerHTML = `<option value="">${esc(t('timers.allExpansions'))}</option>` + cats.map((c) => `<option value="${esc(c)}" ${c === category ? 'selected' : ''}>${esc(c)}</option>`).join('');
     $('#tmCategory', el).addEventListener('change', (e) => { category = e.target.value; render(); });
     $('#tmEdit', el).addEventListener('change', (e) => { editMode = e.target.checked; render(); });
-    mumble = await window.api.invoke('mumble:get').catch(() => mumble);
-    offMumble = window.api.on('mumble:state', (s) => { mumble = s; });
+    const initial = await window.api.invoke('mumble:get').catch(() => mumble);
+    if (!mounted.valid()) return;
+    mumble = initial;
+    offMumble = scope.on('mumble:state', (s) => { mumble = s; });
     loadDone().then(render);
     if (!guides) window.api.invoke('guides:list').then((g) => { guides = g.groups?.worldbosses || []; render(); }).catch(() => {}); // uten guider vises bare ikke knappen
-    doneTimer = setInterval(loadDone, 5 * 60e3);
+    doneTimer = mounted.interval(loadDone, 5 * 60e3);
     render();
-    tick = setInterval(render, 1000);
+    tick = mounted.interval(render, 1000);
   }
 
-  function unmount() { clearInterval(tick); tick = null; clearInterval(doneTimer); doneTimer = null; offMumble?.(); offMumble = null; root = null; }
+  function unmount() { life.clear(); clearInterval(tick); tick = null; clearInterval(doneTimer); doneTimer = null; offMumble?.(); offMumble = null; root = null; }
   const killed = (seg) => doneBosses.size && seg?.name && doneBosses.has(bossId(seg.name)) ? ` <span class="badge done" title="${esc(t('timers.killedTitle'))}">${esc(t('timers.killed'))}</span>` : '';
 
   function render() {
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted?.valid()) Panel.setStatus(...args); };
     if (!root || !data) return;
     const here = mumble.running && mumble.mapId ? mumble.mapId : null;
     $('#tmHere', root).textContent = here ? t('timers.hereHint') : t('timers.noPosition');

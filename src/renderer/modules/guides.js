@@ -8,10 +8,13 @@
   const CHAT_MAX = 190; // spillets chat tar 199 tegn; samme grense som i src/modules/guides.js
   const SELECT_KEY = 'guides.select'; // Tidsplan-fanen legger id her før den åpner Guider
   let root = null;
+  const life = Panel.lifecycle();
+  let scope = null;
   let data = null;
   let selected = null;
   let guide = null;
   let busy = null;
+  const results = new Map(), jobs = new Map();
   let query = '';
   let mumble = { running: false };
   let offMumble = null;
@@ -28,20 +31,26 @@
     </div>`;
 
   async function mount(el) {
+    scope = life.start();
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
     root = el;
     el.innerHTML = template();
     $('#gdSearch', el).addEventListener('input', (e) => { query = e.target.value; renderList(); });
-    offProgress = window.api.on('ai:progress', (p) => {
+    offProgress = scope.on('ai:progress', (p) => {
+      if (jobs.get(selected)?.id !== p.requestId) return;
       const box = busy && root && $('#gdProgress', root);
       if (box) box.textContent = p.content ? t('common.writing', { n: p.content }) : t('common.thinking', { n: p.reasoning });
     });
-    mumble = await window.api.invoke('mumble:get').catch(() => mumble);
-    offMumble = window.api.on('mumble:state', (s) => { const changed = s?.mapId !== mumble?.mapId; mumble = s; if (changed) { renderList(); renderDetail(); } });
+    const initial = await window.api.invoke('mumble:get').catch(() => mumble);
+    if (!mounted.valid()) return;
+    mumble = initial;
+    offMumble = scope.on('mumble:state', (s) => { const changed = s?.mapId !== mumble?.mapId; mumble = s; if (changed) { renderList(); renderDetail(); } });
     if (!data) {
       try { data = await window.api.invoke('guides:list'); }
-      catch (e) { setStatus(t('common.error', { message: e.message }), true); return; }
+      catch (e) { if (mounted.valid()) setStatus(t('common.error', { message: e.message }), true); return; }
     }
-    if (!root) return;
+    if (!mounted.valid()) return;
     // Valg fra Tidsplan-fanen («Strategi»-knappen)
     let pick = null;
     try { pick = sessionStorage.getItem(SELECT_KEY); sessionStorage.removeItem(SELECT_KEY); } catch { /* ikke tilgjengelig */ }
@@ -49,7 +58,7 @@
     if (pick) select(pick); else renderDetail();
   }
 
-  function unmount() { offMumble?.(); offMumble = null; offProgress?.(); offProgress = null; root = null; }
+  function unmount() { life.clear(); offMumble?.(); offMumble = null; offProgress?.(); offProgress = null; root = null; }
 
   const hereId = () => (mumble?.running && mumble.mapId ? mumble.mapId : null);
   const onMap = (e) => { const here = hereId(); return !!here && (e.map === here || (e.maps || []).includes(here)); };
@@ -63,9 +72,11 @@
   }
   // compact = ikoner (i lista), ellers tekst (i detaljvisningen); tittelen viser linja som limes inn
   const wpButtons = (e, compact) => e.waypoint ? `<button class="small gd-wp-paste ${compact ? 'gd-ico' : ''}" data-id="${esc(e.id)}" title="${esc(t('guides.pasteWpTitle', { line: wpLine(e) }))}">${compact ? '💬' : esc(t('guides.paste'))}</button><button class="small gd-wp-copy ${compact ? 'gd-ico' : ''}" data-id="${esc(e.id)}" title="${esc(t('guides.copyWpTitle', { line: wpLine(e) }))}">${compact ? '📋' : esc(t('guides.copy'))}</button>` : '';
-  function bindWpButtons(scope) {
-    scope.querySelectorAll('.gd-wp-paste').forEach((b) => b.addEventListener('click', (ev) => { ev.stopPropagation(); const e = findEntry(b.dataset.id); if (e) paste(wpLine(e)); }));
-    scope.querySelectorAll('.gd-wp-copy').forEach((b) => b.addEventListener('click', async (ev) => { ev.stopPropagation(); const e = findEntry(b.dataset.id); if (!e) return; await window.api.invoke('clipboard:write', wpLine(e)); setStatus(t('guides.copied')); }));
+  function bindWpButtons(container) {
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
+    container.querySelectorAll('.gd-wp-paste').forEach((b) => b.addEventListener('click', (ev) => { ev.stopPropagation(); const e = findEntry(b.dataset.id); if (e) paste(wpLine(e)); }));
+    container.querySelectorAll('.gd-wp-copy').forEach((b) => b.addEventListener('click', async (ev) => { ev.stopPropagation(); const e = findEntry(b.dataset.id); if (!e) return; await window.api.invoke('clipboard:write', wpLine(e)); setStatus(t('guides.copied')); }));
   }
 
   function renderList() {
@@ -90,19 +101,23 @@
 
   async function select(id, refresh = false) {
     if (!findEntry(id)) return;
-    selected = id; guide = null; busy = id;
+    selected = id; guide = results.get(id) || null;
+    if (jobs.has(id)) { busy = id; renderList(); renderDetail(); return; }
+    const job = { id: Panel.requestId('guide') }; jobs.set(id, job); busy = id;
     renderList();
     renderDetail();
     try {
-      const r = await window.api.invoke('guides:get', id, refresh);
-      if (selected !== id) return; // brukeren har valgt noe annet i mellomtiden
-      guide = r;
-    } catch (e) { if (selected === id) guide = { error: { code: 'ERR', message: e.message } }; }
-    finally { if (busy === id) busy = null; }
+      const r = await window.api.invoke('guides:get', id, refresh, { requestId: job.id });
+      if (!job.cancelled && jobs.get(id) === job) results.set(id, r);
+    } catch (e) { if (!job.cancelled && jobs.get(id) === job) results.set(id, { error: { code: 'ERR', message: e.message } }); }
+    finally { if (jobs.get(id) === job) jobs.delete(id); }
+    guide = results.get(selected) || null; busy = jobs.has(selected) ? selected : null;
     renderDetail();
   }
 
   function renderDetail() {
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted?.valid()) Panel.setStatus(...args); };
     if (!root) return;
     const box = $('#gdDetail', root);
     const e = selected && findEntry(selected);
@@ -117,7 +132,8 @@
         <div class="gd-where small">${esc(t('guides.location'))}: <b>${esc(e.location || '–')}</b> · ${esc(t('guides.waypoint'))}: ${e.waypoint ? `<b>${esc(e.waypoint.name)}</b> <code>${esc(e.waypoint.code)}</code> ${wpButtons(e)}` : `<span class="muted">${esc(t('guides.noWaypoint'))}</span>`}</div>
         <div class="row gd-actions">
           <button id="gdWiki" data-url="${esc(url)}">${esc(t('guides.wiki'))}</button>
-          <button id="gdRefresh" ${busy ? 'disabled' : ''}>${esc(t('guides.refresh'))}</button>
+          <button id="gdRefresh" ${busy === selected ? 'disabled' : ''}>${esc(t('guides.refresh'))}</button>
+          <button id="gdCancel" ${jobs.has(selected) ? '' : 'hidden'}>${esc(t('common.cancel'))}</button>
         </div>
       </div>`;
     let body = '';
@@ -135,6 +151,7 @@
     box.innerHTML = head + body + foot;
     for (const id of ['#gdWiki', '#gdWikiLink']) { const b = $(id, box); if (b) b.addEventListener('click', (ev) => { ev.preventDefault(); window.api.invoke('open:url', b.dataset.url); }); }
     $('#gdRefresh', box).addEventListener('click', () => select(selected, true));
+    $('#gdCancel', box).addEventListener('click', () => { const job = jobs.get(selected); if (!job) return; job.cancelled = true; jobs.delete(selected); busy = null; window.api.invoke('ai:cancel', job.id).catch(() => {}); renderDetail(); });
     bindWpButtons(box);
     $('#gdSettings', box)?.addEventListener('click', () => window.api.invoke('panel:show', 'settings'));
     box.querySelectorAll('.gd-paste').forEach((b) => b.addEventListener('click', () => paste(guide.chat[Number(b.dataset.i)])));
@@ -142,6 +159,8 @@
   }
 
   async function paste(text) {
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
     if (!text) return;
     try {
       const r = await window.api.invoke('game:paste', text);

@@ -5,7 +5,7 @@ const Panel = (() => {
   const order = [];
   let current = null;
   let config = null;
-  const listeners = { config: [] };
+  const listeners = { config: new Set() };
 
   const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -51,8 +51,8 @@ const Panel = (() => {
       el.className = 'module module-' + id;
       content.appendChild(el);
       setStatus('');
-      mod.mount(el);
       current = id;
+      Promise.resolve(mod.mount(el)).catch((e) => { if (current === id && el.isConnected) setStatus(e.message, true); });
     }
     renderTabs();
   }
@@ -75,7 +75,7 @@ const Panel = (() => {
     else renderTabs();
   }
 
-  function onConfig(cb) { listeners.config.push(cb); }
+  function onConfig(cb) { listeners.config.add(cb); return () => listeners.config.delete(cb); }
 
   async function init() {
     await T.load();
@@ -84,7 +84,7 @@ const Panel = (() => {
     $('#pinned').checked = !!config.panel?.pinned;
     $('#opacity').value = config.panel?.opacity ?? 0.95;
     $('#pinned').addEventListener('change', (e) => window.api.invoke('config:set', { panel: { pinned: e.target.checked } }));
-    $('#opacity').addEventListener('input', (e) => window.api.invoke('config:set', { panel: { opacity: Number(e.target.value) } }));
+    $('#opacity').addEventListener('change', (e) => window.api.invoke('config:set', { panel: { opacity: Number(e.target.value) } }));
     $('#closeBtn').addEventListener('click', () => window.api.invoke('panel:close'));
     window.api.on('panel:module', ({ id }) => show(id));
     window.api.on('config:changed', async (c) => {
@@ -97,5 +97,5 @@ const Panel = (() => {
     if (st.module) show(st.module);
   }
 
-  return { $, esc, gold, setStatus, register, show, init, onConfig, get config() { return config; }, set config(c) { config = c; } };
+  return { $, esc, gold, setStatus, register, show, init, onConfig, ...UiState, get config() { return config; }, set config(c) { config = c; } };
 })();

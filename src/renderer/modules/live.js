@@ -4,6 +4,8 @@
   const { $, esc, setStatus } = Panel;
   const t = (k, v) => T.t(k, v);
   let root = null;
+  const life = Panel.lifecycle();
+  let scope = null;
   let overlays = null;
   let snap = null;
   let bar = null;
@@ -12,6 +14,9 @@
   let editTab = null; // build-fane som redigeres (null = den aktive)
   let editSet = null; // våpensett som redigeres (null = det aktive fra broen)
   let offLive = null, offProgress = null;
+  const drafts = new Map();
+  const copy = (rows) => rows.map((r) => ({ ...r }));
+  function edited() { const d = drafts.get(bar.key); d.steps = steps; d.upkeep = upkeep; d.revision++; }
 
   const template = () => `
     <div class="table-wrap"><div class="dy-grid">
@@ -29,13 +34,16 @@
   const WIN = ['buffs', 'debuffs', 'target', 'skillbar', 'dps', 'dps2', 'dps3'];
 
   async function mount(el) {
+    scope = life.start();
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
     root = el;
     el.innerHTML = template();
     $('#lvInstallBridge', el).addEventListener('click', async () => {
       const b = $('#lvInstallBridge', root); b.disabled = true;
       try { const r = await window.api.invoke('arc:installBridge'); setStatus(t('live.bridgeInstalled', { target: r.target })); }
       catch (e) { setStatus(t('common.error', { message: e.message }), true); }
-      finally { if (root) { b.disabled = false; bridgeStatus(); } }
+      finally { if (mounted.valid()) { b.disabled = false; bridgeStatus(); } }
     });
     $('#lvCheck', el).addEventListener('click', bridgeStatus);
     // Healing stats-utvidelsen (valgfri, gir squad-healing): lenke til GitHub-siden med nedlasting
@@ -44,21 +52,26 @@
       try { const r = await window.api.invoke('live:record', 180000); setStatus(t('live.recording', { file: r.file })); }
       catch (e) { setStatus(t('common.error', { message: e.message }), true); }
     });
-    offLive = window.api.on('live:state', (s) => { snap = s; liveLine(); });
-    offProgress = window.api.on('ai:progress', (p) => { const el2 = root && $('#lvSuggestStatus', root); if (el2) el2.textContent = p.content ? t('common.writing', { n: p.content }) : t('common.thinking', { n: p.reasoning }); });
-    snap = await window.api.invoke('live:get').catch(() => null);
-    overlays = await window.api.invoke('overlays:get');
+    offLive = scope.on('live:state', (s) => { snap = s; liveLine(); });
+    offProgress = scope.on('ai:progress', (p) => { const job = bar && drafts.get(bar.key)?.job; const el2 = job?.id === p.requestId && root && $('#lvSuggestStatus', root); if (el2) el2.textContent = p.content ? t('common.writing', { n: p.content }) : t('common.thinking', { n: p.reasoning }); });
+    const initial = await window.api.invoke('live:get').catch(() => null);
+    if (!mounted.valid()) return;
+    snap = initial;
+    const settings = await window.api.invoke('overlays:get');
+    if (!mounted.valid()) return;
+    overlays = settings;
     renderWindows();
     bridgeStatus();
     loadBar();
   }
-  function unmount() { offLive?.(); offProgress?.(); offLive = offProgress = null; root = null; }
+  function unmount() { life.clear(); offLive?.(); offProgress?.(); offLive = offProgress = null; root = null; }
 
   async function bridgeStatus() {
     if (!root) return;
+    const valid = scope.request('bridge');
     try {
       const s = await window.api.invoke('arc:status');
-      if (!root) return;
+      if (!valid()) return;
       const b = s.bridge || {};
       const parts = [];
       parts.push(t(s.installed ? 'live.arcInstalled' : 'live.arcMissing'));
@@ -66,7 +79,7 @@
       $('#lvBridgeStatus', root).innerHTML = `<div>${esc(parts.join(' '))}</div><div id="lvLive"></div>`;
       $('#lvInstallBridge', root).textContent = t(b.installed ? (b.upToDate ? 'live.reinstallBridge' : 'live.updateBridge') : 'live.installBridge');
       liveLine();
-    } catch (e) { $('#lvBridgeStatus', root).textContent = t('common.error', { message: e.message }); }
+    } catch (e) { if (valid()) $('#lvBridgeStatus', root).textContent = t('common.error', { message: e.message }); }
   }
   function liveLine() {
     const el = root && $('#lvLive', root);
@@ -83,12 +96,14 @@
   }
 
   function renderWindows() {
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted?.valid()) Panel.setStatus(...args); };
     if (!root || !overlays) return;
-    const opt = (k, val, cur, label) => `<option value="${val}" ${cur === val ? 'selected' : ''}>${esc(t(label))}</option>`;
+    const opt = (k, val, cur, label) => `<option value="${esc(val)}" ${cur === val ? 'selected' : ''}>${esc(t(label))}</option>`;
     // Ett felt: etikett over kontrollen, så det er lett å se hva som hører til hva
     const fld = (label, control, title) => `<div class="fld" ${title ? `title="${esc(title)}"` : ''}><span class="fl">${esc(label)}</span>${control}</div>`;
     const sel = (k, cur, opts) => `<select data-k="${k}">${opts.map(([v, l]) => opt(k, v, cur, l)).join('')}</select>`;
-    const num = (k, val, min, max, step, unit) => `<span class="num"><input type="number" data-k="${k}" value="${val}" min="${min}" max="${max}" step="${step}" />${unit ? `<span class="unit">${unit}</span>` : ''}</span>`;
+    const num = (k, val, min, max, step, unit) => `<span class="num"><input type="number" data-k="${k}" value="${esc(val)}" min="${min}" max="${max}" step="${step}" />${unit ? `<span class="unit">${unit}</span>` : ''}</span>`;
     const chk = (k, on, label, title) => `<label class="chip ${on ? 'on' : ''}" ${title ? `title="${esc(title)}"` : ''}><input type="checkbox" data-k="${k}" ${on ? 'checked' : ''} /> ${esc(label)}</label>`;
     const group = (title, inner) => `<div class="lv-group"><div class="lv-gt">${esc(title)}</div>${inner}</div>`;
     $('#lvWindows', root).innerHTML = `<h3>${esc(t('live.windows'))}</h3><p class="muted small">${esc(t('live.windowsHelp'))}</p>` + WIN.map((id) => {
@@ -158,32 +173,47 @@
       box.querySelectorAll('summary label, summary button, summary input').forEach((el) => el.addEventListener('click', (e) => e.stopPropagation()));
       box.querySelectorAll('[data-k]').forEach((inp) => inp.addEventListener('change', async () => {
         const k = inp.dataset.k;
-        const v = inp.type === 'checkbox' ? inp.checked : inp.type === 'number' || inp.type === 'range' ? Number(inp.value) : inp.value;
-        overlays[id] = await window.api.invoke('overlays:set', id, { [k]: v });
+        const valid = scope.request('window-' + id + '-' + k);
+        const numeric = inp.type === 'number' || inp.type === 'range';
+        const v = inp.type === 'checkbox' ? inp.checked : numeric ? Panel.number(inp.value, overlays[id][k], Number(inp.min), Number(inp.max)) : inp.value;
+        if (numeric) inp.value = String(v);
+        const result = await window.api.invoke('overlays:set', id, { [k]: v });
+        if (!valid()) return;
+        overlays[id] = { ...overlays[id], [k]: result[k] };
         if (inp.type === 'checkbox') renderWindows(); // status og chips i overskriften følger med
       }));
-      box.querySelector('[data-reset]').addEventListener('click', async () => { overlays[id] = await window.api.invoke('overlays:set', id, { x: null, y: null }); setStatus(t('live.posReset')); });
+      box.querySelector('[data-reset]').addEventListener('click', async () => { const result = await window.api.invoke('overlays:set', id, { x: null, y: null }); if (!mounted.valid()) return; overlays[id] = { ...overlays[id], x: result.x, y: result.y }; setStatus(t('live.posReset')); });
     });
   }
 
-  async function loadBar() {
+  async function loadBar(reset = false) {
     if (!root) return;
+    const valid = scope.request('bar');
     const box = $('#lvSkillbar', root);
     box.innerHTML = `<h3>${esc(t('live.skillbarTitle'))}</h3><p class="muted">${esc(t('live.loadingBar'))}</p>`;
-    try { bar = await window.api.invoke('skills:get', { ...(editTab != null ? { tab: editTab } : {}), ...(editSet ? { set: editSet } : {}) }); }
-    catch (e) { bar = { ok: false, error: e.message }; }
-    if (!root) return;
+    let result;
+    try { result = await window.api.invoke('skills:get', { ...(editTab != null ? { tab: editTab } : {}), ...(editSet ? { set: editSet } : {}) }); }
+    catch (e) { result = { ok: false, error: e.message }; }
+    if (!valid()) return;
+    bar = result;
     if (!bar.ok) { box.innerHTML = `<h3>${esc(t('live.skillbarTitle'))}</h3><p class="muted">${esc(bar.error)}</p><button id="lvReload">${esc(t('live.retry'))}</button>`; $('#lvReload', box).addEventListener('click', loadBar); return; }
-    steps = bar.rotation.steps.slice();
-    upkeep = bar.rotation.upkeep.slice();
+    if (!drafts.has(bar.key)) drafts.set(bar.key, { steps: copy(bar.rotation.steps), upkeep: copy(bar.rotation.upkeep), revision: 0, job: null, suggestion: null, explanation: '' });
+    const draft = drafts.get(bar.key);
+    if (reset === true) { draft.steps = copy(bar.rotation.steps); draft.upkeep = copy(bar.rotation.upkeep); draft.revision++; }
+    steps = draft.steps;
+    upkeep = draft.upkeep;
     renderBar();
   }
 
   function renderBar() {
+    if (!root || !bar?.ok) return;
+    const draft = drafts.get(bar.key);
+    if (!draft) return;
+    steps = draft.steps; upkeep = draft.upkeep;
     const box = $('#lvSkillbar', root);
-    const skillOpt = (sel) => bar.all.map((s) => `<option value="${s.id}" ${s.id === sel ? 'selected' : ''}>${esc(s.name)}${s.recharge ? ' (' + s.recharge + 's)' : ''}</option>`).join('');
-    const boonOpt = (sel) => bar.boonNames.map((b) => `<option value="${b}" ${b === sel ? 'selected' : ''}>${b}</option>`).join('');
-    const buildOpts = bar.builds.map((b) => `<option value="${b.tab}" ${b.tab === bar.tab ? 'selected' : ''}>${esc(b.name)}${b.active ? ' ' + esc(t('live.activeInGame')) : ''}</option>`).join('');
+    const skillOpt = (sel) => bar.all.map((s) => `<option value="${esc(s.id)}" ${s.id === sel ? 'selected' : ''}>${esc(s.name)}${s.recharge ? ' (' + s.recharge + 's)' : ''}</option>`).join('');
+    const boonOpt = (sel) => bar.boonNames.map((b) => `<option value="${esc(b)}" ${b === sel ? 'selected' : ''}>${esc(b)}</option>`).join('');
+    const buildOpts = bar.builds.map((b) => `<option value="${esc(b.tab)}" ${b.tab === bar.tab ? 'selected' : ''}>${esc(b.name)}${b.active ? ' ' + esc(t('live.activeInGame')) : ''}</option>`).join('');
     box.innerHTML = `<h3>${esc(t('live.skillbarTitle'))}</h3>
       <div class="row"><label class="inline">${esc(t('live.build'))} <select id="lvBuild">${buildOpts}</select></label>
         <label class="inline">${esc(t('live.weaponSet'))} <select id="lvSet"><option value="A" ${bar.weaponSet === 'A' ? 'selected' : ''}>A: ${esc(bar.sets.A.types.join(' + ') || t('live.noWeapon'))}</option>${bar.sets.B ? `<option value="B" ${bar.weaponSet === 'B' ? 'selected' : ''}>B: ${esc(bar.sets.B.types.join(' + '))}</option>` : ''}</select></label>
@@ -191,36 +221,46 @@
       <div class="lv-icons">${bar.all.map((s) => `<img src="${esc(s.icon)}" title="${esc(s.name)}${s.buffs?.length ? ' · ' + esc(t('live.gives', { buffs: s.buffs.join(', ') })) : ''}" alt="" />`).join('')}</div>
       <h4>${esc(t('live.rotation'))}</h4>
       <ol id="lvRot" class="lv-rot">${steps.map((r, i) => `<li><select data-i="${i}">${skillOpt(r.skill)}</select><input type="text" data-note="${i}" value="${esc(r.note || '')}" placeholder="${esc(t('live.notePlaceholder'))}" /><button data-up="${i}" class="small">▲</button><button data-del="${i}" class="small">✕</button></li>`).join('')}</ol>
-      <div class="row"><button id="lvAdd">${esc(t('live.addStep'))}</button><button id="lvSuggest">${esc(t('live.suggestAi'))}</button><span id="lvSuggestStatus" class="muted"></span></div>
-      <div id="lvExplain" class="muted small"></div>
+      <div class="row"><button id="lvAdd">${esc(t('live.addStep'))}</button><button id="lvSuggest" ${draft.job ? 'disabled' : ''}>${esc(t('live.suggestAi'))}</button><button id="lvCancel" ${draft.job ? '' : 'hidden'}>${esc(t('common.cancel'))}</button><span id="lvSuggestStatus" class="muted"></span></div>
+      <div id="lvExplain" class="muted small">${esc(draft.explanation || '')}</div>
+      ${draft.suggestion ? `<p>${esc(t('live.suggestionSaved'))} <button id="lvApplySuggestion">${esc(t('live.applySuggestion'))}</button></p>` : ''}
       <h4>${esc(t('live.upkeep'))}</h4>
       <p class="muted small">${esc(t('live.upkeepHelp'))}</p>
       <ul id="lvUp" class="lv-rot">${upkeep.map((u, i) => `<li><select data-ui="${i}">${skillOpt(u.skill)}</select><span class="muted">${esc(t('live.keepsUp'))}</span><select data-ub="${i}">${boonOpt(u.boon)}</select><button data-udel="${i}" class="small">✕</button></li>`).join('')}</ul>
       <div class="row"><button id="lvUpAdd">${esc(t('live.add'))}</button><button id="lvUpSuggest">${esc(t('live.suggestFromSkills'))}</button><button id="lvSave" class="primary">${esc(t('live.saveBuild'))}</button><button id="lvReload2">${esc(t('live.reload'))}</button></div>`;
     $('#lvBuild', box).addEventListener('change', (e) => { editTab = Number(e.target.value); loadBar(); });
     $('#lvSet', box).addEventListener('change', (e) => { editSet = e.target.value; loadBar(); });
-    box.querySelectorAll('select[data-i]').forEach((s) => s.addEventListener('change', () => { steps[Number(s.dataset.i)].skill = Number(s.value); }));
-    box.querySelectorAll('input[data-note]').forEach((s) => s.addEventListener('input', () => { steps[Number(s.dataset.note)].note = s.value; }));
-    box.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => { steps.splice(Number(b.dataset.del), 1); renderBar(); }));
-    box.querySelectorAll('[data-up]').forEach((b) => b.addEventListener('click', () => { const i = Number(b.dataset.up); if (i > 0) { [steps[i - 1], steps[i]] = [steps[i], steps[i - 1]]; renderBar(); } }));
-    box.querySelectorAll('select[data-ui]').forEach((s) => s.addEventListener('change', () => { upkeep[Number(s.dataset.ui)].skill = Number(s.value); }));
-    box.querySelectorAll('select[data-ub]').forEach((s) => s.addEventListener('change', () => { upkeep[Number(s.dataset.ub)].boon = s.value; }));
-    box.querySelectorAll('[data-udel]').forEach((b) => b.addEventListener('click', () => { upkeep.splice(Number(b.dataset.udel), 1); renderBar(); }));
-    $('#lvAdd', box).addEventListener('click', () => { steps.push({ skill: bar.all[0]?.id, note: '' }); renderBar(); });
-    $('#lvUpAdd', box).addEventListener('click', () => { upkeep.push({ skill: bar.all[0]?.id, boon: 'Might' }); renderBar(); });
+    box.querySelectorAll('select[data-i]').forEach((s) => s.addEventListener('change', () => { steps[Number(s.dataset.i)].skill = Number(s.value); edited(); }));
+    box.querySelectorAll('input[data-note]').forEach((s) => s.addEventListener('input', () => { steps[Number(s.dataset.note)].note = s.value; edited(); }));
+    box.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => { steps.splice(Number(b.dataset.del), 1); edited(); renderBar(); }));
+    box.querySelectorAll('[data-up]').forEach((b) => b.addEventListener('click', () => { const i = Number(b.dataset.up); if (i > 0) { [steps[i - 1], steps[i]] = [steps[i], steps[i - 1]]; edited(); renderBar(); } }));
+    box.querySelectorAll('select[data-ui]').forEach((s) => s.addEventListener('change', () => { upkeep[Number(s.dataset.ui)].skill = Number(s.value); edited(); }));
+    box.querySelectorAll('select[data-ub]').forEach((s) => s.addEventListener('change', () => { upkeep[Number(s.dataset.ub)].boon = s.value; edited(); }));
+    box.querySelectorAll('[data-udel]').forEach((b) => b.addEventListener('click', () => { upkeep.splice(Number(b.dataset.udel), 1); edited(); renderBar(); }));
+    $('#lvAdd', box).addEventListener('click', () => { steps.push({ skill: bar.all[0]?.id, note: '' }); edited(); renderBar(); });
+    $('#lvUpAdd', box).addEventListener('click', () => { upkeep.push({ skill: bar.all[0]?.id, boon: 'Might' }); edited(); renderBar(); });
     $('#lvUpSuggest', box).addEventListener('click', () => {
       const existing = new Set(upkeep.map((u) => u.skill + '|' + u.boon));
       for (const s of bar.upkeepSuggestions) for (const boon of s.boons) if (!existing.has(s.skill + '|' + boon)) upkeep.push({ skill: s.skill, boon });
+      edited();
       if (!bar.upkeepSuggestions.length) setStatus(t('live.noBoonSkills'));
       renderBar();
     });
-    $('#lvReload2', box).addEventListener('click', loadBar);
-    $('#lvSave', box).addEventListener('click', async () => { await window.api.invoke('skills:setRotation', bar.key, { steps, upkeep }); setStatus(t('live.saved', { build: bar.buildName })); });
+    $('#lvReload2', box).addEventListener('click', () => loadBar(true));
+    $('#lvSave', box).addEventListener('click', async () => { const mounted = scope, key = bar.key, build = bar.buildName; await window.api.invoke('skills:setRotation', key, { steps: copy(steps), upkeep: copy(upkeep) }); if (mounted.valid()) setStatus(t('live.saved', { build })); });
+    $('#lvApplySuggestion', box)?.addEventListener('click', () => { draft.steps = copy(draft.suggestion.rotasjon); draft.explanation = draft.suggestion.forklaring || ''; draft.suggestion = null; draft.revision++; renderBar(); });
+    $('#lvCancel', box).addEventListener('click', () => { const job = draft.job; if (!job) return; job.cancelled = true; draft.job = null; window.api.invoke('ai:cancel', job.id).catch(() => {}); renderBar(); });
     $('#lvSuggest', box).addEventListener('click', async () => {
-      const b = $('#lvSuggest', box); b.disabled = true; $('#lvSuggestStatus', box).textContent = t('common.sendingToModel');
-      try { const r = await window.api.invoke('skills:suggest', bar.key); steps = r.rotasjon; renderBar(); $('#lvExplain', $('#lvSkillbar', root)).textContent = r.forklaring || ''; }
-      catch (e) { setStatus(t('live.suggestFailed', { message: e.message }), true); }
-      finally { if (root) { const b2 = $('#lvSuggest', root); if (b2) b2.disabled = false; const st = $('#lvSuggestStatus', root); if (st) st.textContent = ''; } }
+      if (draft.job) return;
+      const job = { id: Panel.requestId('rotation'), key: bar.key, revision: draft.revision };
+      draft.job = job; renderBar(); $('#lvSuggestStatus', root).textContent = t('common.sendingToModel');
+      try {
+        const r = await window.api.invoke('skills:suggest', job.key, { requestId: job.id });
+        if (job.cancelled || draft.job !== job) return;
+        if (draft.revision === job.revision) { draft.steps = copy(r.rotasjon); draft.explanation = r.forklaring || ''; draft.revision++; }
+        else draft.suggestion = r;
+      } catch (e) { if (!job.cancelled) draft.explanation = t('live.suggestFailed', { message: e.message }); }
+      finally { if (draft.job === job) draft.job = null; if (root && bar?.key === job.key) renderBar(); }
     });
   }
 

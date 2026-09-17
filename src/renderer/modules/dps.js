@@ -4,6 +4,8 @@
   const { $, esc, setStatus } = Panel;
   const t = (k, v) => T.t(k, v);
   let root = null;
+  const life = Panel.lifecycle();
+  let scope = null;
   let logs = [];
   let selected = null;
   let offNew = null;
@@ -40,6 +42,9 @@
     </div>`;
 
   async function mount(el) {
+    scope = life.start();
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
     root = el;
     el.innerHTML = template();
     $('#dpsRefresh', el).addEventListener('click', refresh);
@@ -50,12 +55,13 @@
       btn.disabled = true; $('#arcStatus', root).textContent = t('dps.downloading');
       try {
         const r = await window.api.invoke('arc:install');
-        if (root) $('#arcStatus', root).textContent = t('dps.installed', { target: r.target, kb: Math.round(r.size / 1024), md5: r.md5.slice(0, 8) });
-      } catch (e) { if (root) $('#arcStatus', root).textContent = t('common.error', { message: e.message }); }
-      finally { if (root) btn.disabled = false; }
+        if (mounted.valid()) $('#arcStatus', root).textContent = t('dps.installed', { target: r.target, kb: Math.round(r.size / 1024), md5: r.md5.slice(0, 8) });
+      } catch (e) { if (mounted.valid()) $('#arcStatus', root).textContent = t('common.error', { message: e.message }); }
+      finally { if (mounted.valid()) btn.disabled = false; }
     });
-    offLive = window.api.on('live:state', (s) => { liveSnap = s; renderLive(); });
-    window.api.invoke('live:get').then((s) => { liveSnap = s; renderLive(); }).catch(() => {});
+    let receivedLive = false;
+    offLive = scope.on('live:state', (s) => { receivedLive = true; liveSnap = s; renderLive(); });
+    window.api.invoke('live:get').then((s) => { if (mounted.valid() && !receivedLive) { liveSnap = s; renderLive(); } }).catch(() => {});
     $('#dpsLive', el).addEventListener('click', async (e) => {
       if (e.target.id === 'dpsResetSession') {
         try { await window.api.invoke('live:resetSession'); setStatus(t('dps.live.sessionReset')); } catch (err) { setStatus(err.message, true); }
@@ -65,7 +71,7 @@
       try { await window.api.invoke('overlays:set', 'dps', { enabled: true, locked: false }); setStatus(t('dps.live.opened')); }
       catch (err) { setStatus(t('common.error', { message: err.message }), true); }
     });
-    offNew = window.api.on('dps:new', (r) => {
+    offNew = scope.on('dps:new', (r) => {
       setStatus(t('dps.newFight', { boss: r.boss, dur: fmtDur(r.durationMs) }));
       selected = r;
       refresh();
@@ -73,7 +79,7 @@
     await refresh();
   }
 
-  function unmount() { offNew?.(); offNew = null; offLive?.(); offLive = null; root = null; }
+  function unmount() { life.clear(); offNew?.(); offNew = null; offLive?.(); offLive = null; root = null; }
 
   // Live-kortet: pågående kamp fra broen (sanntid), ellers forrige kamp
   const k = (n) => { n = Math.round(n || 0); return n >= 10000 ? (n / 1000).toFixed(1) + 'k' : String(n); };
@@ -109,11 +115,12 @@
 
   async function arcStatus() {
     if (!root) return;
+    const valid = scope.request('arc');
     const el = $('#arcStatus', root), btn = $('#arcInstall', root);
     el.textContent = t('dps.checking');
     try {
       const s = await window.api.invoke('arc:status');
-      if (!root) return;
+      if (!valid()) return;
       if (!s.validDir) { el.textContent = t('dps.noGameDir'); btn.disabled = true; return; }
       btn.disabled = false;
       const parts = [t('dps.gameDir', { dir: s.gw2Dir })];
@@ -124,7 +131,7 @@
       if (s.running) parts.push(t('dps.gameRunning'));
       if (s.error) parts.push(t('dps.checkFailed', { error: s.error }));
       el.textContent = parts.join(' ');
-    } catch (e) { el.textContent = t('common.error', { message: e.message }); }
+    } catch (e) { if (valid()) el.textContent = t('common.error', { message: e.message }); }
   }
 
   function fmtDur(ms) { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`; }
@@ -132,11 +139,13 @@
   function fmtWhen(ms) { const d = new Date(ms); return d.toLocaleDateString(T.locale, { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString(T.locale, { hour: '2-digit', minute: '2-digit' }); }
 
   async function refresh() {
+    const valid = scope.request('refresh');
     try {
       const r = await window.api.invoke('dps:list');
+      if (!valid()) return;
       dir = r.dir; exists = r.exists; logs = r.logs;
-    } catch (e) { setStatus(t('common.error', { message: e.message }), true); return; }
-    if (!root) return;
+    } catch (e) { if (valid()) setStatus(t('common.error', { message: e.message }), true); return; }
+    if (!valid()) return;
     $('#dpsDir', root).textContent = exists ? t('dps.logDir', { dir }) : t('dps.logDirMissing', { dir });
     renderLogs();
     if (selected) renderDetail(selected);
@@ -152,15 +161,20 @@
   }
 
   async function select(file) {
+    const valid = scope.request('parse');
     $('#dpsDetail', root).innerHTML = `<div class="empty">${esc(t('dps.reading'))}</div>`;
     try {
-      selected = await window.api.invoke('dps:parse', file);
+      const result = await window.api.invoke('dps:parse', file);
+      if (!valid()) return;
+      selected = result;
       renderLogs();
       renderDetail(selected);
-    } catch (e) { $('#dpsDetail', root).innerHTML = `<div class="empty">${esc(t('dps.readFailed', { message: e.message }))}</div>`; }
+    } catch (e) { if (valid()) $('#dpsDetail', root).innerHTML = `<div class="empty">${esc(t('dps.readFailed', { message: e.message }))}</div>`; }
   }
 
   function renderDetail(r) {
+    const mounted = scope;
+    const setStatus = (...args) => { if (mounted?.valid()) Panel.setStatus(...args); };
     if (!root) return;
     const max = Math.max(1, ...r.players.map((p) => p.dpsTarget || p.dpsAll));
     const useTarget = r.players.some((p) => p.dpsTarget > 0);

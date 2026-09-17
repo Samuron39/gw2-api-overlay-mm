@@ -37,7 +37,7 @@ const iconBroken = new Set(); // bilder som ikke lot seg laste
 let iconTimer = null, iconLast = 0;
 function iconFor(b) {
   if (cfg?.showIcons === false || iconBroken.has(b.skill)) return null;
-  if (BOONS[b.skill] || CONDS[b.skill]) return `../../assets/effects/${b.skill}.png`;
+  if (BOONS[b.skill] || CONDS[b.skill]) return `../../assets/effects/${esc(b.skill)}.png`;
   if (iconCache.has(b.skill)) return iconCache.get(b.skill);
   iconPending.add(b.skill);
   scheduleIcons();
@@ -227,11 +227,11 @@ function renderBuffs() {
       const total = b.max || Math.max(b.remainingMs, 10000);
       const w = Math.max(0, Math.min(100, (b.remainingMs / total) * 100));
       const icon = iconFor(b);
-      return `<div class="l ${k} ${b.remainingMs < 2000 ? 'short' : ''}" title="${b.name}">
+      return `<div class="l ${k} ${b.remainingMs < 2000 ? 'short' : ''}" title="${esc(b.name)}">
         ${showShade ? `<div class="sh" style="--w:${w.toFixed(1)}%"></div>` : ''}
-        ${icon ? `<img class="ic2" src="${icon}" data-skill="${b.skill}" alt="" />` : ''}
-        <span class="nm2">${b.name}</span>
-        ${b.stacks > 1 ? `<span class="st2">×${b.stacks}</span>` : ''}
+        ${icon ? `<img class="ic2" src="${esc(icon)}" data-skill="${esc(b.skill)}" alt="" />` : ''}
+        <span class="nm2">${esc(b.name)}</span>
+        ${b.stacks > 1 ? `<span class="st2">×${esc(b.stacks)}</span>` : ''}
         ${showNum ? `<span class="tm2">${fmtSec(b.remainingMs)}s</span>` : ''}
       </div>`;
     }).join('');
@@ -244,13 +244,13 @@ function renderBuffs() {
     const showNum = cfg.mode === 'number' || cfg.mode === 'both';
     const showPie = cfg.mode === 'clock' || cfg.mode === 'both';
     const icon = iconFor(b);
-    return `<div class="b ${k} ${b.remainingMs < 2000 ? 'short' : ''}" style="width:${size}px;height:${size}px;font-size:${size}px" title="${b.name}">
-      ${icon ? `<img class="ic" src="${icon}" data-skill="${b.skill}" alt="" />` : ''}
+    return `<div class="b ${k} ${b.remainingMs < 2000 ? 'short' : ''}" style="width:${size}px;height:${size}px;font-size:${size}px" title="${esc(b.name)}">
+      ${icon ? `<img class="ic" src="${esc(icon)}" data-skill="${esc(b.skill)}" alt="" />` : ''}
       ${showPie ? `<div class="pie" style="--p:${Math.round(p * 100)}%"></div>` : ''}
-      ${icon ? '' : `<span class="ab">${abbr(b)}</span>`}
-      ${b.stacks > 1 ? `<span class="st">${b.stacks}</span>` : ''}
+      ${icon ? '' : `<span class="ab">${esc(abbr(b))}</span>`}
+      ${b.stacks > 1 ? `<span class="st">${esc(b.stacks)}</span>` : ''}
       ${showNum ? `<span class="tm">${fmtSec(b.remainingMs)}</span>` : ''}
-      ${cfg.showNames ? `<span class="nm">${b.name}</span>` : ''}
+      ${cfg.showNames ? `<span class="nm">${esc(b.name)}</span>` : ''}
     </div>`;
   }).join('');
 }
