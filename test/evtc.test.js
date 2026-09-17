@@ -224,6 +224,18 @@ test('nyere buff-initial/change/single-remove bruker riktig mottaker og stack-id
   near(r.players.find(p => p.name === 'Beta').boons.might, 0, 'Avsender får ikke buffen');
 });
 
+test('eldre varighetsboon: utløpt stack-fjerning tar ikke med neste stack i køen', () => {
+  const base = buildLog();
+  const b = Buffer.concat([base.subarray(0, eventOffset(base)),
+    ev({ sc: 9, time: 1000 }),
+    ev({ time: 1000, src: BETA, dst: ALFA, value: 2000, buff: 1, skill: 1187 }),
+    ev({ time: 1000, src: BETA, dst: ALFA, value: 5000, buff: 1, skill: 1187 }),
+    ev({ time: 3000, src: ALFA, value: 0, buff: 1, skill: 1187, rem: 2 }),
+    ev({ sc: 10, time: 11000 }),
+  ]);
+  near(parse(write('legacy-queue.evtc', b)).players.find(p => p.name === 'Alfa').boons.quickness, 0.7, 'Quickness-køen beholdes');
+});
+
 test('boss-utfall: uten død brukes siste HP-oppdatering, reward-event teller som seier', () => {
   const levende = parse(write('c.evtc', buildLog({ death: false })));
   assert.equal(levende.success, false);

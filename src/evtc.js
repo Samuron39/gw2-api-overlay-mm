@@ -19,11 +19,12 @@ function unzipFirst(buf) {
   const extraLen = buf.readUInt16LE(28);
   const start = 30 + nameLen + extraLen;
   if (method === 0) return buf.subarray(start, start + compSize);
-  if (method === 8) return zlib.inflateRawSync(compSize ? buf.subarray(start, start + compSize) : buf.subarray(start));
+  if (method === 8) return zlib.inflateRawSync(compSize ? buf.subarray(start, start + compSize) : buf.subarray(start), { maxOutputLength: 512 * 1024 * 1024 });
   throw new Error('Ukjent zip-metode ' + method);
 }
 
 function readBuffer(file) {
+  if (fs.statSync(file).size > 512 * 1024 * 1024) throw new Error('EVTC-fila er større enn 512 MiB');
   const buf = fs.readFileSync(file);
   return buf.readUInt32LE(0) === 0x04034b50 ? unzipFirst(buf) : buf;
 }
@@ -80,7 +81,8 @@ function parse(file) {
 
   const EV = 64;
   const evStart = off;
-  const evEnd = b.length - ((b.length - off) % EV);
+  if (off > b.length || (b.length - off) % EV) throw new Error('EVTC-fila har en ufullstendig kamphendelse');
+  const evEnd = b.length;
   const byInst = new Map();
 
   // Pass 1: instid-koblinger, master/minion og start/slutt
@@ -139,10 +141,11 @@ function parse(file) {
   const boonTouch = (a, skill, time, durMs, kind, id) => {
     let m = boon.get(a.addr); if (!m) { m = new Map(); boon.set(a.addr, m); }
     let st = m.get(skill); if (!st) { st = { active: 0, last: time, stacks: [] }; m.set(skill, st); }
+    const removed = kind === 'remove' ? (id ? st.stacks.find(s => s.id === id) : st.stacks[0]) : null;
     advance(st, time, skill);
     const index = id ? st.stacks.findIndex(s => s.id === id) : 0;
     if (kind === 'clear') st.stacks = [];
-    else if (kind === 'remove') { if (index >= 0) st.stacks.splice(index, 1); }
+    else if (kind === 'remove') { const i = st.stacks.indexOf(removed); if (i >= 0) st.stacks.splice(i, 1); }
     else if (kind === 'change') {
       if (index >= 0 && st.stacks[index]) st.stacks[index].ms = Math.max(0, durMs);
       else if (durMs > 0) st.stacks.push({ id, ms: durMs });
