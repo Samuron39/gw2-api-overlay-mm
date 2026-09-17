@@ -9,3 +9,7 @@ Kontrollert 17. september 2026:
 - Det medfølgende wiki-datasettet legger Dragon's Stand-starten til 23:30 UTC og deretter hvert andre time. Det innledende `(continued)`-segmentet er knyttet til samme hendelse som segmentet før midnatt. Dette er en konsistensretting i eksisterende data, ikke en ny verifisering av spillserverens klokke.
 
 `test/timers.test.js` kontrollerer alle waypoint-lenker i hele tidsplandatasettet, ikke bare kjerneverdensbossene.
+
+Iron Ore er kontrollert mot [ArenaNets item 19699](https://api.guildwars2.com/v2/items/19699) og [wikiens Iron Ore-side](https://wiki.guildwars2.com/wiki/Iron_Ore). At regelmotoren bruker jern i både T2- og T3-estimatet er tilsiktet: jern brukes også til stål, og materialet kan komme fra salvaging av utstyr på nivå 19–53. Tabellen beholdes som et grovt verdiestimat, ikke en eksakt sannsynlighetsmodell.
+
+Guider bruker egne navngitte waypoint/chat-koder fra `guides.json`. Manglende treff i koordinatindeksen fjerner derfor ikke den kopierbare koden. Oppføringer uten waypoint viser den eksisterende «ingen waypoint»-teksten og wikilenken; testene angir disse oppføringene eksplisitt. Koordinatindeksen er komplett for tidsplanen, ikke for hele spillverdenen.

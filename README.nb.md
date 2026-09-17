@@ -1,6 +1,6 @@
 # GW2 Overlay
 
-Modulær overlay for Guild Wars 2. Et lite hjul ligger over spillet og åpner moduler i et panel. Alt kjører lokalt. Eneste eksterne kall er til det offisielle GW2 API-et, pluss dps.report hvis du selv trykker "Last opp".
+Modulær overlay for Guild Wars 2. Et lite hjul ligger over spillet og åpner moduler i et panel. Appen kjører lokalt og henter data fra GW2 API-et og wikien, samt oppdateringer fra GitHub og ArcDPS. Lokal AI er standard; sky-AI er valgfritt. DPS-logger lastes bare opp til dps.report når du trykker «Last opp».
 
 Moduler: **Inventory** (rådgiver med lokal AI), **I dag** (Wizard's Vault, world bosses, fraktaler, kister), **Tidsplan** (world bosses og meta-events med waypoint rett i chatten), **Trading Post**, **DPS** (fra ArcDPS-logger), **Karakterer** (utstyr og AI-vurdering), **Guild** og **Innstillinger**.
 
@@ -22,7 +22,7 @@ Skal du utvikle på appen, eller sette en AI-agent på den: les [AGENTS.md](AGEN
 ## Kom i gang
 
 ```bash
-npm install
+npm ci
 npm start
 ```
 
@@ -198,11 +198,11 @@ To ting å vite:
 GW2_DEMO=1 npm start
 ```
 
-`GW2_SHOT=<fil.png> GW2_SHOT_MODULE=<modul>` tar et skjermbilde og avslutter. Testkjøringer bruker egen konfig-mappe og rører aldri din.
+`GW2_SHOT=<fil.png> GW2_SHOT_MODULE=<modul>` tar et skjermbilde og avslutter. Både demo og skjermbildetester får en unik profil under `%TEMP%\gw2-overlay-test\run-*`, også når produksjonsappen kjører. Hjelper, live-UDP, loggwatcher, oppdatering, systemstatusfelt og globale hurtigtaster starter ikke i testmodus. Installering og innliming i spillet er blokkert der.
 
 ## Feilsøking
 
-Appen skriver en loggfil, `logs\app.log`, i brukerprofilen (`%APPDATA%\gw2-inventory-overlay\logs`). Den roteres ved 2 MB, de to forrige beholdes som `app.log.1` og `app.log.2`. Loggen har oppstartsinformasjon, feil fra GW2 API-et (også 429-retry), når ArcDPS-broen kobler til og fra, feil i MumbleLink-hjelperen, parse-feil i DPS-logger, IPC-feil og feil fra vinduene. Under *Innstillinger → Feilsøking* åpner «Åpne loggmappe» mappa, og «Kopier feilrapport» legger en tekst på utklippstavla med app-, Electron- og OS-versjon, innstillingene uten API-nøkkel, hvilke moduler som er på, om ArcDPS og broen er installert, live-tilstand og de siste 200 logglinjene. Lim den inn når du melder en feil. Testkjøringer (`GW2_SHOT`) logger til sin egen mappe (`%TEMP%\gw2-overlay-test\logs`).
+Appen skriver en loggfil, `logs\app.log`, i brukerprofilen (`%APPDATA%\gw2-inventory-overlay\logs`). Den roteres ved 2 MB, de to forrige beholdes som `app.log.1` og `app.log.2`. Loggen har oppstartsinformasjon, feil fra GW2 API-et (også 429-retry), når ArcDPS-broen kobler til og fra, feil i MumbleLink-hjelperen, parse-feil i DPS-logger, IPC-feil og feil fra vinduene. Under *Innstillinger → Feilsøking* åpner «Åpne loggmappe» mappa, og «Kopier feilrapport» legger en tekst på utklippstavla med app-, Electron- og OS-versjon, innstillingene uten API-nøkkel, hvilke moduler som er på, om ArcDPS og broen er installert, live-tilstand og de siste 200 logglinjene. Lim den inn når du melder en feil. Testkjøringer (`GW2_SHOT`) logger til sin egen mappe (`%TEMP%\gw2-overlay-test\run-*\logs`).
 
 ## Tester
 
@@ -216,14 +216,18 @@ Kjører alt i `test/` med Node sin innebygde test-runner (`node:test` og `node:a
 |---|---|
 | `test/rules.test.js` | Regelmotoren: deposit før behold-liste, Legendary og Ascended, samlinger, låste skinn, duplikat-opplåsninger, uidentifisert gear, TP-terskel per stack, vendor mot salvage mot TP, binding og listed-flagg |
 | `test/evtc.test.js` | EVTC-parseren med en syntetisk logg bygd byte for byte: direkte skade, condition, kjæledyr til eier, blokkert og vennlig treff, boss-utfall, boon-uptime, `.zevtc` med deflate og lagret |
-| `test/live.test.js` | Live-tilstanden over UDP på testport 47599: hello, self (prof/elite fra dst), kamp, buffs med stacks, target, cooldowns, våpenbytte, dedupe av dobbeltleverte hendelser, buffs som allerede ligger på deg (sc 18) med `max`, målbytte med `dst = null` |
+| `test/live.test.js` | Live-tilstanden over UDP på en dynamisk testport: hello, self (prof/elite fra dst), kamp, buffs med stacks, target, cooldowns, våpenbytte, dedupe av dobbeltleverte hendelser, buffs som allerede ligger på deg (sc 18) med `max`, målbytte med `dst = null` |
 | `test/live-batch.test.js` | Flere JSON-linjer per datagram, tellere og tapsdeteksjon på løpenummeret, `buffList()` med utløp og `max` |
 | `test/timers.test.js` | Tidsplan-dataene: world bosses har 10 segmenter, sekvensene fyller døgnet, `waypoints.json` dekker chat-lenkene |
 | `test/daily.test.js` | Boss-navn til API-id og daglig/ukentlig reset, også med frosset klokke |
 | `test/skills.test.js` | `skills.js` lastes uten Electron, `normalizeRotation()` tåler gamle lagringer, `slim()` og hjelperne tåler skills uten navn |
 | `test/i18n.test.js` | Språkfilene har samme nøkler og ingen tomme tekster, `t()`/`tn()` med plassholdere og flertall, fallback til nb og til nøkkelen, regelmotoren følger språket |
 
-`main.js`, `windows.js`, `ipc.js`, `overlays.js` og `mumble.js` krever Electron og dekkes ikke. Testene rører aldri konfigmappa di.
+Per 17. september 2026 består **232 tester**. Oppstart, vinduer, IPC, overlays og Mumble-restart dekkes med mockede Electron-/prosessavhengigheter. Nettverk/AI, skadet konfig, renderer-livssyklus og ekte EVTC-workers har regresjonstester. Testene rører aldri konfigmappa di. UDP-testene bruker ledig, dynamisk testport.
+
+Utviklingsverktøyene bruker Node 22.18.x; Electron er låst til testet versjon 44.3.0. `npm run check` kontrollerer JavaScript-syntaks. `npm run build:native` bygger hjelper og bro med Cargo.lock og lagrer fingeravtrykk av kilde og binær. Pakking bygger og kontrollerer begge automatisk; gammelt native-bygg godtas ikke bare fordi filen finnes. Windows-CI kjører tester, syntakskontroll og native-bygg uten publisering.
+
+`node scripts/smoke-electron.js` tester faner, IPC og syntetisk EVTC-parsing i en isolert Electron-profil. Etter pakking kontrollerer `node scripts/smoke-electron.js --packaged` også worker inne i ASAR. Resultater og skjermbilder legges i `dist/smoke-*`. Se [valideringsrapporten](docs/VALIDERING-2026-09-17.md) for rettinger og gjenstående spillkontroll.
 
 ## Begrensninger
 

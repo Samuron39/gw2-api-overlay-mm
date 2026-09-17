@@ -36,7 +36,7 @@ bridge/                      ArcDPS-utvidelse i Rust (cdylib, arcdps-crate 0.11.
 helper/                      Rust-hjelper: MumbleLink og innliming i spillets chat
 data/                        tidsplan, waypoints og guides.json fra wikien (CC BY-SA)
 docs/                        healing-api.md, BRIEF-felles.md (mal for underagenter), BRIEF-guider.md (eksempel)
-test/                        node:test, kjør `npm test` (139 tester per 15. sept 2026, må være grønn før commit)
+test/                        node:test, kjør `npm test` (232 tester per 17. sept 2026, må være grønn før commit)
 ```
 
 Ny modul = `src/modules/<navn>.js` + `src/renderer/modules/<navn>.js`, IPC i ipc.js, kanal i preload.js, skript i
@@ -134,3 +134,14 @@ UDP-opptak `opptak-2026-09-13.log` samme sted. Siter README-linjer i kodekomment
 - Squad-lista, death log (kodene 4/5) og healing fra andre i DPS-meteret (bygd etter dokumentasjon, kun syntetiske tester).
 - Et ekte AI-utdrag i Guider mot Gemini (wiki-henting og caching er testet med mocket AI).
 - Oppdaterings-popupen ved spillstart (0.3.8) får sin første ekte test med 0.4.0.
+
+## 9. Stabilisering 17. september 2026
+
+- Alle R01–R16 i `docs/REVIEW-2026-09-16.md` er implementert på stabiliseringsgrenen; full status og gjenstående spilltest står i
+  `docs/VALIDERING-2026-09-17.md`. Versjonen er fortsatt 0.4.4, ingen ny release er publisert.
+- 232 automatiske tester; `npm run check` kontrollerer syntaks. Node 22.18.x brukes til utvikling, Electron er låst til 44.3.0.
+- `npm run build:native` bygger begge Rust-delene med Cargo.lock og skriver kilde-/binærmanifest. Pakking kjører dette automatisk.
+- DEMO og SHOT får hver sin `run-*`-profil i temp, uten produksjonstjenester. `scripts/smoke-electron.js` tester kilde/pakket app isolert.
+- `dps.listLogs`/`parseLog` er nå asynkrone. `dps.dispose()` og `gw2.flushCache()` avventes ved avslutning. Alle nettverkskall har frist.
+- Renderer bruker `Panel.lifecycle()` for montering og `Panel.saveConfig()` for synlige lagringsfeil. AI-fremdrift og avbrudd har requestId.
+- Den pakkede EVTC-workeren er testet i ASAR. Ekte ArcDPS-opptak, 4K/fokus, OneDrive-bortfall og faktisk autooppdateringsinstallasjon gjenstår.

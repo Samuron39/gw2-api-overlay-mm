@@ -69,11 +69,15 @@ The bridge is a DLL that ArcDPS loads into the game process, like every other Ar
 ## Building from source
 
 ```bash
-npm install
+npm ci
 npm start
 ```
 
-Rust is needed for the two native parts: `cargo build --release` in `helper/` (MumbleLink and chat paste) and in `bridge/` (the ArcDPS extension). `npm test` runs the test suite with Node's built-in runner, no network and no Electron. `npm run dist:installer` builds the installer.
+Use Node 22.18.x and Rust for development. Electron is pinned to the validated version, 44.3.0. `npm run build:native` builds the helper and bridge with Cargo.lock and records source/binary hashes; packaging always rebuilds and checks both. `npm run dist:installer` builds the installer.
+
+`npm test` runs 232 tests (17 September 2026), including mocked Electron/IPC, renderer lifecycle, network failures and real EVTC workers. `npm run check` checks JavaScript syntax. Windows CI runs both and builds the native parts. `node scripts/smoke-electron.js` and `node scripts/smoke-electron.js --packaged` run separate, temporary demo profiles and exit automatically. They never start the game helper, live UDP listener or updater.
+
+The stabilization changes and remaining in-game checks are recorded in [the validation report](docs/VALIDERING-2026-09-17.md). Corrupt configuration is preserved before recovery; unavailable unlock data remains unknown; AI requests can be cancelled; log parsing runs in workers.
 
 Working on the code, or pointing an AI agent at it? Read [AGENTS.md](AGENTS.md) first: setup, rules, the release procedure and everything learned about ArcDPS the hard way.
 

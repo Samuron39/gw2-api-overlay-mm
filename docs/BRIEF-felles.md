@@ -21,8 +21,8 @@ kommentaroverskrift, ikke omskriving av eksisterende kode du ikke trenger å end
 ## ArcDPS: LES DOKUMENTASJONEN FØR DU KODER
 - `C:\Apper\gw2-wt\docs\arcdps-api-README.txt`: utvidelses-API-et (callbacks `combat` og `combat_local`, `ag`-struct).
 - `C:\Apper\gw2-wt\docs\arcdps-evtc-README.txt`: `cbtevent`-feltene, `cbtstatechange`, `cbtresult`, `cbtbuffremove`,
-  `cbtanimation`, `iff`. Merk at README-ordinalene i `cbtstatechange` ligger ÉN høyere enn det broen faktisk mottar
-  (målt): 67 ANIMATIONSTART, 68 ANIMATIONSTOP, 69 BUFFAPPLY, 70 BUFFCHANGE, 71 BUFFREMOVE_SINGLE, 72 BUFFREMOVE_ALL.
+  `cbtanimation`, `iff`. README-ordinalene i `cbtstatechange` samsvarer NØYAKTIG med det broen mottar (CBTS_COMBAT = 0):
+  67 ANIMATIONSTART, 68 ANIMATIONSTOP, 69 BUFFAPPLY, 70 BUFFCHANGE, 71 BUFFREMOVE_SINGLE, 72 BUFFREMOVE_ALL.
 - `C:\Apper\gw2-wt\docs\opptak-2026-09-13.log`: EKTE opptak av broens strøm (ankomst-ms TAB json per linje) fra en
   kamp i åpen verden, tatt med bro-versjonen fra 0.2.4 (område-kanalen droppet da vanlige treff med sc 0). Bruk den
   til å se hvordan feltene faktisk ser ut.
@@ -38,7 +38,10 @@ kommentaroverskrift, ikke omskriving av eksisterende kode du ikke trenger å end
 - Siter README-linjene du bygger på i kodekommentarene (feltnavn og betydning), så neste person slipper å gjette.
 
 ## Regler
-- Ikke bryt eksisterende tester. Kjør `npm test` og `cargo build --release` før du leverer.
+- Ikke bryt eksisterende tester. Kjør `npm test` og `npm run check` før du leverer; native-endringer bygges med `npm run build:native`.
+- Demo/SHOT bruker unike temp-profiler og ingen spilltjenester. Start/stopp aldri eierens app. Bruk dynamisk port i UDP-tester.
+- `dps.listLogs` og `dps.parseLog` er asynkrone. Husk `signal` og opprydding. Renderer bruker monteringsidentitet fra `Panel.lifecycle()`;
+  alle sene svar må sjekke riktig montering, mens nyttige AI-resultater beholdes per forespørsel/build. `Panel.saveConfig` viser lagringsfeil.
 - Ikke endre `package.json`-versjonen, ikke lag utgivelser, ikke push. Commit på din gren med
   `git -c user.name=Samuron39 -c user.email=illusiveman662@gmail.com commit`, avslutt meldingen med
   `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`.
