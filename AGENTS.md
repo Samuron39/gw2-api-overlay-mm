@@ -38,7 +38,7 @@ data/                        tidsplan, waypoints og guides.json fra wikien (CC B
 docs/                        PLAN-stabilisering-2026-09-17.md (ENESTE gjeldende plan, «Åpent nå» nederst), VALIDERING-2026-09-17.md,
                              releases/<versjon>.md (utgivelsesnotater), healing-api.md, BRIEF-felles.md (mal for underagenter),
                              BRIEF-guider.md (eksempel). PLAN-review-fixes.md og REVIEW-2026-09-16.md er avsluttet historikk.
-test/                        node:test, kjør `npm test` (248 tester per 18. sept 2026, må være grønn før commit)
+test/                        node:test, kjør `npm test` (250 tester per 18. sept 2026, må være grønn før commit)
 ```
 
 Ny modul = `src/modules/<navn>.js` + `src/renderer/modules/<navn>.js`, IPC i ipc.js, kanal i preload.js, skript i
@@ -117,6 +117,11 @@ UDP-opptak `opptak-2026-09-13.log` samme sted. Siter README-linjer i kodekomment
   (offisiell build 20260915, riktig MD5) som `Trojan:Win32/Posilod.CA!cl`; `!cl` er sky-maskinlæring, feilflagging er vanlig.
   Sjekk i denne rekkefølgen: finnes `d3d11.dll`, har `addons\arcdps\arcdps.log` linjer fra i dag, `Get-MpThreatDetection`.
   Appen varsler nå selv (`status().removedExternally`, `verifyKept()` etter installasjon).
+- EVTC-logger fra ÅPEN VERDEN er kart-logger: mappa heter «<hendelse/kart> (<kart-id>)», id-en i hodet er kart-id og ingen agent
+  har den som art, så det finnes ingen boss og ingen mål-DPS (`hasTarget: false`, navn fra mappa). Målt på eierens to logger
+  18. sept 2026; `src/evtc.js` ga samme sum som en uavhengig opptelling. Condition-skade ligger på resultatkode 14 i logger,
+  men på `result 0` med negativ `buffDmg` i chatbox-kanalen.
+- AI mot ekte LM Studio verifiseres med `node scripts/verify-ai.js` når spillet ikke går. Ikke last modeller mens eieren spiller.
 - Feilsøk strømmen uten appen: en enkel UDP-lytter på 127.0.0.1:47500 (appen holder porten eksklusivt når den kjører).
   Eieren kan ta opp 3 min med «Ta opp strømmen» på Live-fanen; opptaket kan spilles inn i live.js i en test.
 
@@ -136,6 +141,8 @@ UDP-opptak `opptak-2026-09-13.log` samme sted. Siter README-linjer i kodekomment
 
 - Bash-verktøyet halverer backslasher i heredoc-innhold og feiler på norske tegn i heredocs. Bruk Write/Edit for kode med
   regex, backslash eller æøå.
+- Heredocs tolker også `\a`, `\t` osv. i innholdet (18. sept 2026 ble `...\arcdps.cbtlogs` til et bjelle-tegn og en patch feilet
+  halvveis, mens `git commit` i samme kommando gikk videre). Kjed aldri commit etter et heredoc-skript uten `&&`.
 - Heredocs over ca. 100 linjer kuttes. Skriv patch-skript (python) til scratchpad med Write og kjør fila.
 - `capturePage` virker ikke på gjennomsiktige overlay-vinduer, og innerText beviser ikke synlighet. Verifiser med
   `getBoundingClientRect()` og `getComputedStyle(...).display` (feilrapporten har `__diag`).
