@@ -36,7 +36,7 @@ bridge/                      ArcDPS-utvidelse i Rust (cdylib, arcdps-crate 0.11.
 helper/                      Rust-hjelper: MumbleLink og innliming i spillets chat
 data/                        tidsplan, waypoints og guides.json fra wikien (CC BY-SA)
 docs/                        healing-api.md, BRIEF-felles.md (mal for underagenter), BRIEF-guider.md (eksempel)
-test/                        node:test, kjør `npm test` (232 tester per 17. sept 2026, må være grønn før commit)
+test/                        node:test, kjør `npm test` (245 tester per 18. sept 2026, må være grønn før commit)
 ```
 
 Ny modul = `src/modules/<navn>.js` + `src/renderer/modules/<navn>.js`, IPC i ipc.js, kanal i preload.js, skript i
@@ -57,6 +57,9 @@ panel.html, id i MODULES i wheel.js og i ALL-lista i settings.js, tekster `modul
 6. Alle overlay-vinduer er gjennomsiktige og rammeløse: `<select>` åpner seg ikke der (bruk knapper som bytter verdi),
    og `[hidden]` må være `display:none!important` globalt fordi `#grid{display:flex}` ellers vinner.
 7. Ikke foreslå betalte API-er som standard. Lokal AI (LM Studio) er standard; sky er valgfritt.
+8. Knapper med sideeffekt (installer, lagre, ta opp, kopier) skal kvittere synlig VED knappen med `Panel.busy()` og et
+   `.act-note`-felt (spinner, så grønn hake eller rød feil). Statuslinja øverst i panelet er ikke nok: eieren så den ikke.
+9. Appen og agenter endrer ALDRI antivirus-innstillinger (ekskluderinger, «tillat på enheten»). Forklar og la eieren gjøre det.
 
 ## 4. Utgivelse (bekreftet virker, auto-oppdatering når eieren)
 
@@ -75,7 +78,7 @@ curl -sL https://github.com/Samuron39/gw2-api-overlay-mm/releases/latest/downloa
   `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` (symlenker i arkivet feiler uten utviklermodus).
 - Broen (`bridge/target/release/gw2overlay_bridge.dll`) bygges med `cargo build --release` i `bridge/` FØR release
   (`scripts/check-native.js` stopper deg ellers). Eieren installerer ny bro via Live-fanen; si fra når broen er endret.
-- Gjeldende utgivelsesversjon: 0.4.5 (17. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
+- Gjeldende utgivelsesversjon: 0.4.6 (18. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
 
 ## 5. ArcDPS: målte fakta (build 20260816), ikke antakelser
 
@@ -102,6 +105,10 @@ UDP-opptak `opptak-2026-09-13.log` samme sted. Siter README-linjer i kodekomment
   CHANGEDEAD/HEALTHPCTUPDATE for vanlige fiender i åpen verden; target tømmes på sc 2 eller eget dødsstøt.
 - Healing: ArcDPS har ingen heal-hendelse; chatbox-kanalen viser healing som positive verdier (samme regler som
   «arcdps healing stats», se `docs/healing-api.md`). Utvidelsen leveres via CBTS_EXTENSIONCOMBAT med signatur 0x9c9b3c99.
+- «Broen virker ikke» betyr oftest at ArcDPS selv mangler. 18. sept 2026 fjernet Windows Defender `C:\Guild Wars 2\d3d11.dll`
+  (offisiell build 20260915, riktig MD5) som `Trojan:Win32/Posilod.CA!cl`; `!cl` er sky-maskinlæring, feilflagging er vanlig.
+  Sjekk i denne rekkefølgen: finnes `d3d11.dll`, har `addons\arcdps\arcdps.log` linjer fra i dag, `Get-MpThreatDetection`.
+  Appen varsler nå selv (`status().removedExternally`, `verifyKept()` etter installasjon).
 - Feilsøk strømmen uten appen: en enkel UDP-lytter på 127.0.0.1:47500 (appen holder porten eksklusivt når den kjører).
   Eieren kan ta opp 3 min med «Ta opp strømmen» på Live-fanen; opptaket kan spilles inn i live.js i en test.
 

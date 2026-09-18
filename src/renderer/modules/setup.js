@@ -11,6 +11,7 @@
   let busy = false;
   let keyRevision = 0;
   let keyDraft = ''; // Bare i minnet, også ved fanebytte og språkbytte.
+  let arcNote = null; // { kind, text }: kvittering for ArcDPS-steget, overlever at render() bytter ut steget
 
   const ICON = { ok: '✅', warn: '⚠️', bad: '❌', wait: '⏳', off: '⚪' };
 
@@ -33,7 +34,7 @@
       <div class="setup-head"><span class="setup-icon">${ICON[state] || ICON.off}</span><b>${esc(title)}</b></div>
       <div class="setup-body">${body}</div>
       <div class="setup-status">${statusText}</div>
-      ${actions ? `<div class="row setup-actions">${actions}</div>` : ''}
+      ${actions ? `<div class="row setup-actions">${actions}</div><div class="act-note" id="su-note-${id}" role="status"></div>` : ''}
     </li>`;
   }
 
@@ -83,7 +84,7 @@
         else {
           const parts = [];
           const b = s.arc.bridge;
-          if (!s.arc.installed) parts.push(t('setup.arc.arcMissing'));
+          if (!s.arc.installed) parts.push(t(s.arc.removedExternally ? 'arc.removedExternally' : 'setup.arc.arcMissing'));
           else if (s.arc.updateAvailable) parts.push(t('setup.arc.arcOld'));
           else parts.push(t('setup.arc.arcOk'));
           if (!b.installed) parts.push(t('setup.arc.bridgeMissing'));
@@ -169,6 +170,7 @@
       const bad = states.filter((x) => x === 'bad').length, warn = states.filter((x) => x === 'warn').length;
       $('#suSummary', root).textContent = bad ? t('setup.summary.bad', { n: bad }) : warn ? t('setup.summary.warn', { n: warn }) : t('setup.summary.ok');
     }
+    if (arcNote) Panel.note($('#su-note-arc', root), arcNote.kind, arcNote.text);
     bindSteps();
   }
 
@@ -200,11 +202,14 @@
       try { const d = await window.api.invoke('gw2:pickDir'); if (d && mounted.valid() && await Panel.saveConfig({ gw2Dir: d }, mounted) && mounted.valid()) await runCheck(); }
       catch (e) { setStatus(e.message, true); }
     });
+    // Nedlasting med ekte fremdrift (arc:progress), så antivirus-sjekk, så broen; kvitteringen blir stående i steget
     $('#suArcInstall', root)?.addEventListener('click', async () => {
-      const btn = $('#suArcInstall', root);
-      btn.disabled = true; $('#su-arc .setup-status', root).textContent = t('dps.downloading');
-      try { await window.api.invoke('setup:installArc'); setStatus(t('setup.arc.done')); }
-      catch (e) { setStatus(t('common.error', { message: e.message }), true); }
+      arcNote = null;
+      const r = await Panel.busy($('#suArcInstall', root), () => window.api.invoke('setup:installArc'), {
+        note: $('#su-note-arc', root), owner: mounted, working: t('dps.downloading'), done: t('setup.arc.doneNote'),
+      });
+      arcNote = r.ok ? { kind: 'ok', text: t('setup.arc.doneNote') } : { kind: 'err', text: t('common.error', { message: r.error?.message || String(r.error) }) };
+      if (r.ok) setStatus(t('setup.arc.done'));
       if (mounted.valid()) await runCheck();
     });
     const startup = async () => {
@@ -243,11 +248,12 @@
     $('#suCheck', el).addEventListener('click', runCheck);
     $('#suDone', el).addEventListener('change', async (e) => { try { await window.api.invoke('setup:done', e.target.checked); setStatus(t(e.target.checked ? 'setup.doneOn' : 'setup.doneOff')); } catch (err) { setStatus(t('settings.saveFailed', { error: err.message }), true); } });
     mounted.own(Panel.onConfig((c) => { if (mounted.valid()) $('#suDone', el).checked = !!c.setupDone; }));
+    mounted.on('arc:progress', (p) => Panel.arcProgress(root && $('#su-note-arc', root), p));
     render();
     runCheck();
   }
 
-  function unmount() { life.clear(); root = null; last = null; busy = false; }
+  function unmount() { life.clear(); root = null; last = null; busy = false; arcNote = null; }
 
   Panel.register({ id: 'setup', title: () => T.t('module.setup'), icon: '🧭', mount, unmount });
 })();

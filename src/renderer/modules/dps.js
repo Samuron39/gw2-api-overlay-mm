@@ -35,6 +35,7 @@
         <button id="arcInstall" class="primary">${esc(t('dps.install'))}</button>
         <button id="arcCheck">${esc(t('dps.recheck'))}</button>
       </div>
+      <div class="act-note" id="arcNote" role="status"></div>
     </div>
     <div class="dps-wrap">
       <div class="dps-logs" id="dpsLogs"></div>
@@ -51,14 +52,13 @@
     $('#dpsInfoBtn', el).addEventListener('click', () => { const box = $('#dpsInfo', root); box.hidden = !box.hidden; if (!box.hidden) arcStatus(); });
     $('#arcCheck', el).addEventListener('click', arcStatus);
     $('#arcInstall', el).addEventListener('click', async () => {
-      const btn = $('#arcInstall', root);
-      btn.disabled = true; $('#arcStatus', root).textContent = t('dps.downloading');
-      try {
-        const r = await window.api.invoke('arc:install');
-        if (mounted.valid()) $('#arcStatus', root).textContent = t('dps.installed', { target: r.target, kb: Math.round(r.size / 1024), md5: r.md5.slice(0, 8) });
-      } catch (e) { if (mounted.valid()) $('#arcStatus', root).textContent = t('common.error', { message: e.message }); }
-      finally { if (mounted.valid()) btn.disabled = false; }
+      const r = await Panel.busy($('#arcInstall', root), () => window.api.invoke('arc:install'), {
+        note: $('#arcNote', root), flash: $('#dpsInfo', root), owner: mounted, working: t('dps.downloading'),
+        done: (v) => t('dps.installed', { target: v.target, kb: Math.round(v.size / 1024), md5: v.md5.slice(0, 8) }),
+      });
+      if (r.ok && mounted.valid()) arcStatus();
     });
+    scope.on('arc:progress', (p) => Panel.arcProgress(root && $('#arcNote', root), p));
     let receivedLive = false;
     offLive = scope.on('live:state', (s) => { receivedLive = true; liveSnap = s; renderLive(); });
     window.api.invoke('live:get').then((s) => { if (mounted.valid() && !receivedLive) { liveSnap = s; renderLive(); } }).catch(() => {});
@@ -124,7 +124,7 @@
       if (!s.validDir) { el.textContent = t('dps.noGameDir'); btn.disabled = true; return; }
       btn.disabled = false;
       const parts = [t('dps.gameDir', { dir: s.gw2Dir })];
-      if (!s.installed) { parts.push(t('dps.notInstalled')); btn.textContent = t('dps.install'); }
+      if (!s.installed) { parts.push(t(s.removedExternally ? 'arc.removedExternally' : 'dps.notInstalled')); btn.textContent = t('dps.install'); }
       else if (s.updateAvailable) { parts.push(t('dps.updateAvailable')); btn.textContent = t('dps.update'); }
       else if (s.remoteMd5) { parts.push(t('dps.upToDate')); btn.textContent = t('dps.reinstall'); }
       else { parts.push(t('dps.installedPlain')); btn.textContent = t('dps.reinstall'); }

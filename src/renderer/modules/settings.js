@@ -90,6 +90,7 @@
         <button id="saveBtn" class="primary">${t('settings.save')}</button>
         <button id="quitBtn">${t('settings.quit')}</button>
       </div>
+      <div class="act-note" id="saveNote" role="status"></div>
       <p class="muted small">${t('settings.configStored')} <span id="cfgPath"></span>. <span id="cfgErr" class="status error"></span></p>
 
       <section class="card">
@@ -98,6 +99,7 @@
         <button id="logOpenBtn" type="button">${t('settings.openLog')}</button>
         <button id="logReportBtn" type="button">${t('settings.copyReport')}</button>
       </div>
+      <div class="act-note" id="debugNote" role="status"></div>
       <p class="muted small">${t('settings.debugHelp')}</p>
       </section>
     </div>`;
@@ -233,7 +235,10 @@
         setStatus(t('settings.modelsFound', { n: models.length }));
       } catch (e) { if (valid()) setStatus(t('settings.modelsFailed', { message: e.message }), true); }
     });
-    $('#saveBtn', el).addEventListener('click', async () => {
+    // Lagring med kvittering ved knappen: «Lagrer …», så grønn hake med hva som skjedde, eller rød feil
+    $('#saveBtn', el).addEventListener('click', () => Panel.busy($('#saveBtn', root), save, { note: $('#saveNote', root), owner: mounted, working: t('settings.saving'), done: (r) => r }));
+    async function save() {
+      const fail = (text) => ({ kind: 'err', text });
       const savedRevision = draftRevision;
       const patch = {
         apiKey: $('#apiKey', root).value.trim(),
@@ -254,31 +259,32 @@
       };
       const prevKey = Panel.config?.apiKey || '';
       const saved = await Panel.saveConfig(patch, mounted);
-      if (!saved) return;
+      if (!saved) return fail(t('settings.saveRejected'));
       if (!saved.lastSaveError && savedRevision === draftRevision) draft.clear();
-      if (!mounted.valid()) return;
+      if (!mounted.valid()) return null;
       $('#cfgErr', root).textContent = saved.lastSaveError ? t('settings.lastSaveFailed', { error: saved.lastSaveError }) : '';
-      if (saved.lastSaveError) { setStatus(t('settings.saveFailed', { error: saved.lastSaveError }), true); return; }
+      if (saved.lastSaveError) { const msg = t('settings.saveFailed', { error: saved.lastSaveError }); setStatus(msg, true); return fail(msg); }
+      let msg;
       if (patch.apiKey && patch.apiKey !== prevKey) {
-        setStatus(t('settings.savedFetching'));
+        msg = t('settings.savedFetching');
         window.api.invoke('panel:show', 'inventory');
       } else if (patch.apiKey) {
-        setStatus(t('settings.savedRefresh'));
+        msg = t('settings.savedRefresh');
       } else {
-        setStatus(t('settings.saved'));
+        msg = t('settings.saved');
       }
-    });
+      setStatus(msg);
+      return { kind: 'ok', text: msg };
+    }
     $('#quitBtn', el).addEventListener('click', () => window.api.invoke('app:quit'));
     $('#uiScale', el).addEventListener('input', (e) => { $('#uiScaleVal', root).textContent = Math.round(Number(e.target.value) * 100) + ' %'; });
     $('#uiScale', el).addEventListener('change', (e) => Panel.saveConfig({ uiScale: Panel.number(e.target.value, 1, 0.6, 2.2) }, mounted));
-    $('#logOpenBtn', el).addEventListener('click', async () => {
-      try { const p = await window.api.invoke('log:open'); setStatus(t('settings.opened', { path: p })); }
-      catch (e) { setStatus(t('settings.openLogFailed', { message: e.message }), true); }
-    });
-    $('#logReportBtn', el).addEventListener('click', async () => {
-      try { await window.api.invoke('log:report'); setStatus(t('settings.reportCopied')); }
-      catch (e) { setStatus(t('settings.reportFailed', { message: e.message }), true); }
-    });
+    $('#logOpenBtn', el).addEventListener('click', () => Panel.busy($('#logOpenBtn', root), () => window.api.invoke('log:open'), {
+      note: $('#debugNote', root), owner: mounted, working: t('settings.working'), done: (p) => t('settings.opened', { path: p }),
+    }));
+    $('#logReportBtn', el).addEventListener('click', () => Panel.busy($('#logReportBtn', root), () => window.api.invoke('log:report'), {
+      note: $('#debugNote', root), owner: mounted, working: t('settings.working'), done: t('settings.reportCopied'),
+    }));
     $('#gw2Detect', el).addEventListener('click', async () => {
       const d = await window.api.invoke('gw2:detectDir');
       if (!mounted.valid()) return;

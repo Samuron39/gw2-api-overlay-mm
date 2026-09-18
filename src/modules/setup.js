@@ -49,7 +49,7 @@ async function check(config, deps, options = {}) {
       if (out.game.valid) {
         try {
           const s = await arcdps.status(dir, options);
-          out.arc = { installed: s.installed, updateAvailable: s.updateAvailable, bridge: s.bridge, error: s.error || '' };
+          out.arc = { installed: s.installed, updateAvailable: s.updateAvailable, bridge: s.bridge, error: s.error || '', removedExternally: !!s.removedExternally };
         } catch (e) { out.arc.error = e.message; }
       }
 

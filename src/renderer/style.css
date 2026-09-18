@@ -317,3 +317,22 @@ button.small { padding: 2px 8px; font-size: 12px; }
 .gd-license a { color: var(--accent); word-break: break-all; }
 button.gd-strat { font-size: 11px; padding: 1px 6px; border-radius: 10px; background: rgba(18,20,23,0.7); margin-left: 6px; }
 @media (max-width: 700px) { .gd-list { width: 200px; flex-basis: 200px; } }
+
+/* Kvittering ved knappen (Panel.busy / Panel.note): arbeider, ferdig, info, feil, med fremdriftslinje for nedlastinger */
+.act-note { display: none; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); font-size: 13px; color: var(--text); }
+.act-note.work, .act-note.ok, .act-note.info, .act-note.err { display: flex; }
+.act-note.ok { border-color: #2f7d4a; background: rgba(76,175,80,.12); }
+.act-note.err { border-color: #a04444; background: rgba(255,80,80,.10); color: #ffb3b3; }
+.act-note.info { border-color: #3a5d8a; background: rgba(91,108,255,.10); }
+.act-note .act-text { flex: 1; min-width: 0; }
+.act-note .act-icon { font-weight: 700; }
+.act-note.ok .act-icon { color: #6fd08c; } .act-note.err .act-icon { color: #ff7b7b; } .act-note.info .act-icon { color: #8fb4ff; }
+.act-spin { width: 12px; height: 12px; flex: none; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: act-spin .8s linear infinite; }
+.act-bar { flex-basis: 100%; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.act-bar i { display: block; height: 100%; background: var(--accent); transition: width .2s linear; }
+.act-warn { margin: 6px 0; padding: 6px 10px; border-radius: 6px; border: 1px solid #8a6d2a; background: rgba(240,194,107,.10); color: #f0c26b; }
+button.is-busy { cursor: progress; }
+.wait { color: #f0c26b; }
+.flash-ok { animation: act-flash 1.6s ease-out 1; }
+@keyframes act-spin { to { transform: rotate(360deg); } }
+@keyframes act-flash { 0% { box-shadow: 0 0 0 2px rgba(111,208,140,.9); } 100% { box-shadow: 0 0 0 2px rgba(111,208,140,0); } }

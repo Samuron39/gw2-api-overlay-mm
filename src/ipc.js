@@ -115,10 +115,12 @@ function register() {
 
   // ---------- ArcDPS og broen ----------
   handle('arc:status', () => arcdps.status(cfg.config.gw2Dir));
-  handle('arc:install', async () => {
+  // Fremdrift (nedlasting, antivirus-sjekk, bro) til vinduet som ba om installasjonen, så knappen kan vise en ekte linje
+  const arcProgress = (e) => (p) => { if (!e.sender.isDestroyed()) e.sender.send('arc:progress', p); };
+  handle('arc:install', async (e) => {
     const dir = arcdps.isGameDir(cfg.config.gw2Dir) ? cfg.config.gw2Dir : await arcdps.detectDir();
     if (!dir) throw new Error(t('main.pickGameDirFirst'));
-    return arcdps.install(dir);
+    return arcdps.install(dir, { onProgress: arcProgress(e) });
   });
   handle('arc:installBridge', async () => {
     const dir = arcdps.isGameDir(cfg.config.gw2Dir) ? cfg.config.gw2Dir : await arcdps.detectDir();
@@ -133,11 +135,13 @@ function register() {
     ai: { describe: () => ai.describe(cfg.config), listModels: async () => [] }, mumble: { state: { running: false } },
   } : { gw2, arcdps, dps, ai, mumble }));
   // ArcDPS og broen i ett: samme knapp i veiviseren
-  handle('setup:installArc', async () => {
+  handle('setup:installArc', async (e) => {
     const dir = arcdps.isGameDir(cfg.config.gw2Dir) ? cfg.config.gw2Dir : await arcdps.detectDir();
     if (!dir) throw new Error(t('main.pickGameDirFirst'));
     if (!cfg.config.gw2Dir) { cfg.config.gw2Dir = dir; cfg.saveConfig(); }
-    const arc = await arcdps.install(dir);
+    const progress = arcProgress(e);
+    const arc = await arcdps.install(dir, { onProgress: progress });
+    progress({ phase: 'bridge' });
     const bridge = await arcdps.installBridge(dir);
     return { arc, bridge };
   });

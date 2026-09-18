@@ -776,5 +776,21 @@
   "gw2.unlockUnknown": "Ukjent opplåsningsstatus: {endpoint} kunne ikke hentes.",
   "rules.reason.unlockUnknown": "Behold foreløpig: kunne ikke kontrollere om {what} allerede er låst opp.",
   "skills.unknownProfession": "Ukjent profesjon. Venter på gyldige karakterdata.",
-  "mumble.exited": "Hjelperen avsluttet ({code})."
+  "mumble.exited": "Hjelperen avsluttet ({code}).",
+  "arc.progress.download": "Laster ned ArcDPS … {pct} % ({kb} av {total} kB)",
+  "arc.progress.downloadUnknown": "Laster ned ArcDPS … {kb} kB",
+  "arc.progress.verify": "Nedlastet og verifisert. Sjekker at fila blir liggende (antivirus kan fjerne den) … {s} s",
+  "arc.progress.bridge": "Installerer broen …",
+  "arc.removedExternally": "ArcDPS var installert, men d3d11.dll er borte fra spillmappa. Det er nesten alltid antivirus (Windows Defender) som har fjernet den; nye ArcDPS-versjoner blir jevnlig feilflagget fordi ArcDPS kobler seg inn i spillets grafikk. Se Beskyttelseslogg i Windows Sikkerhet. Overlayen endrer aldri antivirus-innstillinger; det avgjør du selv.",
+  "arcdps.removedByAntivirus": "ArcDPS ble lastet ned og verifisert, men {file} ble fjernet eller blokkert rett etterpå. Det er nesten alltid antivirus (Windows Defender). Åpne Windows Sikkerhet → Virus- og trusselbeskyttelse → Beskyttelseslogg for å se hva som skjedde. Overlayen endrer aldri antivirus-innstillinger.",
+  "live.bridgeInstalling": "Installerer broen …",
+  "live.bridgeDone": "Ferdig. Broen er installert. Start spillet på nytt, så lastes den.",
+  "live.bridgeUnchanged": "Allerede oppdatert, ingenting ble endret. Broen lastes neste gang spillet starter.",
+  "live.waitingGame": "Venter på at spillet starter.",
+  "live.waitingGameHint": "Alt er på plass. Broen sender data når Guild Wars 2 kjører med ArcDPS.",
+  "live.recordStarting": "Starter opptak …",
+  "setup.arc.doneNote": "Ferdig. ArcDPS og broen er installert, og fila ble liggende. Start spillet på nytt.",
+  "settings.saving": "Lagrer …",
+  "settings.saveRejected": "Lagringen ble avvist. Se meldingen øverst i panelet.",
+  "settings.working": "Arbeider …"
 }

@@ -776,5 +776,21 @@
   "gw2.unlockUnknown": "Unknown unlock status: {endpoint} could not be fetched.",
   "rules.reason.unlockUnknown": "Keep for now: could not check whether {what} is already unlocked.",
   "skills.unknownProfession": "Unknown profession. Waiting for valid character data.",
-  "mumble.exited": "The helper exited ({code})."
+  "mumble.exited": "The helper exited ({code}).",
+  "arc.progress.download": "Downloading ArcDPS … {pct} % ({kb} of {total} kB)",
+  "arc.progress.downloadUnknown": "Downloading ArcDPS … {kb} kB",
+  "arc.progress.verify": "Downloaded and verified. Checking that the file stays in place (antivirus may remove it) … {s} s",
+  "arc.progress.bridge": "Installing the bridge …",
+  "arc.removedExternally": "ArcDPS was installed, but d3d11.dll is gone from the game folder. This is almost always antivirus (Windows Defender) removing it; new ArcDPS builds are regularly false-flagged because ArcDPS hooks into the game's graphics. See Protection history in Windows Security. The overlay never changes antivirus settings; that is your call.",
+  "arcdps.removedByAntivirus": "ArcDPS was downloaded and verified, but {file} was removed or blocked right afterwards. This is almost always antivirus (Windows Defender). Open Windows Security → Virus & threat protection → Protection history to see what happened. The overlay never changes antivirus settings.",
+  "live.bridgeInstalling": "Installing the bridge …",
+  "live.bridgeDone": "Done. The bridge is installed. Restart the game to load it.",
+  "live.bridgeUnchanged": "Already up to date, nothing was changed. The bridge loads the next time the game starts.",
+  "live.waitingGame": "Waiting for the game to start.",
+  "live.waitingGameHint": "Everything is in place. The bridge sends data when Guild Wars 2 runs with ArcDPS.",
+  "live.recordStarting": "Starting recording …",
+  "setup.arc.doneNote": "Done. ArcDPS and the bridge are installed, and the file stayed in place. Restart the game.",
+  "settings.saving": "Saving …",
+  "settings.saveRejected": "The save was rejected. See the message at the top of the panel.",
+  "settings.working": "Working …"
 }

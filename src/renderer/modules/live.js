@@ -14,6 +14,7 @@
   let editTab = null; // build-fane som redigeres (null = den aktive)
   let editSet = null; // våpensett som redigeres (null = det aktive fra broen)
   let offLive = null, offProgress = null;
+  let arcInfo = null; // siste arc:status, for å skille «spillet kjører ikke» fra «ingen kontakt»
   const drafts = new Map();
   const copy = (rows) => rows.map((r) => ({ ...r }));
   function edited() { const d = drafts.get(bar.key); d.steps = steps; d.upkeep = upkeep; d.revision++; }
@@ -24,6 +25,7 @@
         <h3>${esc(t('live.bridge'))}</h3>
         <div id="lvBridgeStatus" class="muted">${esc(t('live.checking'))}</div>
         <div class="row" style="margin-top:6px"><button id="lvInstallBridge" class="primary">${esc(t('live.installBridge'))}</button><button id="lvCheck">${esc(t('live.recheck'))}</button><button id="lvRecord" title="${esc(t('live.recordHelp'))}">${esc(t('live.record'))}</button></div>
+        <div class="act-note" id="lvBridgeNote" role="status"></div>
         <p class="muted small">${esc(t('live.bridgeHelp'))}</p>
         <p class="muted small">${esc(t('live.healingHelp'))} <a href="#" id="lvHealingLink">${esc(t('live.healingLink'))}</a></p>
       </section>
@@ -39,20 +41,24 @@
     const setStatus = (...args) => { if (mounted.valid()) Panel.setStatus(...args); };
     root = el;
     el.innerHTML = template();
+    // Kvitteringen står rett under knappen (ikke bare i statuslinja øverst): arbeider, ferdig, allerede oppdatert eller feil
     $('#lvInstallBridge', el).addEventListener('click', async () => {
-      const b = $('#lvInstallBridge', root); b.disabled = true;
-      try { const r = await window.api.invoke('arc:installBridge'); setStatus(t('live.bridgeInstalled', { target: r.target })); }
-      catch (e) { setStatus(t('common.error', { message: e.message }), true); }
-      finally { if (mounted.valid()) { b.disabled = false; bridgeStatus(); } }
+      const r = await Panel.busy($('#lvInstallBridge', root), () => window.api.invoke('arc:installBridge'), {
+        note: $('#lvBridgeNote', root), flash: $('#lvBridge', root), owner: mounted, working: t('live.bridgeInstalling'),
+        done: (v) => (v.changed === false ? { kind: 'info', text: t('live.bridgeUnchanged') } : { kind: 'ok', text: t('live.bridgeDone') }),
+      });
+      if (r.ok) setStatus(t('live.bridgeInstalled', { target: r.value.target }));
+      if (mounted.valid()) bridgeStatus();
     });
     $('#lvCheck', el).addEventListener('click', bridgeStatus);
     // Healing stats-utvidelsen (valgfri, gir squad-healing): lenke til GitHub-siden med nedlasting
     $('#lvHealingLink', el).addEventListener('click', (e) => { e.preventDefault(); window.api.invoke('open:url', 'https://github.com/Krappa322/arcdps_healing_stats'); });
-    $('#lvRecord', el).addEventListener('click', async () => {
-      try { const r = await window.api.invoke('live:record', 180000); setStatus(t('live.recording', { file: r.file })); }
-      catch (e) { setStatus(t('common.error', { message: e.message }), true); }
-    });
+    $('#lvRecord', el).addEventListener('click', () => Panel.busy($('#lvRecord', root), () => window.api.invoke('live:record', 180000), {
+      note: $('#lvBridgeNote', root), owner: mounted, working: t('live.recordStarting'), done: (v) => t('live.recording', { file: v.file }),
+    }));
     offLive = scope.on('live:state', (s) => { snap = s; liveLine(); });
+    // Uten kontakt: se etter med jevne mellomrom om spillet er startet, så «venter på spillet» ikke blir stående feil
+    scope.interval(() => { if (!snap?.connected) bridgeStatus(); }, 15000);
     offProgress = scope.on('ai:progress', (p) => { const job = bar && drafts.get(bar.key)?.job; const el2 = job?.id === p.requestId && root && $('#lvSuggestStatus', root); if (el2) el2.textContent = p.content ? t('common.writing', { n: p.content }) : t('common.thinking', { n: p.reasoning }); });
     const initial = await window.api.invoke('live:get').catch(() => null);
     if (!mounted.valid()) return;
@@ -72,11 +78,13 @@
     try {
       const s = await window.api.invoke('arc:status');
       if (!valid()) return;
+      arcInfo = s;
       const b = s.bridge || {};
       const parts = [];
       parts.push(t(s.installed ? 'live.arcInstalled' : 'live.arcMissing'));
       parts.push(t(!b.available ? 'live.bridgeUnavailable' : b.installed ? (b.upToDate ? 'live.bridgeUpToDate' : 'live.bridgeOld') : 'live.bridgeMissing'));
-      $('#lvBridgeStatus', root).innerHTML = `<div>${esc(parts.join(' '))}</div><div id="lvLive"></div>`;
+      const warn = s.removedExternally ? `<div class="act-warn">${esc(t('arc.removedExternally'))}</div>` : '';
+      $('#lvBridgeStatus', root).innerHTML = `<div>${esc(parts.join(' '))}</div>${warn}<div id="lvLive"></div>`;
       $('#lvInstallBridge', root).textContent = t(b.installed ? (b.upToDate ? 'live.reinstallBridge' : 'live.updateBridge') : 'live.installBridge');
       liveLine();
     } catch (e) { if (valid()) $('#lvBridgeStatus', root).textContent = t('common.error', { message: e.message }); }
@@ -84,7 +92,12 @@
   function liveLine() {
     const el = root && $('#lvLive', root);
     if (!el) return;
-    if (!snap?.connected) { el.innerHTML = `<span class="down">${esc(t('live.noContact'))}</span> <span class="muted">${esc(t('live.noContactHint'))}</span>`; return; }
+    if (!snap?.connected) {
+      // Spillet kjører ikke: det er ingen feil, bare ingenting å motta ennå. Rød tekst fikk det til å se ut som installasjonen feilet.
+      if (arcInfo && arcInfo.running === false) el.innerHTML = `<span class="wait">${esc(t('live.waitingGame'))}</span> <span class="muted">${esc(t('live.waitingGameHint'))}</span>`;
+      else el.innerHTML = `<span class="down">${esc(t('live.noContact'))}</span> <span class="muted">${esc(t('live.noContactHint'))}</span>`;
+      return;
+    }
     const target = snap.target ? esc(snap.target.name) + ' (' + snap.target.buffs.length + ')' : esc(t('live.noTarget'));
     el.innerHTML = `<span class="up">${esc(t('live.receiving'))}</span> <span class="muted">(ArcDPS ${esc(snap.arcVersion)})</span> · ${snap.self ? esc(snap.self.name) : esc(t('live.unknownChar'))} · ${esc(t(snap.inCombat ? 'live.inCombat' : 'live.outOfCombat'))} · ${esc(t('live.buffs', { n: snap.buffs.length }))} · ${t('live.target', { name: target })}${snap.stats ? ` · <span class="muted" title="${esc(t('live.statsTitle'))}">${esc(t('live.stats', { packets: snap.stats.packets, events: snap.stats.events, drops: snap.stats.dropsDetected }))}${snap.stats.areaLagMs != null ? ' · ' + esc(t('live.lag', { s: (snap.stats.areaLagMs / 1000).toFixed(1) })) : ''}</span>` : ''}${snap.recording ? ` · <span class="down">${esc(t('live.recordingShort', { s: Math.max(0, Math.round((snap.recording.until - Date.now()) / 1000)) }))}</span>` : ''}${healingLine()}`;
   }

@@ -19,7 +19,7 @@ const INVOKE = new Set([
 ]);
 const EVENTS = new Set([
   'ai:progress', 'mumble:state', 'dps:new', 'panel:module', 'panel:visible', 'wheel:locked', 'config:changed', 'live:state', 'skills:changed', 'overlays:changed',
-  'update:status',
+  'update:status', 'arc:progress',
 ]);
 
 contextBridge.exposeInMainWorld('api', {
