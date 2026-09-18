@@ -167,6 +167,7 @@
           </div><div class="lv-checks">
             ${chk('showIcons', c.showIcons !== false, t('live.showIcons'))}
             ${chk('showNames', !!c.showNames, t('live.showNames'))}
+            ${id === 'target' ? chk('showTargetName', c.showTargetName !== false, t('live.showTargetName')) : ''}
           </div>`);
       }
       return `<details class="lv-win ${c.enabled ? 'on' : ''}" data-id="${id}" ${c.enabled ? 'open' : ''}>

@@ -1,6 +1,6 @@
 {
   "name": "gw2-inventory-overlay",
-  "version": "0.4.9",
+  "version": "0.4.10",
   "description": "Modulær Guild Wars 2-overlay: inventory-rådgiver med lokal AI, tidsplan, dagens gjøremål, Trading Post, DPS fra ArcDPS-logger, karakterer og guild",
   "main": "src/main.js",
   "scripts": {

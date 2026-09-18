@@ -313,7 +313,15 @@ function renderBuffs() {
     if (f === 'other') return k === 'other';
     return true;
   });
-  if (!list.length && !document.body.classList.contains('edit')) { grid.innerHTML = ''; return; }
+  // Målvinduet: navnet på målet med rangmerke (★ boss, ◆ legendary/champion, ◇ elite, ▪ veteran) øverst, også når målet
+  // ikke har noen conditions. Rangen kommer ferdig fra live.js (snapshot.target.rankKey, se src/modules/enemy-rank.js).
+  let head = '';
+  if (TYPE === 'target' && cfg.showTargetName !== false) {
+    const edit = document.body.classList.contains('edit');
+    const tg = snap?.target || (edit ? { name: 'Legendary Destroyer', rankKey: 'legendary' } : null);
+    if (tg && (tg.name || tg.rankKey !== 'normal')) head = `<div class="tn rk-${esc(tg.rankKey || 'normal')}">${rankMark(tg)}<span class="tnn">${esc(tg.name || '')}</span></div>`;
+  }
+  if (!list.length && !document.body.classList.contains('edit')) { grid.innerHTML = head; return; }
   if (!list.length) { // eksempel i redigeringsmodus
     list = TYPE === 'target' ? [{ skill: 736, name: 'Bleeding', stacks: 12, remainingMs: 4200, max: 6000 }, { skill: 738, name: 'Vulnerability', stacks: 25, remainingMs: 8000, max: 10000 }]
       : [{ skill: 740, name: 'Might', stacks: 25, remainingMs: 9000, max: 10000 }, { skill: 1187, name: 'Quickness', stacks: 1, remainingMs: 3200, max: 8000 }, { skill: 30328, name: 'Alacrity', stacks: 1, remainingMs: 1800, max: 8000 }];
@@ -332,7 +340,7 @@ function renderBuffs() {
   if (cfg.layout === 'list') {
     const rh = Math.round(size * 0.55);
     document.documentElement.style.setProperty('--rh', rh + 'px');
-    grid.innerHTML = list.map((b) => {
+    grid.innerHTML = head + list.map((b) => {
       const k = classify(b.skill);
       const total = b.max || Math.max(b.remainingMs, 10000);
       const w = Math.max(0, Math.min(100, (b.remainingMs / total) * 100));
@@ -347,7 +355,7 @@ function renderBuffs() {
     }).join('');
     return;
   }
-  grid.innerHTML = list.map((b) => {
+  grid.innerHTML = head + list.map((b) => {
     const k = classify(b.skill);
     const total = b.max || Math.max(b.remainingMs, 10000);
     const p = Math.max(0, Math.min(1, 1 - b.remainingMs / total));

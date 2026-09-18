@@ -4,7 +4,7 @@ Dato: 17. september 2026. Utgangspunkt: **0.4.4**, commit `4887e3e`.
 
 Dette er den gjeldende planen for stabilisering etter `docs/REVIEW-2026-09-16.md`. Alle 16 funn er med. Gjenstående arbeid fra `docs/PLAN-review-fixes.md` er innarbeidet i fasene og avstemt nederst. Den eldre planen beholdes som historikk; dens gamle versjonsmål styrer ikke denne planen.
 
-Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 264 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
+Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 266 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
 
 Dette er den ENESTE gjeldende planen. `docs/PLAN-review-fixes.md` er avsluttet historikk med sluttstatus per punkt.
 
@@ -249,7 +249,8 @@ sender heller ikke rang. Det som faktisk finnes i strømmen ble brukt i stedet:
       fransk og spansk). **Ikke sett i et opptak ennå** at ArcDPS-navnet inneholder rangordet; står det ikke der, merkes fienden ikke.
 - [x] Mål-lista: ★ boss, ◆ legendary/champion, ◇ elite, ▪ veteran; bosser og champions står først. Nytt filter «Mål: bosser»
       (champion og opp) tilbys når perioden har en slik fiende. Nåværende mål i `live:state` har `rank`/`rankKey`.
-- [ ] Målvinduet (target-overlayen) viser bare conditions og har ikke noe navnefelt; rangmerke der er ikke laget.
+- [x] Målvinduet (target-overlayen) har fått en navnelinje med rangmerke øverst (0.4.10), også uten conditions. Kan slås av med
+      `showTargetName` (Live-fanen). Eksisterende vinduer som er akkurat én ikonrad høye må dras litt høyere av eieren.
 
 Verifisering av begge trinn krever et squad-opptak fra eieren (samme som punkt 2 under).
 

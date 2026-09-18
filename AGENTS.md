@@ -38,7 +38,7 @@ data/                        tidsplan, waypoints og guides.json fra wikien (CC B
 docs/                        PLAN-stabilisering-2026-09-17.md (ENESTE gjeldende plan, «Åpent nå» nederst), VALIDERING-2026-09-17.md,
                              releases/<versjon>.md (utgivelsesnotater), healing-api.md, BRIEF-felles.md (mal for underagenter),
                              BRIEF-guider.md (eksempel). PLAN-review-fixes.md og REVIEW-2026-09-16.md er avsluttet historikk.
-test/                        node:test, kjør `npm test` (264 tester per 18. sept 2026, må være grønn før commit)
+test/                        node:test, kjør `npm test` (266 tester per 18. sept 2026, må være grønn før commit)
 ```
 
 Ny modul = `src/modules/<navn>.js` + `src/renderer/modules/<navn>.js`, IPC i ipc.js, kanal i preload.js, skript i
@@ -81,7 +81,7 @@ curl -sL https://github.com/Samuron39/gw2-api-overlay-mm/releases/latest/downloa
   `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` (symlenker i arkivet feiler uten utviklermodus).
 - Broen (`bridge/target/release/gw2overlay_bridge.dll`) bygges med `cargo build --release` i `bridge/` FØR release
   (`scripts/check-native.js` stopper deg ellers). Eieren installerer ny bro via Live-fanen; si fra når broen er endret.
-- Gjeldende utgivelsesversjon: 0.4.9 (18. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
+- Gjeldende utgivelsesversjon: 0.4.10 (18. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
 
 ## 5. ArcDPS: målte fakta (build 20260816), ikke antakelser
 

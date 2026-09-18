@@ -815,5 +815,6 @@
   "overlay.dps.rank.legendary": "Legendary",
   "overlay.dps.rank.champion": "Champion",
   "overlay.dps.rank.elite": "Elite",
-  "overlay.dps.rank.veteran": "Veteran"
+  "overlay.dps.rank.veteran": "Veteran",
+  "live.showTargetName": "Target name and rank"
 }

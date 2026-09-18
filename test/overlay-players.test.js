@@ -23,7 +23,7 @@ function detailFor(o) {
       ...(row.self ? { taken: 600, takenBySource: [{ name: 'Golem', dmg: 600, pct: 100 }], healBySkill: [{ name: 'Signet', heal: 300, pct: 100 }] } : {}) } };
 }
 
-function overlay(config) {
+function overlay(config, type = 'dps', live = { dps: {} }) {
   const calls = [], listeners = new Map(), byId = new Map();
   const document = new Element('document');
   document.body = document.appendChild(new Element('body'));
@@ -33,18 +33,18 @@ function overlay(config) {
   const api = {
     invoke: (channel, ...args) => {
       calls.push({ channel, args });
-      if (channel === 'overlays:get') return Promise.resolve({ dps: config });
+      if (channel === 'overlays:get') return Promise.resolve({ [type]: config });
       if (channel === 'overlays:set') { Object.assign(config, args[1]); for (const fn of listeners.get('overlays:changed') || []) fn({ type: 'dps', config }); return Promise.resolve(true); }
       if (channel === 'live:detail') return Promise.resolve(detailFor(args[0]));
-      return Promise.resolve(channel === 'live:get' ? { dps: {} } : true);
+      return Promise.resolve(channel === 'live:get' ? live : true);
     },
     on: (channel, fn) => { if (!listeners.has(channel)) listeners.set(channel, new Set()); listeners.get(channel).add(fn); return () => {}; },
   };
-  const ctx = vm.createContext({ document, console, URLSearchParams, location: { search: '?type=dps' }, setInterval: () => 0, setTimeout: () => 0, clearTimeout() {},
+  const ctx = vm.createContext({ document, console, URLSearchParams, location: { search: '?type=' + type }, setInterval: () => 0, setTimeout: () => 0, clearTimeout() {},
     window: { api, SkillbarLogic: {} }, T: { load: async () => {}, sync: async () => false, t: (k, v) => k + (v ? ' ' + Object.values(v).join(' ') : '') } });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/renderer/overlay.js'), 'utf8'), ctx);
   const dp = () => document.getElementById('dps'), bar = () => document.getElementById('dpsbar');
-  return { calls, dp, bar, document, details: () => calls.filter((c) => c.channel === 'live:detail').map((c) => JSON.parse(JSON.stringify(c.args[0]))), // objektene kommer fra vm-konteksten (annen prototype)
+  return { calls, dp, bar, document, grid: () => document.getElementById('grid'), details: () => calls.filter((c) => c.channel === 'live:detail').map((c) => JSON.parse(JSON.stringify(c.args[0]))), // objektene kommer fra vm-konteksten (annen prototype)
     down: async (el) => { await el.dispatch('pointerdown', { button: 0, target: el }); await flush(); },
     emit: (channel, payload) => { for (const fn of listeners.get(channel) || []) fn(payload); } };
 }
@@ -116,4 +116,33 @@ test('låst vindu: klikk-gjennom slås av over klikkbare rader og på igjen uten
   assert.equal(h.details().at(-1).player, 101); assert.equal(h.dp().querySelector('.pn').textContent, 'Beta');
   await h.bar().querySelector('#dpView').dispatch('click'); await flush();
   assert.equal(h.dp().querySelector('.pn'), null, 'visningsknappen lukker detaljene');
+});
+
+// ---------- Målvinduet: navn med rangmerke ----------
+const BLEED = { skill: 736, name: 'Bleeding', stacks: 3, remainingMs: 5000, max: 6000 };
+
+test('målvinduet: navn og rangmerke øverst, også når målet ikke har conditions; vanlig fiende får navn uten merke', async () => {
+  const cfg = { enabled: true, locked: true, layout: 'grid', mode: 'both', filter: 'conditions', iconSize: 36 };
+  const h = overlay(cfg, 'target', { target: { id: 210, name: 'Vale Guardian', rank: 5, rankKey: 'boss', buffs: [BLEED] } }); await flush(); await flush();
+  let tn = h.grid().querySelector('.tn');
+  assert.ok(tn.classList.contains('rk-boss')); assert.equal(tn.querySelector('.rk').textContent, '★'); assert.equal(tn.querySelector('.tnn').textContent, 'Vale Guardian');
+  assert.equal(h.grid().children[0], tn, 'navnet står først'); assert.equal(h.grid().querySelectorAll('.b').length, 1, 'conditions følger etter');
+  h.emit('live:state', { target: { id: 211, name: 'Champion Risen Knight', rank: 3, rankKey: 'champion', buffs: [] } });
+  tn = h.grid().querySelector('.tn');
+  assert.equal(tn.querySelector('.rk').textContent, '◆'); assert.equal(h.grid().querySelectorAll('.b').length, 0, 'navnet vises uten conditions');
+  h.emit('live:state', { target: { id: 201, name: 'Trash', rank: 0, rankKey: 'normal', buffs: [] } });
+  tn = h.grid().querySelector('.tn');
+  assert.equal(tn.querySelector('.rk'), null); assert.equal(tn.querySelector('.tnn').textContent, 'Trash');
+  h.emit('live:state', { target: null });
+  assert.equal(h.grid().querySelector('.tn'), null, 'ingen mål: ingenting');
+});
+
+test('målvinduet: navnelinja kan slås av, virker i listeoppsett, og finnes ikke i buff-vinduene', async () => {
+  const target = { id: 210, name: 'Vale Guardian', rank: 5, rankKey: 'boss', buffs: [BLEED] };
+  const off = overlay({ enabled: true, locked: true, layout: 'grid', mode: 'both', filter: 'conditions', showTargetName: false }, 'target', { target }); await flush(); await flush();
+  assert.equal(off.grid().querySelector('.tn'), null); assert.equal(off.grid().querySelectorAll('.b').length, 1);
+  const list = overlay({ enabled: true, locked: true, layout: 'list', mode: 'both', filter: 'conditions' }, 'target', { target }); await flush(); await flush();
+  assert.ok(list.grid().children[0].classList.contains('tn')); assert.equal(list.grid().querySelectorAll('.l').length, 1);
+  const buffs = overlay({ enabled: true, locked: true, layout: 'grid', mode: 'both', filter: 'all' }, 'buffs', { target, buffs: [{ skill: 740, name: 'Might', stacks: 5, remainingMs: 5000, max: 6000 }] }); await flush(); await flush();
+  assert.equal(buffs.grid().querySelector('.tn'), null);
 });

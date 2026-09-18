@@ -67,8 +67,11 @@
     #dps .pn { font-weight: 700; color: #ffe08a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #dps .tgr .bar { background: rgba(255,140,80,0.4); }
     #dps .tgr.on { outline: 1px solid #ffd166; outline-offset: -1px; }
-    #dps .rk { font-weight: 700; }
-    #dps .rk-boss { color: #ffd166; } #dps .rk-legendary { color: #c77dff; } #dps .rk-champion { color: #ff9b5e; } #dps .rk-elite { color: #8fb4ff; } #dps .rk-veteran { color: #b9c0cc; }
+    .rk { font-weight: 700; }
+    .rk.rk-boss { color: #ffd166; } .rk.rk-legendary { color: #c77dff; } .rk.rk-champion { color: #ff9b5e; } .rk.rk-elite { color: #8fb4ff; } .rk.rk-veteran { color: #b9c0cc; }
+    /* Målvinduet: navn med rangmerke på egen linje over conditions (width, ikke flex-basis: kolonneretning ville ellers gitt full høyde) */
+    #grid .tn { flex: none; width: 100%; font-size: 13px; font-weight: 700; line-height: 1.25; padding: 1px 6px; border-radius: 4px; background: rgba(18,20,23,0.8); color: #e6e6e6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000; border-left: 3px solid transparent; }
+    #grid .tn.rk-boss { border-left-color: #ffd166; } #grid .tn.rk-legendary { border-left-color: #c77dff; } #grid .tn.rk-champion { border-left-color: #ff9b5e; } #grid .tn.rk-elite { border-left-color: #8fb4ff; } #grid .tn.rk-veteran { border-left-color: #b9c0cc; }
     #dpsbar button.locked { color: #ffd166; }
     #dps > * { flex-shrink: 0; } /* radene skal kuttes nederst, ikke klemmes oppå hverandre */
     #dps { height: calc(100% - 26px); padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs, 14px); background: rgba(18,20,23,0.8); border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); overflow: hidden; }

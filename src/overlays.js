@@ -9,7 +9,7 @@ const { clamp } = require('./window-state');
 const DEFAULTS = {
   buffs: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 40, mode: 'both', filter: 'boons', showNames: false, showIcons: true, opacity: 1, direction: 'row' },
   debuffs: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 40, mode: 'both', filter: 'conditions', showNames: false, showIcons: true, opacity: 1, direction: 'row' },
-  target: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 36, mode: 'both', filter: 'conditions', showNames: false, showIcons: true, opacity: 1, direction: 'row' },
+  target: { enabled: false, x: null, y: null, w: 340, h: 60, locked: false, layout: 'grid', sort: 'timeAsc', iconSize: 36, mode: 'both', filter: 'conditions', showNames: false, showIcons: true, opacity: 1, direction: 'row', showTargetName: true },
   skillbar: { enabled: false, x: null, y: null, w: 560, h: 130, locked: false, iconSize: 44, mode: 'both', showNext: true, showCooldown: true, delayMs: 3000, opacity: 1 },
   // Tre DPS-vinduer med samme valg: view = hva som vises (all, damage, squad, taken, healing), period = denne kampen (fight),
   // forrige kamp (last) eller hele økta (session). Flere vinduer lar deg legge squad i ett hjørne og mottatt i et annet.
