@@ -90,7 +90,12 @@ async function review(config, charName, dpsModule, dir, options = {}) {
     }),
     c.issues.length ? 'Automatisk funnet: ' + c.issues.join('; ') : 'Ingen åpenbare hull i utstyret.',
   ];
-  if (log) lines.push(`Siste ArcDPS-logg med denne karakteren: ${log.boss}, ${Math.round(log.durationMs / 1000)}s. Egen DPS mot boss: ${log.me.dpsTarget} (${log.me.spec}). Beste i gruppa: ${log.top.name} ${log.top.dpsTarget} (${log.top.spec}).`);
+  if (log) {
+    // Kart-logg fra åpen verden har ingen boss: da er mål-DPS 0 for alle, og det er total DPS som sier noe
+    const vs = log.me.dpsTarget > 0 || log.top.dpsTarget > 0;
+    const dps = (p) => (vs ? p.dpsTarget : p.dpsAll);
+    lines.push(`Siste ArcDPS-logg med denne karakteren: ${log.boss}, ${Math.round(log.durationMs / 1000)}s. Egen DPS ${vs ? 'mot boss' : '(all skade, logg uten boss)'}: ${dps(log.me)} (${log.me.spec}). Beste i gruppa: ${log.top.name} ${dps(log.top)} (${log.top.spec}).`);
+  }
   const messages = [
     { role: 'system', content: `Du er en erfaren Guild Wars 2-spiller og build-rådgiver. Svar på ${ai.answerLanguage()}, kort og konkret, i punktlister. VIKTIG: Alt utstyr, alle stat-kombinasjoner, runer, sigiller, juveler og infusions i lista er hentet fra det offisielle Guild Wars 2-API-et og finnes i spillet. Påstå aldri at noe av det ikke finnes. Bruk attributtene og effektene som er oppgitt i parentes som fasit, ikke din egen hukommelse. Stat-kombinasjoner som Viper's, Berserker's, Celestial, Rabid, Dire og Ritualist's er ekte og attributtene står oppgitt. Vurder om attributtene passer sammen og profesjonen, og om kombinasjonen er egnet til power- eller condition-skade.` },
     { role: 'user', content: lines.join('\n') + '\n\nVurder utstyret: hva trekker mest ned, hva bør byttes først, og passer stat-kombinasjonen til profesjonen? Hvis DPS-logg finnes, kommenter forskjellen til beste i gruppa.' },

@@ -91,4 +91,11 @@ async function check(config, deps, options = {}) {
   return out;
 }
 
-module.exports = { check, missingPermissions, REQUIRED_PERMS, RECOMMENDED_PERMS };
+// Alt som MÅ være på plass er på plass (ingen røde steg i veiviseren): gyldig nøkkel med påkrevde rettigheter, spillmappe,
+// ArcDPS og broen installert, hjelperen uten feil. Advarsler (gul) og valgfrie steg (logger, AI, oppstart) teller ikke.
+function isComplete(r) {
+  return !!r && !!r.key?.set && !!r.key.valid && !(r.key.missing?.required || []).length
+    && !!r.game?.valid && !!r.arc?.installed && !!r.arc.bridge?.installed && r.helper?.ok !== false;
+}
+
+module.exports = { check, isComplete, missingPermissions, REQUIRED_PERMS, RECOMMENDED_PERMS };

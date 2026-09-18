@@ -10,7 +10,8 @@ const { t } = require('../i18n');
 // ArcDPS skriver til Windows' "Dokumenter"-mappe, som ofte er flyttet til OneDrive. Electron kjenner den riktige stien;
 // utenfor Electron (tester) faller vi tilbake til hjemmemappa.
 function documentsDir() {
-  try { const { app } = require('electron'); if (app && app.getPath) return app.getPath('documents'); } catch { /* ikke i Electron */ }
+  // Bare i Electron: i ren Node (tester, CI) er require('electron') npm-pakken, som kan starte en nedlasting av Electron
+  if (process.versions.electron) { try { const { app } = require('electron'); if (app && app.getPath) return app.getPath('documents'); } catch { /* ikke klar */ } }
   return path.join(os.homedir(), 'Documents');
 }
 const DEFAULT_DIR = path.join(documentsDir(), 'Guild Wars 2', 'addons', 'arcdps', 'arcdps.cbtlogs');

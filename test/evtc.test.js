@@ -287,3 +287,25 @@ test('logg uten start/slutt-hendelser bruker første og siste tidsstempel', () =
   assert.equal(r.players[0].spec, 'Berserker');
   assert.equal(r.players[0].dpsTarget, 1000);
 });
+
+test('kart-logg fra åpen verden (id er kart-id, ingen boss-agent): navn fra mappa, hasTarget false, all skade telles', () => {
+  // Eierens to ekte logger 18. sept 2026 lå i «Deeper Revelations Leyspring Hollows (1640)» og ga «Boss 1640» med 0 i mål-DPS
+  const raw = Buffer.from(buildLog());
+  raw.writeUInt16LE(1640, 13);
+  const sub = path.join(dir, 'Deeper Revelations Leyspring Hollows (1640)');
+  fs.mkdirSync(sub, { recursive: true });
+  const file = path.join(sub, '20260918-185340.evtc'); fs.writeFileSync(file, raw);
+  const r = parse(file);
+  assert.equal(r.boss, 'Deeper Revelations Leyspring Hollows');
+  assert.equal(r.hasTarget, false);
+  assert.ok(r.players.every((p) => p.dpsTarget === 0) && r.players.some((p) => p.dmgAll > 0), 'ingen mål-DPS, men all skade er med');
+  assert.equal(r.totalDpsTarget, 0); assert.ok(r.totalDpsAll > 0);
+  // vanlig bosslogg er uendret, og mappenavn brukes bare når id-en i parentesen er loggens id
+  const boss = parse(write('boss-igjen.evtc', buildLog()));
+  assert.equal(boss.hasTarget, true); assert.notEqual(boss.boss, 'Deeper Revelations Leyspring Hollows');
+  const { folderTitle } = require('../src/evtc');
+  assert.equal(folderTitle(path.join('x', 'Vale Guardian (15438)', 'a.zevtc'), 15438), 'Vale Guardian');
+  assert.equal(folderTitle(path.join('x', 'Vale Guardian (15438)', 'a.zevtc'), 1), '', 'annen id');
+  assert.equal(folderTitle(path.join('x', 'arcdps.cbtlogs', 'a.zevtc'), 1), '', 'mappe uten id');
+  assert.equal(parse(write('uten-mappe.evtc', raw)).boss, 'Boss 1640', 'faller tilbake til id');
+});

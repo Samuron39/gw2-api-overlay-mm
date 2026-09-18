@@ -129,11 +129,17 @@ function register() {
   });
 
   // ---------- Kom i gang-veiviseren ----------
-  handle('setup:check', () => setup.check(cfg.config, TEST_MODE ? {
+  // Eierens konfig hadde fortsatt setupDone: false etter en uke i bruk, så veiviseren åpnet seg ved hver start. Når en sjekk
+  // viser at alt påkrevd er på plass, regnes oppsettet som ferdig. Avhukingen «ikke vis igjen» virker som før begge veier.
+  const finishSetup = (r) => {
+    if (!TEST_MODE && !cfg.config.setupDone && setup.isComplete(r)) { cfg.config.setupDone = true; cfg.saveConfig(); win.broadcast('config:changed', cfg.publicConfig()); log.info('setup', 'Alt påkrevd er på plass, veiviseren åpnes ikke automatisk igjen'); }
+    return r;
+  };
+  handle('setup:check', async () => finishSetup(await setup.check(cfg.config, TEST_MODE ? {
     gw2, arcdps: { isGameDir: () => false, detectDir: async () => '', gameRunning: async () => false },
     dps: { DEFAULT_DIR: path.join(app.getPath('userData'), 'test-logs'), listLogs: async () => [] },
     ai: { describe: () => ai.describe(cfg.config), listModels: async () => [] }, mumble: { state: { running: false } },
-  } : { gw2, arcdps, dps, ai, mumble }));
+  } : { gw2, arcdps, dps, ai, mumble })));
   // ArcDPS og broen i ett: samme knapp i veiviseren
   handle('setup:installArc', async (e) => {
     const dir = arcdps.isGameDir(cfg.config.gw2Dir) ? cfg.config.gw2Dir : await arcdps.detectDir();

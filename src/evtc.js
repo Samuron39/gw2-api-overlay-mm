@@ -2,6 +2,7 @@
 // Minimal parser for ArcDPS EVTC/ZEVTC-logger. Regner ut skade per spiller (totalt og mot boss).
 // Format: https://www.deltaconnected.com/arcdps/evtc/
 const fs = require('fs');
+const path = require('path');
 const zlib = require('zlib');
 
 const PROFESSIONS = { 1: 'Guardian', 2: 'Warrior', 3: 'Engineer', 4: 'Ranger', 5: 'Thief', 6: 'Elementalist', 7: 'Mesmer', 8: 'Necromancer', 9: 'Revenant' };
@@ -204,7 +205,10 @@ function parse(file) {
   const st = fs.statSync(file);
   return {
     file, build, revision, bossId,
-    boss: bossAgents[0]?.name || `Boss ${bossId}`,
+    // Åpen verden: ArcDPS logger hele kartet, id-en er da kart-id og ingen agent har den som art. Mappenavnet
+    // («Deeper Revelations Leyspring Hollows (1640)») er det eneste lesbare navnet. Målt i eierens to logger 18. sept 2026.
+    boss: bossAgents[0]?.name || folderTitle(file, bossId) || `Boss ${bossId}`,
+    hasTarget: bossAgents.length > 0,
     success: reward || bossHp === 0,
     bossHpEnd: bossHp,
     durationMs,
@@ -215,4 +219,10 @@ function parse(file) {
   };
 }
 
-module.exports = { parse };
+// «<navn> (<id>)» fra mappa ArcDPS la loggen i, uten id-en. Tom streng når mappa ikke følger det mønsteret.
+function folderTitle(file, id) {
+  const m = /^(.+?)\s*\((\d+)\)$/.exec(path.basename(path.dirname(file)));
+  return m && Number(m[2]) === id ? m[1].trim() : '';
+}
+
+module.exports = { parse, folderTitle };

@@ -68,3 +68,16 @@ test('check kjører uavhengige sjekker parallelt med maksimalt tre aktive', asyn
   await setup.check({ apiKey: 'x', dpsLogDir: __dirname }, deps);
   assert.ok(peak > 1); assert.ok(peak <= 3);
 });
+
+test('isComplete: ferdig når ingenting påkrevd mangler; advarsler og valgfrie steg teller ikke', () => {
+  const { isComplete } = require('../src/modules/setup');
+  const ok = { key: { set: true, valid: true, missing: { required: [], recommended: ['wallet'] } }, game: { valid: true }, arc: { installed: true, updateAvailable: true, bridge: { installed: true, upToDate: false } }, helper: { ok: true }, logs: { exists: false }, ai: { ok: false } };
+  assert.equal(isComplete(ok), true, 'gule steg (gammel bro, manglende anbefalt rettighet, ingen AI) hindrer ikke');
+  assert.equal(isComplete({ ...ok, key: { ...ok.key, valid: false } }), false);
+  assert.equal(isComplete({ ...ok, key: { ...ok.key, missing: { required: ['inventories'], recommended: [] } } }), false);
+  assert.equal(isComplete({ ...ok, game: { valid: false } }), false);
+  assert.equal(isComplete({ ...ok, arc: { installed: false, bridge: { installed: true } } }), false, 'ArcDPS fjernet (f.eks. av antivirus)');
+  assert.equal(isComplete({ ...ok, arc: { installed: true, bridge: { installed: false } } }), false);
+  assert.equal(isComplete({ ...ok, helper: { ok: false } }), false);
+  assert.equal(isComplete(null), false); assert.equal(isComplete({}), false);
+});

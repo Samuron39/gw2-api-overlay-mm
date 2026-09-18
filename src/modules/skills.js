@@ -24,7 +24,8 @@ const profCache = new Map();
 const specCache = new Map();
 const lastBar = new Map(); // key -> skillbar
 
-function cacheFile() { try { return path.join(require('electron').app.getPath('userData'), 'skills-index-v3.json'); } catch { return null; } }
+// Bare i Electron: i ren Node (tester, CI) er require('electron') npm-pakken, som kan starte en nedlasting av Electron
+function cacheFile() { if (!process.versions.electron) return null; try { return path.join(require('electron').app.getPath('userData'), 'skills-index-v3.json'); } catch { return null; } }
 
 function slim(s) {
   const facts = s.facts || [];
