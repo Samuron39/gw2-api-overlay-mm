@@ -72,3 +72,11 @@ Iron Ore 19699 i både T2/T3 er kontrollert og beholdt som tilsiktet estimat. Ti
 5. Separat testinstallasjon og faktisk oppgraderingsløp fra publisert versjon, inkludert installering etter nedlasting. NSIS-bygg og pakket app er verifisert; installasjon, registry-integrasjon og autooppdatering er ikke gjennomført.
 
 Produksjonsappen er ikke startet/stoppet av arbeidet, og spillets filer er ikke endret. Broen trenger ingen protokolloppgradering fra disse rettingene. En senere utgivelse må få eget versjonsnummer og følge AGENTS.md.
+
+## Tillegg 18. september 2026
+
+- **0.4.6 er utgitt** (kvittering ved knappene, antivirus-varsel). 245 tester, grønn Windows-CI etter retting av en testfeil (`3cc24dd`).
+- **Punkt 1 over er delvis lukket.** Eieren tok opp 3 minutter med en condition-warrior. Egne condition-ticks har negativ `buffDmg`, `iff 1` og `result 0` på chatbox-kanalen; healing er positiv med `iff 0`. Broens regel er riktig. Avspilling gjennom `live.js`: 278 357 egen skade, 16 542 mottatt, 22 049 healing, 7 kamper, likt en uavhengig opptelling. Squad, dødslogg og healing fra andre er fortsatt bare syntetisk testet (opptaket var solo uten død).
+- **Punkt 5 over er i praksis lukket.** Eierens logg viser oppgradering 0.4.2 → 0.4.4 → 0.4.5 på den ekte installasjonen, med differensiell nedlasting og ny start.
+- **Nytt funn i drift:** Windows Defender fjernet ArcDPS (`d3d11.dll`) som `Trojan:Win32/Posilod.CA!cl`. Se T02 i planen og AGENTS.md del 5.
+- **Observert i eierens logg, ingen feil:** tre starter 17. sept kl. 18:17–18:18 ga `EADDRINUSE` på port 47500 (flere instanser av 0.4.4; enkeltinstans er rettet i 0.4.5). Hjelperen avsluttet med kode 1073807364 to ganger ved Windows-avslutning (prosessen ble avsluttet utenfra). DPS-loggmappa finnes ikke fordi logging ikke er slått på i ArcDPS.

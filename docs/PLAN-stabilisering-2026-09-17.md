@@ -4,7 +4,9 @@ Dato: 17. september 2026. Utgangspunkt: **0.4.4**, commit `4887e3e`.
 
 Dette er den gjeldende planen for stabilisering etter `docs/REVIEW-2026-09-16.md`. Alle 16 funn er med. Gjenstående arbeid fra `docs/PLAN-review-fixes.md` er innarbeidet i fasene og avstemt nederst. Den eldre planen beholdes som historikk; dens gamle versjonsmål styrer ikke denne planen.
 
-Status: **Implementert og automatisk verifisert 17. september 2026.** 232 tester består; kilde- og pakket Electron-app består isolert smoketest. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spill-/installasjonskontroll.
+Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 245 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
+
+Dette er den ENESTE gjeldende planen. `docs/PLAN-review-fixes.md` er avsluttet historikk med sluttstatus per punkt.
 
 ## Arbeidsregler og ferdigkriterier
 
@@ -21,22 +23,22 @@ Status: **Implementert og automatisk verifisert 17. september 2026.** 232 tester
 
 | Funn | Retting | Fase | Status |
 |---|---|---|---|
-| R01 | Nyere EVTC-koder for skade og boons | 2 | Planlagt |
-| R02 | Nøkler i logger og feilrapport | 1 | Planlagt |
-| R03 | Isolert demo/testmiljø | 1 | Planlagt |
-| R04 | Konfiggjenoppretting uten overskriving | 1 | Planlagt |
-| R05 | Ukjent opplåsningsstatus ved API-feil | 2 | Planlagt |
-| R06 | Forsinket healing på riktig kamp | 2 | Planlagt |
-| R07 | AI-resultat knyttet til riktig build og utkast | 4 | Planlagt |
-| R08 | Opprydding ved fanebytte og sene svar | 4 | Planlagt |
-| R09 | Oppdateringsstatus og installeringsknapp ved åpning | 5 | Planlagt |
-| R10 | Synlighet etter endring av følg-spillet | 5 | Planlagt |
-| R11 | Umiddelbar posisjonsreset | 5 | Planlagt |
-| R12 | Aktiv boss og løpende nedtelling | 6 | Planlagt |
-| R13 | Bevare nøkkelutkast i Kom i gang | 4 | Planlagt |
-| R14 | AI-strømmefeil, JSON-svar og tidsgrenser | 3 | Planlagt |
-| R15 | Oppdatere ved første buff-stack som utløper | 2 | Planlagt |
-| R16 | Asynkront loggarkiv og parsing uten blokkering | 7 | Planlagt |
+| R01 | Nyere EVTC-koder for skade og boons | 2 | Automatisk verifisert, utgitt i 0.4.5 |
+| R02 | Nøkler i logger og feilrapport | 1 | Automatisk verifisert, utgitt i 0.4.5 |
+| R03 | Isolert demo/testmiljø | 1 | Automatisk verifisert, utgitt i 0.4.5 |
+| R04 | Konfiggjenoppretting uten overskriving | 1 | Automatisk verifisert, utgitt i 0.4.5 |
+| R05 | Ukjent opplåsningsstatus ved API-feil | 2 | Automatisk verifisert, utgitt i 0.4.5 |
+| R06 | Forsinket healing på riktig kamp | 2 | Automatisk verifisert, utgitt i 0.4.5 |
+| R07 | AI-resultat knyttet til riktig build og utkast | 4 | Automatisk verifisert, utgitt i 0.4.5 |
+| R08 | Opprydding ved fanebytte og sene svar | 4 | Automatisk verifisert, utgitt i 0.4.5 |
+| R09 | Oppdateringsstatus og installeringsknapp ved åpning | 5 | Automatisk verifisert, utgitt i 0.4.5 |
+| R10 | Synlighet etter endring av følg-spillet | 5 | Automatisk verifisert, utgitt i 0.4.5 |
+| R11 | Umiddelbar posisjonsreset | 5 | Automatisk verifisert, utgitt i 0.4.5 |
+| R12 | Aktiv boss og løpende nedtelling | 6 | Automatisk verifisert, utgitt i 0.4.5 |
+| R13 | Bevare nøkkelutkast i Kom i gang | 4 | Automatisk verifisert, utgitt i 0.4.5 |
+| R14 | AI-strømmefeil, JSON-svar og tidsgrenser | 3 | Automatisk verifisert, utgitt i 0.4.5 |
+| R15 | Oppdatere ved første buff-stack som utløper | 2 | Automatisk verifisert, utgitt i 0.4.5 |
+| R16 | Asynkront loggarkiv og parsing uten blokkering | 7 | Automatisk verifisert, utgitt i 0.4.5 |
 
 ## Fase 1 – Beskytt nøkler, konfig og testmiljø
 
@@ -69,7 +71,7 @@ Status: **Implementert og automatisk verifisert 17. september 2026.** 232 tester
 - [x] **R15:** Beregn neste oppdatering fra tidligste levende stack. Behold lengste varighet som et separat visningsmål. Gjør det samme for buffs på mål.
 - [x] **R05:** Representer opplåsninger per endepunkt som kjent eller ukjent. En vellykket tom liste er kjent; nettverksfeil er ukjent. Send del-feilen til UI og AI-konteksten, og unngå «ny opplåsning»-råd når grunnlaget mangler.
 - [x] Sikre at tidligere rettinger i 0.4.4 fortsatt holder: klokkeavvik, nullskade-dødsstøt, doble kampgrenser, frakobling, sen squad-skade, BUFFINITIAL og instans-ID-er.
-- [x] Undersøk broens condition-/healing-klassifisering med egnet råopptak. Ikke endre fortegnsregler på antakelse. Manglende opptak føres som et eget uverifisert punkt, og øvrig arbeid fortsetter.
+- [x] Undersøk broens condition-/healing-klassifisering med egnet råopptak. **Spillverifisert 18. sept 2026** med eierens opptak (condition-warrior, 3 min, ArcDPS 20260915, `C:\Apper\gw2-wt\docs\opptak-2026-09-18-condi.jsonl`, ikke i repoet): egne condition-ticks kommer på chatbox-kanalen med `buff 1`, NEGATIV `buffDmg`, `iff 1`, `result 0` (124 ticks, Bleeding og Torment); healing kommer med positiv verdi og `iff 0` (61 heal-linjer). Broens regel «buff == 1 og buff_dmg > 0 = healing» er dermed riktig, og ingen broendring trengs. Avspilt gjennom `live.js` gir opptaket 278 357 i egen skade, 16 542 mottatt og 22 049 healing, likt en uavhengig opptelling av linjene.
 
 **Akseptanse:** Gammel og nyere koding av samme syntetiske kamp gir samme skade og boon-uptime: blant annet 2300 skade, 20 % Quickness og 50 % Fury i reproen. Healing på 1200 for kamp 1 føres der både før og etter at kamp 2 starter, også når økta allerede er oppsummert. To buff-stacks med ulike utløp går fra to til én ved første utløp uten nye kampmeldinger. Feil på fargeendepunktet gir ukjent status; vellykket tom/eid liste gir fortsatt korrekte råd.
 
@@ -205,6 +207,24 @@ Henvisningene under er til fase/punkt i `docs/PLAN-review-fixes.md`. Eldre punkt
 - [x] Ingen regresjon i eksisterende tester; IPC og språkfiler er i samsvar.
 - [x] Demo og skjermbildetesting er isolerte også når en simulert produksjonsinstans kjører.
 - [x] Ekte logger/opptak og 4K/250 %-testen er gjennomført, eller funksjonene står uttrykkelig som ikke spillverifisert. Automatisk test og spilltest rapporteres hver for seg.
-- [ ] Installerings- og oppdateringsflyten er prøvd på en testinstallasjon uten å styre eierens kjørende overlay.
+- [x] Installerings- og oppdateringsflyten: ikke prøvd på en egen testinstallasjon, men eierens egen logg (feilrapport 18. sept 2026) viser hele løpet på den ekte installasjonen: 0.4.2 → 0.4.4 → 0.4.5 med differensiell nedlasting, `quitAndInstall` og ny start på under ett minutt, og sjekk ved spillstart. 0.4.5 → 0.4.6 gjenstår å se.
 - [x] Rapportene har ingen hemmeligheter, og konfiggjenoppretting bevarer originaldata ved feil.
 - [x] Dokumentasjon, teststatus og eventuelt krav om ny bro er oppdatert før utgivelse.
+
+## Tillegg etter 17. september
+
+| Dato | Punkt | Status |
+|---|---|---|
+| 18. sept | **T01 Synlig kvittering ved knappene.** `Panel.busy()`, `Panel.note()`, `Panel.arcProgress()`; ekte fremdriftslinje for ArcDPS-nedlasting (`arc:progress`); «allerede oppdatert» når broen er identisk; nøytral «venter på at spillet starter» i stedet for rød feil. | Automatisk verifisert, utgitt i 0.4.6. Utseende i appen (4K/250 %) gjenstår. |
+| 18. sept | **T02 Antivirus fjerner ArcDPS.** Windows Defender fjernet offisiell `d3d11.dll` (build 20260915) som `Trojan:Win32/Posilod.CA!cl`. `verifyKept()` etter installasjon (kode `AV_REMOVED`), `status().removedExternally`, advarsel i Live, DPS og Kom i gang. Appen og agenter endrer aldri antivirus-innstillinger. | Automatisk verifisert, utgitt i 0.4.6. |
+| 18. sept | **T03 CI-feil fra T02-testen.** `arcdps.js` lastet `electron`-pakken i ren Node og startet en Electron-nedlasting midt i testkjøringen. Laster nå bare når `process.versions.electron` finnes. | Rettet i `3cc24dd`, CI grønn. `src/modules/dps.js:13` og `skills.js:27` gjør det samme inne i try/catch; ufarlig i dag, men bør få samme vakt. |
+| 18. sept | **T04 Opptak med condition-build.** Se fase 2. Bekrefter også i ekte spill: dødsstøt har value 0 og result 8 (5 av 5), kamp inn/ut kommer på begge kanaler (7 + 7), kodene 67–72 og sc 18 brukes som dokumentert. | Spillverifisert. |
+
+### Åpent nå (i prioritert rekkefølge)
+
+1. **Anonymisert regresjonsfixture fra opptaket 18. sept.** Bytt karakter- og kontonavn, legg fila i `test/fixtures/` (ikke `.log`), og lås summene over i en avspillingstest. Da er condition-/healing-reglene beskyttet mot regresjon med ekte data.
+2. **Eierens spillkontroll** fra valideringsrapporten: alt-tab og klikk-gjennom, flere skjermer, 4K/250 %, varsel under kamp, squad-lista, dødsloggen (kodene 4/5) og healing fra andre. Ingen av disse er dekket av opptaket (solo, ingen død).
+3. **Ekte EVTC-logg i DPS-fanen.** Eierens loggmappe finnes ikke (`...\arcdps.cbtlogs` gir ENOENT i feilrapporten): logging er ikke slått på i ArcDPS (Alt+Shift+T → Logging). R01 er derfor bare verifisert syntetisk.
+4. **AI mot ekte leverandør:** lang reasoning og avbrudd mot LM Studio, og ett ekte guide-utdrag mot Gemini.
+5. **Oppgradering 0.4.5 → 0.4.6** på eierens maskin, og utseendet på kvitteringene.
+6. Små ting: `electron`-vakten i `dps.js` og `skills.js` (T03); `setupDone` er fortsatt `false` i eierens konfig, så veiviseren åpnes ved hver start til eieren huker av «ikke vis igjen».

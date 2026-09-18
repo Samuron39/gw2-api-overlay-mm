@@ -35,7 +35,9 @@ bridge/                      ArcDPS-utvidelse i Rust (cdylib, arcdps-crate 0.11.
                              øverst i bridge/src/lib.rs
 helper/                      Rust-hjelper: MumbleLink og innliming i spillets chat
 data/                        tidsplan, waypoints og guides.json fra wikien (CC BY-SA)
-docs/                        healing-api.md, BRIEF-felles.md (mal for underagenter), BRIEF-guider.md (eksempel)
+docs/                        PLAN-stabilisering-2026-09-17.md (ENESTE gjeldende plan, «Åpent nå» nederst), VALIDERING-2026-09-17.md,
+                             releases/<versjon>.md (utgivelsesnotater), healing-api.md, BRIEF-felles.md (mal for underagenter),
+                             BRIEF-guider.md (eksempel). PLAN-review-fixes.md og REVIEW-2026-09-16.md er avsluttet historikk.
 test/                        node:test, kjør `npm test` (245 tester per 18. sept 2026, må være grønn før commit)
 ```
 
@@ -103,6 +105,10 @@ UDP-opptak `opptak-2026-09-13.log` samme sted. Siter README-linjer i kodekomment
   opprinnelig varighet. Klokkeavviket er null til første hendelse; area får sette det bare når ingen local har kommet.
 - Målbytte: ev null, src.elite == 1. Agent lagt til: ev null, src.prof != 0. Dødsstøt: result 8. Ingen
   CHANGEDEAD/HEALTHPCTUPDATE for vanlige fiender i åpen verden; target tømmes på sc 2 eller eget dødsstøt.
+- Egne condition-ticks på chatbox-kanalen (målt 18. sept 2026, condition-warrior, build 20260915): `buff 1`, NEGATIV `buffDmg`,
+  `iff 1`, `result 0` (ikke 14 som i evtc-logger). Healing er POSITIV med `iff 0`. Broens regel «buff == 1 og buff_dmg > 0 =
+  healing» er derfor riktig. Opptaket ligger i `C:\Apper\gw2-wt\docs\opptak-2026-09-18-condi.jsonl` (ikke i repoet) og gir
+  278 357 egen skade, 16 542 mottatt og 22 049 healing når det spilles av gjennom `live.handle()`.
 - Healing: ArcDPS har ingen heal-hendelse; chatbox-kanalen viser healing som positive verdier (samme regler som
   «arcdps healing stats», se `docs/healing-api.md`). Utvidelsen leveres via CBTS_EXTENSIONCOMBAT med signatur 0x9c9b3c99.
 - «Broen virker ikke» betyr oftest at ArcDPS selv mangler. 18. sept 2026 fjernet Windows Defender `C:\Guild Wars 2\d3d11.dll`
@@ -136,11 +142,17 @@ UDP-opptak `opptak-2026-09-13.log` samme sted. Siter README-linjer i kodekomment
   token-budsjettet må være romslig. Node fetch uten strømming faller etter 5 min, derfor strømmer klienten. Last modeller med
   `lms load <id> --context-length 16384 --gpu max -y` (262k kontekst fylte hele kortet).
 
-## 8. Hva som ikke er verifisert i ekte spill (per 14. sept 2026)
+## 8. Hva som ikke er verifisert i ekte spill (per 18. sept 2026)
 
+Verifisert med eierens opptak og logg 18. sept: egen direkte skade og condition-skade, egen healing, mottatt skade, dødsstøt
+(value 0, result 8), kamp inn/ut på begge kanaler, kodene 67–72 og sc 18, og auto-oppdatering 0.4.2 → 0.4.4 → 0.4.5.
+
+Fortsatt ikke verifisert (listen vedlikeholdes i «Åpent nå» i `docs/PLAN-stabilisering-2026-09-17.md`):
 - Squad-lista, death log (kodene 4/5) og healing fra andre i DPS-meteret (bygd etter dokumentasjon, kun syntetiske tester).
-- Et ekte AI-utdrag i Guider mot Gemini (wiki-henting og caching er testet med mocket AI).
-- Oppdaterings-popupen ved spillstart (0.3.8) får sin første ekte test med 0.4.0.
+- DPS-fanen mot en ekte EVTC-logg i nyere format (eieren har ikke slått på logging i ArcDPS).
+- Alt-tab, klikk-gjennom, flere skjermer, 4K/250 % og oppdateringsvarsel under kamp etter 0.4.5-endringene.
+- Lang reasoning og avbrudd mot ekte LM Studio, og et ekte AI-utdrag i Guider mot Gemini.
+- Utseendet på kvitteringene fra 0.4.6 i den kjørende appen.
 
 ## 9. Stabilisering 17. september 2026
 
