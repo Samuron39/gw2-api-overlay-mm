@@ -38,7 +38,7 @@ data/                        tidsplan, waypoints og guides.json fra wikien (CC B
 docs/                        PLAN-stabilisering-2026-09-17.md (ENESTE gjeldende plan, «Åpent nå» nederst), VALIDERING-2026-09-17.md,
                              releases/<versjon>.md (utgivelsesnotater), healing-api.md, BRIEF-felles.md (mal for underagenter),
                              BRIEF-guider.md (eksempel). PLAN-review-fixes.md og REVIEW-2026-09-16.md er avsluttet historikk.
-test/                        node:test, kjør `npm test` (245 tester per 18. sept 2026, må være grønn før commit)
+test/                        node:test, kjør `npm test` (248 tester per 18. sept 2026, må være grønn før commit)
 ```
 
 Ny modul = `src/modules/<navn>.js` + `src/renderer/modules/<navn>.js`, IPC i ipc.js, kanal i preload.js, skript i
@@ -108,7 +108,9 @@ UDP-opptak `opptak-2026-09-13.log` samme sted. Siter README-linjer i kodekomment
 - Egne condition-ticks på chatbox-kanalen (målt 18. sept 2026, condition-warrior, build 20260915): `buff 1`, NEGATIV `buffDmg`,
   `iff 1`, `result 0` (ikke 14 som i evtc-logger). Healing er POSITIV med `iff 0`. Broens regel «buff == 1 og buff_dmg > 0 =
   healing» er derfor riktig. Opptaket ligger i `C:\Apper\gw2-wt\docs\opptak-2026-09-18-condi.jsonl` (ikke i repoet) og gir
-  278 357 egen skade, 16 542 mottatt og 22 049 healing når det spilles av gjennom `live.handle()`.
+  278 357 egen skade, 16 542 mottatt og 22 049 healing når det spilles av gjennom `live.handle()`. Anonymisert kopi:
+  `test/fixtures/live-condi-2026-09-18.jsonl.gz`, låst i `test/live-replay.test.js`. Nye opptak anonymiseres med
+  `node scripts/anonymize-recording.js <opptak.jsonl> test/fixtures/<navn>.jsonl.gz` før de legges i repoet.
 - Healing: ArcDPS har ingen heal-hendelse; chatbox-kanalen viser healing som positive verdier (samme regler som
   «arcdps healing stats», se `docs/healing-api.md`). Utvidelsen leveres via CBTS_EXTENSIONCOMBAT med signatur 0x9c9b3c99.
 - «Broen virker ikke» betyr oftest at ArcDPS selv mangler. 18. sept 2026 fjernet Windows Defender `C:\Guild Wars 2\d3d11.dll`

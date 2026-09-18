@@ -4,7 +4,7 @@ Dato: 17. september 2026. Utgangspunkt: **0.4.4**, commit `4887e3e`.
 
 Dette er den gjeldende planen for stabilisering etter `docs/REVIEW-2026-09-16.md`. Alle 16 funn er med. Gjenstående arbeid fra `docs/PLAN-review-fixes.md` er innarbeidet i fasene og avstemt nederst. Den eldre planen beholdes som historikk; dens gamle versjonsmål styrer ikke denne planen.
 
-Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 245 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
+Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 248 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
 
 Dette er den ENESTE gjeldende planen. `docs/PLAN-review-fixes.md` er avsluttet historikk med sluttstatus per punkt.
 
@@ -222,7 +222,7 @@ Henvisningene under er til fase/punkt i `docs/PLAN-review-fixes.md`. Eldre punkt
 
 ### Åpent nå (i prioritert rekkefølge)
 
-1. **Anonymisert regresjonsfixture fra opptaket 18. sept.** Bytt karakter- og kontonavn, legg fila i `test/fixtures/` (ikke `.log`), og lås summene over i en avspillingstest. Da er condition-/healing-reglene beskyttet mot regresjon med ekte data.
+1. ~~Anonymisert regresjonsfixture fra opptaket 18. sept.~~ **Ferdig 18. sept:** `scripts/anonymize-recording.js` (bytter spiller- og kontonavn, nekter å skrive hvis et navn lekker i et annet felt), `test/fixtures/live-condi-2026-09-18.jsonl.gz` (41 kB) og `test/live-replay.test.js`, som teller linjene uavhengig og krever samme summer fra `live.js` (278 357 / 16 542 / 22 049, 7 kamper) og at hvert dødsstøt tømmer målet. Nye opptak (squad, død, healing fra andre) legges inn på samme måte.
 2. **Eierens spillkontroll** fra valideringsrapporten: alt-tab og klikk-gjennom, flere skjermer, 4K/250 %, varsel under kamp, squad-lista, dødsloggen (kodene 4/5) og healing fra andre. Ingen av disse er dekket av opptaket (solo, ingen død).
 3. **Ekte EVTC-logg i DPS-fanen.** Eierens loggmappe finnes ikke (`...\arcdps.cbtlogs` gir ENOENT i feilrapporten): logging er ikke slått på i ArcDPS (Alt+Shift+T → Logging). R01 er derfor bare verifisert syntetisk.
 4. **AI mot ekte leverandør:** lang reasoning og avbrudd mot LM Studio, og ett ekte guide-utdrag mot Gemini.
