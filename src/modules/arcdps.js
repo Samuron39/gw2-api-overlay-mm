@@ -132,7 +132,8 @@ async function verifyKept(target, md5, ms, onProgress = () => {}) {
 
 // Vår egen ArcDPS-utvidelse (broen). Ligger i appen (bridge/target/release i utvikling, resources/bridge pakket).
 function bridgeSource() {
-  const { app } = require('electron');
+  // Bare i Electron: i ren Node (tester, CI) er require('electron') npm-pakken, som starter en nedlasting av Electron.
+  const app = process.versions.electron ? require('electron').app : null;
   const packed = app?.isPackaged ? path.join(process.resourcesPath, 'bridge', 'gw2overlay_bridge.dll') : null;
   const dev = path.join(__dirname, '..', '..', 'bridge', 'target', 'release', 'gw2overlay_bridge.dll');
   if (packed && fs.existsSync(packed)) return packed;
