@@ -51,6 +51,7 @@ class Element {
     for (const sel of this.querySelectorAll('select')) sel.value = (sel.options.find((o) => o.selected) || sel.options[0])?.value || '';
   }
   matches(selector) {
+    if (selector.includes(',')) return selector.split(',').some((part) => this.matches(part.trim())); // «#a, .b» som i nettleseren
     const tag = /^[\w-]+/.exec(selector)?.[0];
     if (tag && this.tagName !== tag.toUpperCase()) return false;
     const id = /#([\w-]+)/.exec(selector)?.[1]; if (id && this.id !== id) return false;

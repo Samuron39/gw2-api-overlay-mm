@@ -57,6 +57,16 @@
     #dpsbar button { background: #1b1e24; color: #dfe3ee; border: 1px solid #3a404a; border-radius: 4px; font-size: 11px; padding: 1px 6px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
     #dpsbar button:hover { border-color: #6b73ff; }
     #dpsbar button.lock { margin-left: auto; max-width: none; }
+    #dpsbar.four button { max-width: 29%; }
+    /* Klikkbare rader (spillere, mål, tilbake): virker også når vinduet er låst, se mousemove i overlay.js */
+    #dps .click { cursor: pointer; }
+    #dps .click:hover { outline: 1px solid #6b73ff; outline-offset: -1px; }
+    #dps .sq .h, #dps .lbl.h { position: relative; color: #8fe0a0; font-variant-numeric: tabular-nums; }
+    #dps .bkrow { display: flex; align-items: center; gap: 8px; }
+    #dps .bk { flex: none; font-size: 80%; padding: 1px 8px; border-radius: 4px; background: #1b1e24; border: 1px solid #3a404a; color: #dfe3ee; }
+    #dps .pn { font-weight: 700; color: #ffe08a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #dps .tgr .bar { background: rgba(255,140,80,0.4); }
+    #dps .tgr.on { outline: 1px solid #ffd166; outline-offset: -1px; }
     #dpsbar button.locked { color: #ffd166; }
     #dps > * { flex-shrink: 0; } /* radene skal kuttes nederst, ikke klemmes oppå hverandre */
     #dps { height: calc(100% - 26px); padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs, 14px); background: rgba(18,20,23,0.8); border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); overflow: hidden; }

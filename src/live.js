@@ -344,7 +344,45 @@ class Live extends EventEmitter {
     return {
       start: 0, end: 0, combatMs: 0, total: 0, taken: 0, targets: new Map(), skills: new Map(), squad: new Map(), takenSrc: new Map(), takenSkills: new Map(),
       heal: 0, barrier: 0, healSkills: new Map(), healReceived: 0, healSources: new Map(), squadHeal: new Map(),
+      detail: new Map(),
     };
+  }
+  // ---------- Per spiller, per mål, per skill ----------
+  // detail: spiller ('self' for deg, ellers agent-id) -> { id, name, prof, elite, targets: Map(mål-id -> { id, name, dmg, hits,
+  // skills: Map(skill -> { skill, name, dmg, hits }) }) }. Broen sender alt hvert treff fra squaden med skill og mål; dette er
+  // regnskapet som lar DPS-meteret vise detaljer for én spiller og filtrere på mål. Summene her er de samme som i total/squad.
+  bumpDetail(f, pid, who, m, amt, skillName) {
+    if (!f.detail) f.detail = new Map();
+    let p = f.detail.get(pid);
+    if (!p) { p = { id: pid, name: '', prof: 0, elite: 0, targets: new Map() }; f.detail.set(pid, p); }
+    if (who?.name) p.name = who.name;
+    if (who?.prof) { p.prof = who.prof; p.elite = who.elite || 0; }
+    let tg = p.targets.get(m.dst.id);
+    if (!tg) { tg = { id: m.dst.id, name: '', dmg: 0, hits: 0, skills: new Map() }; p.targets.set(m.dst.id, tg); }
+    if (m.dst.name) tg.name = m.dst.name;
+    tg.dmg += amt; tg.hits++;
+    let sk = tg.skills.get(m.skill);
+    if (!sk) { sk = { skill: m.skill, name: '', dmg: 0, hits: 0 }; tg.skills.set(m.skill, sk); }
+    if (skillName) sk.name = skillName;
+    sk.dmg += amt; sk.hits++;
+  }
+  foldDetail(dst, src) {
+    for (const [pid, p] of src || []) {
+      let dp = dst.get(pid);
+      if (!dp) { dp = { id: pid, name: p.name, prof: p.prof, elite: p.elite, targets: new Map() }; dst.set(pid, dp); }
+      if (p.name) dp.name = p.name;
+      if (p.prof) { dp.prof = p.prof; dp.elite = p.elite; }
+      for (const [tid, tg] of p.targets) {
+        let dt = dp.targets.get(tid);
+        if (!dt) { dt = { id: tid, name: tg.name, dmg: 0, hits: 0, skills: new Map() }; dp.targets.set(tid, dt); }
+        if (tg.name) dt.name = tg.name;
+        dt.dmg += tg.dmg; dt.hits += tg.hits;
+        for (const [sid, sk] of tg.skills) {
+          const ds = dt.skills.get(sid);
+          if (!ds) dt.skills.set(sid, { ...sk }); else { ds.dmg += sk.dmg; ds.hits += sk.hits; if (sk.name) ds.name = sk.name; }
+        }
+      }
+    }
   }
   // Legger ett rått kampregnskap oppå et annet: tall summeres, Map-oppføringer slås sammen på nøkkel (dmg/hits/heal summeres)
   foldRaw(dst, src, end) {
@@ -358,6 +396,8 @@ class Live extends EventEmitter {
         if (v.name) cur.name = v.name;
       }
     }
+    if (!dst.detail) dst.detail = new Map();
+    this.foldDetail(dst.detail, src.detail);
   }
   foldLastIntoSession() {
     const r = this.lastRaw;
@@ -378,14 +418,98 @@ class Live extends EventEmitter {
     log.info('live', 'Økta nullstilt');
   }
   // Økta akkurat nå: base + forrige kamp (om den ikke er foldet inn ennå) + pågående kamp
-  sessionSnapshot(now) {
+  sessionRaw(now) {
     const tmp = this.emptyRaw();
     if (this.sessionBase) this.foldRaw(tmp, this.sessionBase, this.sessionBase.combatMs);
-    let fights = this.sessionFights;
-    if (this.lastRaw && !this.lastRaw.folded) { this.foldRaw(tmp, this.lastRaw); fights++; }
-    if (this.fight) { this.foldRaw(tmp, this.fight, now); fights++; }
+    tmp.fights = this.sessionFights;
+    if (this.lastRaw && !this.lastRaw.folded) { this.foldRaw(tmp, this.lastRaw); tmp.fights++; }
+    if (this.fight) { this.foldRaw(tmp, this.fight, now); tmp.fights++; }
+    return tmp;
+  }
+  sessionSnapshot(now) {
+    const tmp = this.sessionRaw(now);
     const s = this.summarize(tmp, tmp.combatMs);
-    return { ...s, fights, combatMs: tmp.combatMs, startedAt: this.sessionStartedAt, session: true };
+    return { ...s, fights: tmp.fights, combatMs: tmp.combatMs, startedAt: this.sessionStartedAt, session: true };
+  }
+
+  // ---------- Spillerliste og detaljer til DPS-meteret (kanalen live:detail) ----------
+  // Hentes ved behov av overlay-vinduet, så den faste live:state-strømmen ikke vokser med squad-størrelsen.
+  // period: 'fight' (pågående, ellers forrige), 'last', 'session'. target: null = alle, 'current' = nåværende mål, ellers
+  // agent-id. player: null = bare lista, 'self' eller agent-id = også detaljer for den spilleren.
+  // DPS per mål regnes over hele periodens varighet (vi vet ikke når hvert mål var «i kamp»). Andres tall er 2–3 s forsinket.
+  detail(opts = {}) {
+    const now = this.nowOrLast();
+    const period = ['fight', 'last', 'session'].includes(opts.period) ? opts.period : 'fight';
+    let raw = null, durationMs = 0, active = false;
+    if (period === 'session') { raw = this.sessionRaw(now); durationMs = raw.combatMs; if (!raw.fights) raw = null; }
+    else if (period === 'last') raw = this.lastRaw;
+    else raw = this.fight || this.lastRaw;
+    const currentTargetId = this.targetId;
+    if (!raw) return { period, empty: true, active: false, durationMs: 0, target: null, currentTargetId, targets: [], players: [], player: null };
+    if (period !== 'session') { active = raw === this.fight; durationMs = (active ? now : raw.end) - raw.start; }
+    durationMs = Math.max(1000, durationMs);
+    const per = (n) => Math.round(n / durationMs * 1000);
+    const det = raw.detail || new Map();
+    const want = opts.target === 'current' ? currentTargetId : (Number.isFinite(Number(opts.target)) && opts.target != null && opts.target !== '' ? Number(opts.target) : null);
+    const filtered = opts.target === 'current' || want != null;
+
+    // Mål i perioden, på tvers av alle spillere
+    const tmap = new Map();
+    for (const p of det.values()) for (const tg of p.targets.values()) {
+      const t = tmap.get(tg.id) || { id: tg.id, name: tg.name || this.agents.get(tg.id)?.name || '', dmg: 0 };
+      t.dmg += tg.dmg; if (tg.name) t.name = tg.name; tmap.set(tg.id, t);
+    }
+    const allDmg = [...tmap.values()].reduce((n, t) => n + t.dmg, 0);
+    const targets = [...tmap.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 12).map((t) => ({ ...t, current: t.id === currentTargetId, pct: allDmg ? Math.round(t.dmg / allDmg * 100) : 0 }));
+    const target = filtered ? { id: want, name: want == null ? '' : (tmap.get(want)?.name || this.agents.get(want)?.name || '') } : null;
+
+    // Spillerlista: du er alltid med, også uten skade
+    const dmgOf = (p) => { if (!filtered) { let n = 0; for (const tg of p.targets.values()) n += tg.dmg; return n; } return p.targets.get(want)?.dmg || 0; };
+    const healOf = (pid) => (pid === 'self' ? raw.heal || 0 : raw.squadHeal.get(pid)?.heal || 0);
+    const ids = new Set(['self', ...det.keys(), ...raw.squadHeal.keys()]);
+    let rows = [...ids].map((pid) => {
+      const p = det.get(pid), self = pid === 'self';
+      const known = self ? this.self : this.agents.get(pid);
+      const dmg = p ? dmgOf(p) : 0, heal = healOf(pid);
+      return { id: pid, self, name: (self ? this.self?.name : p?.name) || known?.name || raw.squadHeal.get(pid)?.name || (self ? '' : '#' + pid), prof: p?.prof || known?.prof || 0, elite: p?.elite || known?.elite || 0, dmg, dps: per(dmg), heal, hps: per(heal) };
+    }).filter((r) => r.self || r.heal > 0 || det.has(r.id)); // med målfilter beholdes alle som har gjort skade i perioden, også med 0 mot dette målet
+    const sum = rows.reduce((n, r) => n + r.dmg, 0);
+    rows.sort((a, b) => b.dmg - a.dmg || b.heal - a.heal);
+    rows = rows.map((r, i) => ({ ...r, rank: i + 1, pct: sum ? Math.round(r.dmg / sum * 100) : 0 }));
+    const players = rows.slice(0, 15);
+    if (!players.some((r) => r.self)) players[players.length - 1] = rows.find((r) => r.self);
+
+    // Detaljer for én spiller
+    let player = null;
+    const pid = opts.player === 'self' ? 'self' : (opts.player != null && opts.player !== '' && Number.isFinite(Number(opts.player)) ? Number(opts.player) : null);
+    const row = pid != null ? rows.find((r) => r.id === pid) : null;
+    if (row) {
+      const p = det.get(pid);
+      const skills = new Map();
+      const ptargets = [];
+      for (const tg of p ? p.targets.values() : []) {
+        ptargets.push({ id: tg.id, name: tg.name || this.agents.get(tg.id)?.name || '', dmg: tg.dmg, hits: tg.hits, current: tg.id === currentTargetId });
+        if (filtered && tg.id !== want) continue;
+        for (const sk of tg.skills.values()) {
+          const s = skills.get(sk.skill) || { skill: sk.skill, name: sk.name, dmg: 0, hits: 0 };
+          s.dmg += sk.dmg; s.hits += sk.hits; if (sk.name) s.name = sk.name; skills.set(sk.skill, s);
+        }
+      }
+      const total = ptargets.reduce((n, t) => n + t.dmg, 0);
+      player = {
+        ...row,
+        skills: [...skills.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 10).map((s) => ({ ...s, pct: row.dmg ? Math.round(s.dmg / row.dmg * 100) : 0 })),
+        targets: ptargets.sort((a, b) => b.dmg - a.dmg).slice(0, 8).map((t) => ({ ...t, pct: total ? Math.round(t.dmg / total * 100) : 0 })),
+      };
+      if (pid === 'self') {
+        const pctTaken = (s) => ({ ...s, pct: raw.taken ? Math.round(s.dmg / raw.taken * 100) : 0 });
+        player.taken = raw.taken;
+        player.takenBySource = [...raw.takenSrc.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 5).map(pctTaken);
+        player.healReceived = raw.healReceived;
+        player.healBySkill = [...raw.healSkills.values()].sort((a, b) => b.heal - a.heal).slice(0, 5).map((s) => ({ ...s, pct: raw.heal ? Math.round(s.heal / raw.heal * 100) : 0 }));
+      }
+    }
+    return { period, empty: false, active, durationMs, fights: raw.fights, target, currentTargetId, targets, players, total: sum, dps: per(sum), player };
   }
 
   startFight(t) {
@@ -398,6 +522,7 @@ class Live extends EventEmitter {
       // healing: heal = egen healing gjort (inkl. barrier), barrier = barrier-delen av den, healSkills per skill,
       // healReceived = healing mottatt (også egen), healSources per kilde, squadHeal = andres healing (ext-kanalen)
       heal: 0, barrier: 0, healSkills: new Map(), healReceived: 0, healSources: new Map(), squadHeal: new Map(),
+      detail: new Map(),
     };
     this.dmgWindow = [];
     this.healWindow = [];
@@ -488,6 +613,7 @@ class Live extends EventEmitter {
     tg.dmg += amt; if (m.dst.name) tg.name = m.dst.name; f.targets.set(m.dst.id, tg);
     const sk = f.skills.get(m.skill) || { skill: m.skill, name: m.name || '', dmg: 0, hits: 0 };
     sk.dmg += amt; sk.hits++; if (m.name) sk.name = m.name; f.skills.set(m.skill, sk);
+    this.bumpDetail(f, 'self', this.self, m, amt, m.name || '');
     this.dmgWindow.push([m.time, amt]);
     this.dirty = true;
   }
@@ -578,6 +704,8 @@ class Live extends EventEmitter {
     const p = f.squad.get(owner.id) || { id: owner.id, name, account: this.accounts.get(owner.id) || '', prof: owner.prof, elite: owner.elite, dmg: 0, hits: 0 };
     p.dmg += amt; p.hits++; if (owner.name) p.name = owner.name;
     f.squad.set(owner.id, p);
+    // Minionens treff står under eieren, med minionens navn foran skill-navnet (som for egne minioner)
+    this.bumpDetail(f, owner.id, { name, prof: owner.prof, elite: owner.elite }, m, amt, (m.srcMaster > 0 && m.src?.name ? m.src.name + ': ' : '') + (m.name || ''));
     if (f === this.lastRaw) this.lastFight = this.summarize(f, f.end);
     this.dirty = true;
   }
@@ -608,6 +736,7 @@ class Live extends EventEmitter {
     const label = (m.src?.name ? m.src.name + ': ' : '') + (m.name || m.skill);
     const sk = f.skills.get(m.skill) || { skill: m.skill, name: label, dmg: 0, hits: 0 };
     sk.dmg += amt; sk.hits++; f.skills.set(m.skill, sk);
+    this.bumpDetail(f, 'self', this.self, m, amt, label);
     if (f === this.fight) this.dmgWindow.push([m.time, amt]);
     if (f === this.lastRaw) this.lastFight = this.summarize(f, f.end);
     this.dirty = true;

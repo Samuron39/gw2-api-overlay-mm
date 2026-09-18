@@ -38,7 +38,7 @@ data/                        tidsplan, waypoints og guides.json fra wikien (CC B
 docs/                        PLAN-stabilisering-2026-09-17.md (ENESTE gjeldende plan, «Åpent nå» nederst), VALIDERING-2026-09-17.md,
                              releases/<versjon>.md (utgivelsesnotater), healing-api.md, BRIEF-felles.md (mal for underagenter),
                              BRIEF-guider.md (eksempel). PLAN-review-fixes.md og REVIEW-2026-09-16.md er avsluttet historikk.
-test/                        node:test, kjør `npm test` (250 tester per 18. sept 2026, må være grønn før commit)
+test/                        node:test, kjør `npm test` (261 tester per 18. sept 2026, må være grønn før commit)
 ```
 
 Ny modul = `src/modules/<navn>.js` + `src/renderer/modules/<navn>.js`, IPC i ipc.js, kanal i preload.js, skript i
@@ -56,7 +56,8 @@ panel.html, id i MODULES i wheel.js og i ALL-lista i settings.js, tekster `modul
 4. Commit som `git -c user.name=Samuron39 -c user.email=illusiveman662@gmail.com commit`, avslutt meldingen med
    `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`. Norsk commit-melding, versjonsnummer i parentes når det bumpes.
 5. i18n: begge språkfilene, samme nøkler, nye nøkler nederst. `test/i18n.test.js` håndhever det.
-6. Alle overlay-vinduer er gjennomsiktige og rammeløse: `<select>` åpner seg ikke der (bruk knapper som bytter verdi),
+6. Alle overlay-vinduer er gjennomsiktige og rammeløse (og radene i DPS-meteret tegnes på nytt ti ganger i sekundet, så
+   klikk der håndteres med `pointerdown` og delegering på `#dps`, klassen `.click`; et vanlig `click` uteblir ofte): `<select>` åpner seg ikke der (bruk knapper som bytter verdi),
    og `[hidden]` må være `display:none!important` globalt fordi `#grid{display:flex}` ellers vinner.
 7. Ikke foreslå betalte API-er som standard. Lokal AI (LM Studio) er standard; sky er valgfritt.
 8. Knapper med sideeffekt (installer, lagre, ta opp, kopier) skal kvittere synlig VED knappen med `Panel.busy()` og et
@@ -80,7 +81,7 @@ curl -sL https://github.com/Samuron39/gw2-api-overlay-mm/releases/latest/downloa
   `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` (symlenker i arkivet feiler uten utviklermodus).
 - Broen (`bridge/target/release/gw2overlay_bridge.dll`) bygges med `cargo build --release` i `bridge/` FØR release
   (`scripts/check-native.js` stopper deg ellers). Eieren installerer ny bro via Live-fanen; si fra når broen er endret.
-- Gjeldende utgivelsesversjon: 0.4.7 (18. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
+- Gjeldende utgivelsesversjon: 0.4.8 (18. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
 
 ## 5. ArcDPS: målte fakta (build 20260816), ikke antakelser
 

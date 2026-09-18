@@ -71,6 +71,7 @@ function applyConfig(c) {
   // musebevegelse over verktøylinja ber om klikk igjen (ellers virket bare første klikk)
   barHover = false;
   render();
+  fetchDetail();
 }
 
 // ---------- Verktøylinja i DPS-vinduet ----------
@@ -79,13 +80,46 @@ function applyConfig(c) {
 // Nedtrekksmenyer (<select>) får ikke åpnet lista si i gjennomsiktige, rammeløse vinduer, så valgene er knapper som blar videre.
 const VIEWS = ['all', 'damage', 'squad', 'taken', 'healing'];
 const PERIODS = ['fight', 'last', 'session'];
+// ---------- Spillerliste med detaljer (squad-visningen) ----------
+// dpPlayer: null = lista, 'self' eller agent-id = detaljer for den spilleren (åpnes inne i meteret, «Tilbake» lukker).
+// dpTarget: 'all', 'current' (nåværende mål) eller agent-id for en fiende i perioden. Tallene hentes ved behov med
+// live:detail, så den faste live:state-strømmen ikke vokser med squad-størrelsen. Valgene huskes bare i vinduet.
+let dpPlayer = null, dpTarget = 'all', detail = null, detailBusy = false, detailAgain = false, barKey = '';
+const playersMode = () => KIND === 'dps' && !!cfg && (cfg.view === 'squad' || dpPlayer != null);
+async function fetchDetail() {
+  if (!playersMode()) return;
+  if (detailBusy) { detailAgain = true; return; }
+  detailBusy = true;
+  try { detail = await window.api.invoke('live:detail', { period: cfg.period || 'fight', player: dpPlayer, target: dpTarget === 'all' ? null : dpTarget }); }
+  catch { detail = null; }
+  detailBusy = false;
+  render();
+  if (detailAgain) { detailAgain = false; fetchDetail(); }
+}
+function targetLabel() {
+  if (dpTarget === 'all') return T.t('overlay.dps.target.all');
+  if (dpTarget === 'current') return T.t('overlay.dps.target.current');
+  const name = detail?.targets?.find((t) => t.id === dpTarget)?.name || detail?.target?.name || '#' + dpTarget;
+  return T.t('overlay.dps.target.named', { name });
+}
+function nextTarget() {
+  const list = ['all', 'current', ...(detail?.targets || []).map((t) => t.id)];
+  const i = list.indexOf(dpTarget);
+  dpTarget = list[(i + 1) % list.length];
+  renderDpsBar(); fetchDetail();
+}
 function renderDpsBar() {
   const view = VIEWS.includes(cfg.view) ? cfg.view : 'all', period = PERIODS.includes(cfg.period) ? cfg.period : 'fight';
+  const players = playersMode();
+  barKey = [view, period, cfg.locked, players, players ? targetLabel() : ''].join('|');
+  dpBar.classList.toggle('four', players);
   dpBar.innerHTML = `<button id="dpView" title="${esc(T.t('live.view'))}">${esc(T.t('live.view.' + view))} ▸</button>`
     + `<button id="dpPeriod" title="${esc(T.t('live.period'))}">${esc(T.t('live.period.' + period))} ▸</button>`
+    + (players ? `<button id="dpTarget" title="${esc(T.t('overlay.dps.target.title'))}">${esc(targetLabel())} ▸</button>` : '')
     + `<button id="dpLock" class="lock ${cfg.locked ? 'locked' : ''}" title="${esc(T.t(cfg.locked ? 'wheel.unlockPosition' : 'wheel.lockPosition'))}">${cfg.locked ? '🔒' : '🔓'}</button>`;
   const next = (list, cur) => list[(list.indexOf(cur) + 1) % list.length];
-  dpBar.querySelector('#dpView').addEventListener('click', () => window.api.invoke('overlays:set', TYPE, { view: next(VIEWS, view) }));
+  dpBar.querySelector('#dpView').addEventListener('click', () => { dpPlayer = null; window.api.invoke('overlays:set', TYPE, { view: next(VIEWS, view) }); });
+  dpBar.querySelector('#dpTarget')?.addEventListener('click', nextTarget);
   dpBar.querySelector('#dpPeriod').addEventListener('click', () => window.api.invoke('overlays:set', TYPE, { period: next(PERIODS, period) }));
   dpBar.querySelector('#dpLock').addEventListener('click', () => window.api.invoke('overlays:set', TYPE, { locked: !cfg.locked }));
 }
@@ -93,19 +127,90 @@ let barHover = false;
 document.addEventListener('mousemove', (e) => {
   if (KIND !== 'dps' || !cfg?.locked) return;
   if (dragging) return;
-  const over = !!(e.target && e.target.closest && e.target.closest('#dpsbar'));
+  const over = !!(e.target && e.target.closest && e.target.closest('#dpsbar, .click')); // verktøylinja og klikkbare rader
   if (over !== barHover) { barHover = over; window.api.invoke('overlays:ignoreMouse', TYPE, !over); }
 });
 document.addEventListener('mouseleave', () => { if (barHover) { barHover = false; window.api.invoke('overlays:ignoreMouse', TYPE, true); } });
 // Draing i redigeringsmodus skal ikke starte fra verktøylinja (den har egne kontroller)
 dpBar.addEventListener('pointerdown', (e) => e.stopPropagation());
+// Klikk på rader: pointerdown med delegering, fordi radene tegnes på nytt ti ganger i sekundet og et vanlig click
+// (ned og opp på SAMME element) da ofte uteblir. Stopper også draing fra radene i redigeringsmodus.
+dp.addEventListener('pointerdown', (e) => {
+  const el = e.target?.closest?.('.click');
+  if (!el || e.button !== 0) return;
+  e.stopPropagation();
+  const num = (v) => (v === 'self' || v === 'current' || v === 'all' ? v : Number(v));
+  if (el.dataset.back) dpPlayer = null;
+  else if (el.dataset.player != null) dpPlayer = num(el.dataset.player);
+  else if (el.dataset.target != null) { const t = num(el.dataset.target); dpTarget = dpTarget === t ? 'all' : t; }
+  else return;
+  detail = dpPlayer != null && detail ? { ...detail, player: null, pending: true } : detail;
+  renderDpsBar(); render(); fetchDetail();
+});
 
 // ---------- DPS-måler ----------
 function fmtK(n) { n = Math.round(n || 0); return n >= 100000 ? Math.round(n / 1000) + 'k' : n >= 10000 ? (n / 1000).toFixed(1) + 'k' : String(n); }
 function fmtDur(ms) { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch])); }
+const SAMPLE_DETAIL = () => {
+  const players = [
+    { id: 1, rank: 1, name: 'Kara Nightwind', self: false, dmg: 380520, dps: 21140, pct: 45, heal: 0, hps: 0 },
+    { id: 'self', rank: 2, name: 'Morticon Storm', self: true, dmg: 287640, dps: 15980, pct: 34, heal: 41200, hps: 2290 },
+    { id: 2, rank: 3, name: 'Thorn Ironbark', self: false, dmg: 176300, dps: 9790, pct: 21, heal: 96000, hps: 5330 },
+  ];
+  const row = players.find((p) => p.id === dpPlayer) || null;
+  return { sample: true, empty: false, active: true, durationMs: 18000, total: 844460, dps: 46910, target: null, players,
+    targets: [{ id: 9, name: 'Legendary Destroyer', dmg: 700000, pct: 83, current: true }, { id: 8, name: 'Destroyer Troll', dmg: 144460, pct: 17 }],
+    player: row && { ...row, skills: [{ name: 'Arc Divider', dmg: Math.round(row.dmg * 0.4), hits: 6, pct: 40 }, { name: 'Decapitate', dmg: Math.round(row.dmg * 0.35), hits: 9, pct: 35 }, { name: 'Bleeding', dmg: Math.round(row.dmg * 0.25), hits: 41, pct: 25 }],
+      targets: [{ id: 9, name: 'Legendary Destroyer', dmg: Math.round(row.dmg * 0.8), pct: 80, current: true }, { id: 8, name: 'Destroyer Troll', dmg: Math.round(row.dmg * 0.2), pct: 20 }] } };
+};
+function renderPlayers() {
+  const edit = document.body.classList.contains('edit');
+  let d = detail;
+  if ((!d || d.empty) && edit) d = SAMPLE_DETAIL();
+  const key = [VIEWS.includes(cfg.view) ? cfg.view : 'all', PERIODS.includes(cfg.period) ? cfg.period : 'fight', cfg.locked, true, targetLabel()].join('|');
+  if (key !== barKey) renderDpsBar(); // målnavnet kan komme først med svaret
+  const back = dpPlayer != null ? `<div class="bk click" data-back="1">${esc(T.t('overlay.dps.back'))}</div>` : '';
+  if (!d || d.empty) { dp.innerHTML = back + `<div class="top"><span class="big idle">–</span><span class="lbl">DPS</span></div><div class="sub">${esc(T.t(cfg.period === 'session' ? 'overlay.dps.noSession' : 'overlay.dps.noFight'))}</div>`; return; }
+  const rows = [];
+  const tname = d.target ? (d.target.name || T.t('overlay.dps.target.none')) : '';
+  const sample = d.sample ? `<span class="lbl">(${esc(T.t('overlay.dps.sample'))})</span>` : '';
+  if (dpPlayer == null) {
+    // ---------- Lista: én linje per spiller, klikk for detaljer ----------
+    rows.push(`<div class="top"><span class="big ${d.active ? '' : 'idle'}">${fmtK(d.dps)}</span><span class="lbl">${esc(T.t('overlay.dps.group'))}</span>${sample}</div>`);
+    rows.push(`<div class="sub" title="${esc(T.t('overlay.dps.delayNote'))}">${esc(T.t('overlay.dps.line', { dur: fmtDur(d.durationMs), avg: fmtK(d.dps), total: fmtK(d.total) }))}${tname ? ' · ' + esc(tname) : ''}</div>`);
+    const top = Math.max(1, ...d.players.map((p) => p.dmg || 0));
+    for (const p of d.players) {
+      rows.push(`<div class="sq click${p.self ? ' me' : ''}" data-player="${esc(p.id)}"><span class="bar" style="--w:${Math.round((p.dmg || 0) / top * 100)}%"></span><span class="n">${p.rank}. ${esc(shortName(p.name || (p.self ? T.t('overlay.dps.you') : '?')))}</span>${p.hps ? `<span class="h">+${fmtK(p.hps)}</span>` : ''}<span class="v">${fmtK(p.dps)} · ${p.pct || 0}%</span></div>`);
+    }
+    dp.innerHTML = rows.join('');
+    return;
+  }
+  // ---------- Detaljer for én spiller ----------
+  const p = d.player;
+  if (!p) { dp.innerHTML = back + `<div class="sub">${esc(T.t(d.pending ? 'overlay.dps.loading' : 'overlay.dps.noPlayerData'))}</div>`; return; }
+  rows.push(`<div class="bkrow">${back}<span class="pn">${esc(p.name || (p.self ? T.t('overlay.dps.you') : '?'))}</span></div>`);
+  rows.push(`<div class="top"><span class="big ${d.active ? '' : 'idle'}">${fmtK(p.dps)}</span><span class="lbl">DPS · ${esc(T.t('overlay.dps.rank', { n: p.rank }))}</span>${p.hps ? `<span class="lbl h">+${fmtK(p.hps)} HPS</span>` : ''}${sample}</div>`);
+  rows.push(`<div class="sub">${esc(T.t('overlay.dps.playerLine', { dur: fmtDur(d.durationMs), total: fmtK(p.dmg), pct: p.pct || 0 }))}${tname ? ' · ' + esc(tname) : ''}</div>`);
+  if (!p.skills.length) rows.push(`<div class="sub muted">${esc(T.t('overlay.dps.noTargetDamage'))}</div>`);
+  for (const s of p.skills.slice(0, 8)) rows.push(`<div class="sk"><span class="bar" style="--w:${s.pct || 0}%"></span><span class="n">${esc(s.name || s.skill)}</span><span class="v">${fmtK(s.dmg)} · ${s.pct || 0}% · ${s.hits}×</span></div>`);
+  if (p.targets.length) {
+    rows.push(`<div class="sqh">${esc(T.t('overlay.dps.targetsTitle'))}</div>`);
+    for (const t of p.targets.slice(0, 5)) rows.push(`<div class="sk tgr click${dpTarget === t.id ? ' on' : ''}" data-target="${esc(t.id)}"><span class="bar" style="--w:${t.pct || 0}%"></span><span class="n">${t.current ? '◉ ' : ''}${esc(t.name || '#' + t.id)}</span><span class="v">${fmtK(t.dmg)} · ${t.pct || 0}%</span></div>`);
+  }
+  if (p.takenBySource?.length) {
+    rows.push(`<div class="tkh">${esc(T.t('overlay.dps.takenTitle'))} · ${fmtK(p.taken)}</div>`);
+    for (const s of p.takenBySource.slice(0, 3)) rows.push(`<div class="sk tkr"><span class="bar" style="--w:${s.pct || 0}%"></span><span class="n">${esc(s.name || '?')}</span><span class="v">${fmtK(s.dmg)} · ${s.pct || 0}%</span></div>`);
+  }
+  if (p.healBySkill?.length) {
+    rows.push(`<div class="sqh">${esc(T.t('overlay.dps.healTitle'))} · ${fmtK(p.heal)}</div>`);
+    for (const s of p.healBySkill.slice(0, 3)) rows.push(`<div class="sk hs"><span class="bar" style="--w:${s.pct || 0}%"></span><span class="n">${esc(s.name || s.skill)}</span><span class="v">${fmtK(s.heal)} · ${s.pct || 0}%</span></div>`);
+  }
+  dp.innerHTML = rows.join('');
+}
 function renderDps() {
   if (!cfg) return;
+  if (playersMode()) { renderPlayers(); return; }
   const d = snap?.dps || {};
   const edit = document.body.classList.contains('edit');
   let cur = d.current, last = d.last, sample = false;
@@ -156,7 +261,7 @@ function renderDps() {
     rows.push(`<div class="sqh">${esc(T.t('overlay.dps.squad', { n: squad.length }))}</div>`);
     for (const p of list) {
       const rank = squad.indexOf(p) + 1;
-      rows.push(`<div class="sq${p.self ? ' me' : ''}"><span class="bar" style="--w:${Math.round((p.dmg || 0) / top * 100)}%"></span><span class="n">${rank}. ${esc(shortName(p.name))}</span><span class="v">${fmtK(p.dps)} · ${p.pct || 0}%</span></div>`);
+      rows.push(`<div class="sq click${p.self ? ' me' : ''}" data-player="${p.self ? 'self' : esc(p.id ?? '')}"><span class="bar" style="--w:${Math.round((p.dmg || 0) / top * 100)}%"></span><span class="n">${rank}. ${esc(shortName(p.name))}</span><span class="v">${fmtK(p.dps)} · ${p.pct || 0}%</span></div>`);
     }
   }
   // Mottatt: topp kilder (minions tilskrevet eieren) med andel av alt mottatt, søyle i rød tone
@@ -397,7 +502,7 @@ const endDrag = (e) => { if (!dragging) return; dragging = false; try { document
 document.body.addEventListener('pointerup', endDrag);
 document.body.addEventListener('pointercancel', endDrag);
 
-window.api.on('live:state', (s) => { snap = s; render(); });
+window.api.on('live:state', (s) => { snap = s; render(); fetchDetail(); });
 window.api.on('overlays:changed', ({ type, config }) => { if (type === TYPE) applyConfig(config); });
 window.api.on('skills:changed', () => loadSkillbar());
 window.api.on('mumble:state', (m) => {

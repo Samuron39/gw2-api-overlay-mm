@@ -4,7 +4,7 @@ Dato: 17. september 2026. Utgangspunkt: **0.4.4**, commit `4887e3e`.
 
 Dette er den gjeldende planen for stabilisering etter `docs/REVIEW-2026-09-16.md`. Alle 16 funn er med. Gjenstående arbeid fra `docs/PLAN-review-fixes.md` er innarbeidet i fasene og avstemt nederst. Den eldre planen beholdes som historikk; dens gamle versjonsmål styrer ikke denne planen.
 
-Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 250 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
+Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 261 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
 
 Dette er den ENESTE gjeldende planen. `docs/PLAN-review-fixes.md` er avsluttet historikk med sluttstatus per punkt.
 
@@ -219,6 +219,31 @@ Henvisningene under er til fase/punkt i `docs/PLAN-review-fixes.md`. Eldre punkt
 | 18. sept | **T02 Antivirus fjerner ArcDPS.** Windows Defender fjernet offisiell `d3d11.dll` (build 20260915) som `Trojan:Win32/Posilod.CA!cl`. `verifyKept()` etter installasjon (kode `AV_REMOVED`), `status().removedExternally`, advarsel i Live, DPS og Kom i gang. Appen og agenter endrer aldri antivirus-innstillinger. | Automatisk verifisert, utgitt i 0.4.6. |
 | 18. sept | **T03 CI-feil fra T02-testen.** `arcdps.js` lastet `electron`-pakken i ren Node og startet en Electron-nedlasting midt i testkjøringen. Laster nå bare når `process.versions.electron` finnes. | Rettet i `3cc24dd`, CI grønn. `src/modules/dps.js:13` og `skills.js:27` gjør det samme inne i try/catch; ufarlig i dag, men bør få samme vakt. |
 | 18. sept | **T04 Opptak med condition-build.** Se fase 2. Bekrefter også i ekte spill: dødsstøt har value 0 og result 8 (5 av 5), kamp inn/ut kommer på begge kanaler (7 + 7), kodene 67–72 og sc 18 brukes som dokumentert. | Spillverifisert. |
+
+## Ny funksjon: spillerliste med detaljer i DPS-meteret (ønsket av eieren 18. sept 2026)
+
+Ønsket: se navn og DPS/skade for alle i gruppa, trykke på en person for detaljer inne i meteret med rask vei tilbake,
+HPS ved siden av DPS, og kunne velge nåværende mål, tidligere fiender eller alt samlet. Bosser og eliter særlig merket.
+
+**Trinn 1 (ingen broendring). Ferdig og automatisk verifisert 18. sept 2026, utgitt i 0.4.8; ikke sett i spillet ennå.** Broen sender alt hvert treff fra de andre i squaden (skill, mål, mengde); `live.js` kastet detaljene.
+- [x] `src/live.js`: regnskap per spiller → per mål → per skill (`detail`) for deg, egne minioner og squaden; foldes inn i økta.
+- [x] `live.detail({ period, player, target })` og kanalen `live:detail`: spillerliste (skade, DPS, andel, healing, HPS), mål-liste
+      for perioden (nåværende mål merket), og detaljer for én spiller (skills, mål; for deg selv også mottatt og healing).
+      Hentes ved behov, så den faste `live:state`-strømmen til vinduene ikke vokser.
+- [x] Overlay: squad-visningen blir en klikkbar spillerliste; klikk åpner detaljer i samme vindu med «◂ Tilbake»; ny knapp i
+      verktøylinja blar mål: alle → nåværende → fiendene i perioden. Rader er klikkbare også når vinduet er låst (samme teknikk
+      som verktøylinja). Klikk på et mål i detaljvisningen velger det målet.
+- [x] Tester for regnskapet, målfilteret, økta og kanalen. Overlay-tegningen testes nå også: `test/overlay-players.test.js` kjører selve `overlay.js` mot en minimal DOM (liste, klikk, tilbake, målvalg, klikk-gjennom). Utseende og klikk i den ekte, gjennomsiktige ruta må eieren se på.
+
+Kjente grenser (målt, se AGENTS.md del 5): andres skade kommer 2–3 s forsinket; utenfor instanser bare squaden i nærheten;
+andres healing krever «arcdps healing stats» med deling på. DPS per mål regnes over hele kampens varighet.
+
+**Trinn 2 (ny bro, eieren må installere den).** ArcDPS sender ikke rang (veteran/elite/champion/legendary).
+- [ ] Liste over art-id-er for kjente bosser (raid, strike, fractal) som fasit.
+- [ ] Maks helse for fiender fra broen (CBTS_MAXHEALTHUPDATE, sc 12) som reserve: over en terskel merkes som «stor».
+- [ ] Merking i mål-lista og målvinduet.
+
+Verifisering av begge trinn krever et squad-opptak fra eieren (samme som punkt 2 under).
 
 ### Åpent nå (i prioritert rekkefølge)
 
