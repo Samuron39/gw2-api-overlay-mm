@@ -40,7 +40,7 @@ The app updates itself: it checks GitHub Releases at startup, every 6 hours and 
 
 | Module | What it does |
 |---|---|
-| **Live** | Overlay windows: buffs on you, conditions on you, buffs and conditions on your target, a skill bar with cooldowns, charges, the next skill in your rotation and "keep up" alerts, and up to three DPS meter windows. Each window has its own position, size, opacity and lock. |
+| **Live** | Overlay windows: buffs on you, conditions on you, buffs and conditions on your target, a skill bar with cooldowns, charges, the next skill in your rotation and "keep up" alerts, up to three DPS meter windows, and a small "next world bosses" window with countdowns where a click pastes the boss name, time left, map and waypoint into chat. Each window has its own position, size, opacity and lock. |
 | **DPS meter** | Like a WoW meter, in real time from the bridge: DPS now and average, total, target, top skills, squad ranking, damage taken per source with a death log ("Killed by X, last hits…"), healing done and received. Per window you pick the view (all, damage, squad, taken, healing) and the period (this fight, last fight, whole session). Works on open-world mobs too, not just bosses. |
 | **DPS** | Post-fight analysis of ArcDPS `.evtc`/`.zevtc` logs: damage per skill, boon uptime, and optional upload to dps.report. |
 | **Timers** | World bosses and meta events with countdowns. One click pastes "Shadow Behemoth in 11 min (22:39) · Queensdale · [&BPcAAAA=]" into the game chat. |

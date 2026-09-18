@@ -104,6 +104,18 @@
     #dps .hl .sub { flex: 1; }
     #dps .sk.hs .bar { background: rgba(80,200,110,0.4); }
     #dps .muted { color: #9aa3b2; }
+    /* Neste bosser: én klikkbar rad per boss med nedtelling; «snart» (under 5 min) i gult, pågående i grønt */
+    #nb { height: 100%; padding: 4px 6px; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs, 14px); background: rgba(18,20,23,0.8); border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); overflow: hidden; }
+    #nb .nbr { display: flex; align-items: center; gap: 8px; padding: 2px 6px; border-radius: 4px; border-left: 3px solid #3a404a; background: rgba(255,255,255,0.05); cursor: pointer; white-space: nowrap; }
+    #nb .nbr:hover { outline: 1px solid #6b73ff; outline-offset: -1px; }
+    #nb .nbr .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+    #nb .nbr .v { font-variant-numeric: tabular-nums; color: #cfd3ff; }
+    #nb .nbr.soon { border-left-color: #ffd166; } #nb .nbr.soon .v { color: #ffd166; font-weight: 700; }
+    #nb .nbr.active { border-left-color: #6fd08c; } #nb .nbr.active .v { color: #8fe0a0; font-weight: 700; }
+    #nb .nbr.beyond { opacity: 0.7; }
+    #nb .nbr.ok { background: rgba(76,175,80,0.35); } #nb .nbr.ok .v { color: #d6ffe0; }
+    #nb .nbr.fail { background: rgba(230,160,60,0.3); }
+    #nb .empty { font-size: 85%; color: #9aa3b2; padding: 2px 6px; }
   </style>
 </head>
 <body>
@@ -113,7 +125,9 @@
   <div id="sbStatus" hidden></div>
   <div id="dpsbar" hidden></div>
   <div id="dps" hidden></div>
+  <div id="nb" hidden></div>
   <script src="i18n.js"></script>
+  <script src="timer-logic.js"></script>
   <script src="skillbar-logic.js"></script>
   <script src="overlay.js"></script>
 </body>

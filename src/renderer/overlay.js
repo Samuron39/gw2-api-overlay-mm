@@ -1,7 +1,7 @@
 'use strict';
 // Overlay-vindu: type fra URL (buffs, debuffs, target, skillbar). Tegner fra live-tilstanden 10 ganger i sekundet.
 const TYPE = new URLSearchParams(location.search).get('type') || 'buffs';
-const KIND = TYPE.startsWith('dps') ? 'dps' : TYPE; // dps, dps2 og dps3 tegnes likt
+const KIND = TYPE.startsWith('dps') ? 'dps' : TYPE; // dps, dps2 og dps3 tegnes likt; 'bosses' = neste verdensbosser
 const BOONS = { 740: 'MGT', 725: 'FUR', 1187: 'QCK', 30328: 'ALA', 717: 'PRO', 718: 'REG', 719: 'SWF', 726: 'VIG', 1122: 'STB', 743: 'AEG', 873: 'RES', 26980: 'RST' };
 const CONDS = { 736: 'BLD', 737: 'BRN', 861: 'CNF', 723: 'PSN', 19426: 'TRM', 720: 'BLN', 722: 'CHL', 721: 'CRP', 791: 'FER', 727: 'IMM', 26766: 'SLW', 27705: 'TNT', 742: 'WKN', 738: 'VLN' };
 let cfg = null;
@@ -23,6 +23,7 @@ const sb = document.getElementById('sb');
 const sbStatus = document.getElementById('sbStatus');
 const dp = document.getElementById('dps');
 const dpBar = document.getElementById('dpsbar');
+const nb = document.getElementById('nb');
 const hint = document.getElementById('hint');
 
 function classify(skill) { if (BOONS[skill]) return 'boon'; if (CONDS[skill]) return 'cond'; return 'other'; }
@@ -62,8 +63,8 @@ function applyConfig(c) {
   document.documentElement.style.setProperty('--is', (c.iconSize || 40) + 'px');
   document.documentElement.style.setProperty('--ps', Math.round((c.iconSize || 40) * 0.72) + 'px');
   grid.classList.toggle('col', c.direction === 'col');
-  const isSb = TYPE === 'skillbar', isDps = KIND === 'dps';
-  grid.hidden = isSb || isDps; sb.hidden = !isSb; sbStatus.hidden = !isSb; dp.hidden = !isDps; dpBar.hidden = !isDps;
+  const isSb = TYPE === 'skillbar', isDps = KIND === 'dps', isNb = KIND === 'bosses';
+  grid.hidden = isSb || isDps || isNb; sb.hidden = !isSb; sbStatus.hidden = !isSb; dp.hidden = !isDps; dpBar.hidden = !isDps; nb.hidden = !isNb;
   hint.style.display = isDps ? 'none' : ''; // DPS-vinduet har verktøylinja med låseknapp; hintet ville dekket den
   document.documentElement.style.setProperty('--fs', (c.fontSize || 14) + 'px');
   if (isDps) renderDpsBar();
@@ -127,7 +128,7 @@ function renderDpsBar() {
 }
 let barHover = false;
 document.addEventListener('mousemove', (e) => {
-  if (KIND !== 'dps' || !cfg?.locked) return;
+  if ((KIND !== 'dps' && KIND !== 'bosses') || !cfg?.locked) return;
   if (dragging) return;
   const over = !!(e.target && e.target.closest && e.target.closest('#dpsbar, .click')); // verktøylinja og klikkbare rader
   if (over !== barHover) { barHover = over; window.api.invoke('overlays:ignoreMouse', TYPE, !over); }
@@ -148,6 +149,49 @@ dp.addEventListener('pointerdown', (e) => {
   else return;
   detail = dpPlayer != null && detail ? { ...detail, player: null, pending: true } : detail;
   renderDpsBar(); render(); fetchDetail();
+});
+
+// ---------- Neste bosser ----------
+// De neste verdensbossene med nedtelling (utvalget og chat-teksten ligger i timer-logic.js, delt med «I dag»). Klikk på en rad
+// limer «navn · om N min (klokkeslett) · kart · waypoint» i chatten via hjelperen; går ikke spillet, havner teksten på
+// utklippstavla. Nedtellingen regnes lokalt hvert sekund uten API-kall; «drept i dag» hentes hvert femte minutt når en
+// API-nøkkel finnes. Radene er klikkbare også når vinduet er låst (se mousemove over).
+let nbData = null, nbDone = [], nbList = [], nbFlash = null, nbDoneAt = 0;
+async function loadBosses() {
+  if (KIND !== 'bosses') return;
+  try { nbData = await window.api.invoke('timers:data'); } catch { nbData = null; }
+  refreshDone(); render();
+}
+async function refreshDone(force) {
+  if (KIND !== 'bosses' || cfg?.hideDone === false) return;
+  if (!force && Date.now() - nbDoneAt < 5 * 60000) return;
+  nbDoneAt = Date.now();
+  try { nbDone = (await window.api.invoke('daily:worldbosses', !!force)).done || []; render(); } catch { /* ingen API-nøkkel eller nett: vis alle */ }
+}
+function renderBosses() {
+  if (!cfg) return;
+  if (!nbData?.events) { nb.innerHTML = `<div class="empty">${esc(T.t('overlay.bosses.loading'))}</div>`; return; }
+  nbList = TimerLogic.nextBosses(nbData.events, Date.now(), { pick: cfg.pick, count: cfg.count, within: cfg.within, activeMin: cfg.activeMin, hideDone: cfg.hideDone !== false, done: nbDone });
+  if (!nbList.length) { nb.innerHTML = `<div class="empty">${esc(T.t('overlay.bosses.none'))}</div>`; return; }
+  if (nbFlash && Date.now() > nbFlash.until) nbFlash = null;
+  nb.innerHTML = nbList.map((b, i) => {
+    const flash = nbFlash && nbFlash.key === b.id + '|' + b.start ? nbFlash : null;
+    const when = flash ? T.t(flash.ok ? 'overlay.bosses.pasted' : 'overlay.bosses.copied') : b.active ? T.t('daily.now') : T.t('daily.inMin', { n: Math.max(1, Math.round(b.inMin)) });
+    return `<div class="nbr click${b.active ? ' active' : ''}${b.soon ? ' soon' : ''}${b.beyond ? ' beyond' : ''}${flash ? (flash.ok ? ' ok' : ' fail') : ''}" data-i="${i}" title="${esc(T.t('overlay.bosses.clickTitle'))}"><span class="n">${esc(b.name)}</span><span class="v">${esc(when)}</span></div>`;
+  }).join('');
+}
+nb.addEventListener('pointerdown', async (e) => {
+  const el = e.target?.closest?.('.click');
+  if (!el || e.button !== 0) return;
+  e.stopPropagation(); // ingen draing fra radene, og raden tegnes på nytt hvert sekund (click ville ofte uteblitt)
+  const b = nbList[Number(el.dataset.i)];
+  if (!b) return;
+  const line = TimerLogic.pasteText(b, Date.now(), { t: (k, v) => T.t(k, v), locale: T.locale, waypoints: nbData?.waypoints });
+  let ok = false;
+  try { ok = !!(await window.api.invoke('game:paste', line)).ok; } catch { ok = false; }
+  if (!ok) { try { await window.api.invoke('clipboard:write', line); } catch { /* utklippstavla er alt satt av game:paste når spillet kjører */ } }
+  nbFlash = { key: b.id + '|' + b.start, ok, until: Date.now() + 2500 };
+  render();
 });
 
 // ---------- DPS-måler ----------
@@ -474,7 +518,7 @@ function renderSkillbar() {
 let renderErrors = 0;
 function render() {
   if (dragging) return; // ingen ny tegning mens vinduet dras: elementet under pekeren skal ikke byttes ut midt i draget
-  try { if (TYPE === 'skillbar') renderSkillbar(); else if (KIND === 'dps') renderDps(); else renderBuffs(); }
+  try { if (TYPE === 'skillbar') renderSkillbar(); else if (KIND === 'dps') renderDps(); else if (KIND === 'bosses') renderBosses(); else renderBuffs(); }
   catch (e) { if (renderErrors++ < 5) console.error('overlay ' + TYPE + ' render: ' + (e.stack || e.message)); }
 }
 // Diagnose til feilrapporten (ipc.js log:report kjører denne i hvert overlay-vindu)
@@ -537,5 +581,8 @@ T.load().then(() => {
   window.api.invoke('overlays:get').then((all) => applyConfig(all[TYPE]));
   window.api.invoke('live:get').then((s) => { snap = s; render(); });
   if (TYPE === 'skillbar') loadSkillbar();
+  loadBosses();
 });
+// Neste bosser har ingen live-strøm å tegne etter: egen sekundklokke for nedtellingen, og «drept i dag» hvert femte minutt
+if (KIND === 'bosses') setInterval(() => { render(); refreshDone(); }, 1000);
 setInterval(() => { if (snap) { const dt = 100; for (const b of snap.buffs || []) b.remainingMs -= dt; for (const b of snap.target?.buffs || []) b.remainingMs -= dt; for (const c of snap.cooldowns || []) c.sinceMs += dt; if (snap.dps?.current) snap.dps.current.durationMs += dt; render(); } }, 100);

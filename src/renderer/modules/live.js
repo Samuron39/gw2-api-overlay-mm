@@ -33,7 +33,7 @@
       <section class="dy-card" id="lvSkillbar" style="grid-column: 1 / -1"></section>
     </div></div>`;
 
-  const WIN = ['buffs', 'debuffs', 'target', 'skillbar', 'dps', 'dps2', 'dps3'];
+  const WIN = ['buffs', 'debuffs', 'target', 'skillbar', 'dps', 'dps2', 'dps3', 'bosses'];
 
   async function mount(el) {
     scope = life.start();
@@ -119,12 +119,25 @@
     const num = (k, val, min, max, step, unit) => `<span class="num"><input type="number" data-k="${k}" value="${esc(val)}" min="${min}" max="${max}" step="${step}" />${unit ? `<span class="unit">${unit}</span>` : ''}</span>`;
     const chk = (k, on, label, title) => `<label class="chip ${on ? 'on' : ''}" ${title ? `title="${esc(title)}"` : ''}><input type="checkbox" data-k="${k}" ${on ? 'checked' : ''} /> ${esc(label)}</label>`;
     const group = (title, inner) => `<div class="lv-group"><div class="lv-gt">${esc(title)}</div>${inner}</div>`;
-    $('#lvWindows', root).innerHTML = `<h3>${esc(t('live.windows'))}</h3><p class="muted small">${esc(t('live.windowsHelp'))}</p>` + WIN.map((id) => {
+    $('#lvWindows', root).innerHTML = `<h3>${esc(t('live.windows'))}</h3><p class="muted small">${esc(t('live.windowsHelp'))}</p>` + WIN.filter((id) => overlays[id]).map((id) => {
       const c = overlays[id];
       const isSb = id === 'skillbar';
       const isDps = id.startsWith('dps');
       let body;
-      if (isDps) {
+      if (id === 'bosses') {
+        body = group(t('live.group.content'), `<div class="lv-fields">
+            ${fld(t('live.bosses.pick'), sel('pick', c.pick || 'count', [['count', 'live.bosses.pick.count'], ['within', 'live.bosses.pick.within']]))}
+            ${fld(t('live.bosses.count'), num('count', c.count ?? 2, 1, 8, 1), t('live.bosses.countHelp'))}
+            ${fld(t('live.bosses.within'), num('within', c.within ?? 20, 5, 180, 5, 'min'), t('live.bosses.withinHelp'))}
+            ${fld(t('live.bosses.activeMin'), num('activeMin', c.activeMin ?? 5, 0, 30, 1, 'min'), t('live.bosses.activeMinHelp'))}
+          </div><div class="lv-checks">
+            ${chk('hideDone', c.hideDone !== false, t('live.bosses.hideDone'), t('live.bosses.hideDoneHelp'))}
+          </div>`)
+          + group(t('live.group.look'), `<div class="lv-fields">
+            ${fld(t('live.fontSize'), num('fontSize', c.fontSize ?? 14, 10, 40, 1, 'px'))}
+            ${fld(t('live.opacity'), `<input type="range" data-k="opacity" min="0.3" max="1" step="0.05" value="${c.opacity}" />`)}
+          </div>`);
+      } else if (isDps) {
         body = group(t('live.group.content'), `<div class="lv-fields">
             ${fld(t('live.view'), sel('view', c.view || 'all', [['all', 'live.view.all'], ['damage', 'live.view.damage'], ['squad', 'live.view.squad'], ['taken', 'live.view.taken'], ['healing', 'live.view.healing']]))}
             ${fld(t('live.period'), sel('period', c.period || 'fight', [['fight', 'live.period.fight'], ['last', 'live.period.last'], ['session', 'live.period.session']]))}

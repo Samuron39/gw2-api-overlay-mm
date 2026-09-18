@@ -15,6 +15,10 @@ const DEFAULTS = {
   // forrige kamp (last) eller hele økta (session). Flere vinduer lar deg legge squad i ett hjørne og mottatt i et annet.
   dps: { enabled: false, x: null, y: null, w: 300, h: 180, locked: false, view: 'all', period: 'fight', fontSize: 14, showTaken: true, showSkills: 3, takenRows: 3, showLast: true, showHealing: true, opacity: 1, showSquad: true, squadRows: 5 },
   dps2: { enabled: false, x: null, y: null, w: 300, h: 180, locked: false, view: 'squad', period: 'fight', fontSize: 14, showTaken: true, showSkills: 3, takenRows: 3, showLast: true, showHealing: true, opacity: 1, showSquad: true, squadRows: 5 },
+  // Neste verdensbosser med nedtelling; klikk på en rad limer bossnavn, tid og waypoint i chatten (som i «I dag»).
+  // pick 'count' = de `count` neste, 'within' = alle som starter innen `within` minutter. activeMin = hvor lenge en boss som
+  // pågår blir stående før den viker for de neste. hideDone = skjul dem du har drept i dag (krever API-nøkkel).
+  bosses: { enabled: false, x: null, y: null, w: 280, h: 74, locked: false, pick: 'count', count: 2, within: 20, activeMin: 5, hideDone: true, fontSize: 14, opacity: 1 },
   dps3: { enabled: false, x: null, y: null, w: 300, h: 180, locked: false, view: 'taken', period: 'fight', fontSize: 14, showTaken: true, showSkills: 3, takenRows: 3, showLast: true, showHealing: true, opacity: 1, showSquad: true, squadRows: 5 },
 };
 
@@ -26,7 +30,7 @@ function cfgFor(type) { return { ...DEFAULTS[type], ...((ctx.config.overlays || 
 function boundsFor(type, c) {
   const primary = screen.getPrimaryDisplay().workArea;
   const x = c.x ?? Math.round(primary.x + primary.width / 2 - c.w / 2);
-  const y = c.y ?? Math.round(primary.y + primary.height - c.h - 160 - (type === 'skillbar' ? 0 : type.startsWith('dps') ? 300 + (type === 'dps2' ? 60 : type === 'dps3' ? 120 : 0) : 140));
+  const y = c.y ?? Math.round(primary.y + primary.height - c.h - 160 - (type === 'skillbar' ? 0 : type === 'bosses' ? 420 : type.startsWith('dps') ? 300 + (type === 'dps2' ? 60 : type === 'dps3' ? 120 : 0) : 140));
   const area = screen.getDisplayNearestPoint({ x, y }).workArea;
   return { ...clamp(x, y, c.w, c.h, area), width: Math.round(c.w), height: Math.round(c.h) };
 }

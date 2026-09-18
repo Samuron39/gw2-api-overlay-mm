@@ -61,7 +61,8 @@ Live-data krever ArcDPS pluss vår egen ArcDPS-utvidelse, broen. Broen er en lit
 Fire små overlay-vinduer, hvert med egen posisjon, størrelse, ikonstørrelse og gjennomsiktighet, og hver kan låses:
 
 - **Buffs på deg** og **Conditions på deg**, eller ett vindu med alt. To utseender: rutenett med ikoner, eller liste med et lite ikon, fullt navn, stacks og sekunder på enden. Gjenværende tid som tall, som skygge (kakediagram i rutenettet, en stolpe som krymper bak navnet i lista), eller begge. Sortering: minst tid først, mest tid først, flest stacks først, eller navn.
-- **Målet**: conditions og buffs på den du sist traff, for eksempel bossen.
+- **Målet**: conditions og buffs på den du sist traff, for eksempel bossen, med navn og rangmerke øverst.
+- **Neste verdensbosser**: de neste bossene med nedtelling. Velg et antall, eller alle som starter innen for eksempel 10, 20 eller 30 minutter. Klikk på en rad limer bossnavn, tid igjen, kart og waypoint i chatten. Bosser du har drept i dag kan skjules.
 - **Skill-bar**: legges over spillets skill-bar. Øverst profesjonsmekanikken (F1–F5, elite-spec sine erstatter kjernen), under våpen 1–5, heal, tre utility og elite, alle med ikoner fra API-et for karakteren du spiller akkurat nå. Cooldown vises som nedtelling på hvert ikon, og neste skill i rotasjonen lyser gult.
 
 **Builds og våpensett.** API-et gir alle lagrede build-faner per karakter (krever *builds*) og våpnene i sett A og B fra utstyret. Skill-baren følger den aktive fanen, kontrollert mot elite-spec fra spillet, og bytter til sett B når ArcDPS melder våpenbytte. I Live-modulen velger du build og våpensett du redigerer. Rotasjon og hold-oppe lagres per build og våpenkombinasjon, så en build med sverd og skjold i A og langbue i B får to rotasjoner som byttes automatisk.

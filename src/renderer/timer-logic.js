@@ -50,7 +50,61 @@
     }
     return out;
   }
-  const api = { expand, status, bossSpawns, bossId, filler };
+  // ---------- «Neste bosser»: overlay-vinduet og I dag deler utvalg og chat-tekst ----------
+  // Verdensbossene: alt i «World bosses» og «Hard world bosses», pluss Drakkar fra Bjora Marches (de andre segmentene der er
+  // vanlige kart-hendelser). Samme 15 som /v2/worldbosses og lista i I dag.
+  const BOSS_EVENTS = ['core-wb', 'core-hwb'];
+  const EXTRA = { 'lws5-bm': ['drakkar'] };
+  // Alle forekomster det neste døgnet, også den som pågår: { id, name, chatlink, active, inMin (0 når den pågår), sinceMin, start, end }
+  function bossOccurrences(events, now) {
+    const out = [], m = nowMinute(now);
+    for (const [key, event] of Object.entries(events || {})) {
+      const only = EXTRA[key];
+      if (!BOSS_EVENTS.includes(key) && !only) continue;
+      for (const s of expand(event)) {
+        const seg = event.segments[s.r]; if (filler(seg?.name)) continue;
+        const id = bossId(seg.name); if (only && !only.includes(id)) continue;
+        const active = s.start <= m && m < s.end;
+        out.push({ id, name: seg.name, chatlink: seg.chatlink, active, inMin: active ? 0 : ((s.start - m) % DAY + DAY) % DAY, sinceMin: active ? m - s.start : 0, start: s.start, end: s.end });
+      }
+    }
+    return out.sort((a, b) => (b.active - a.active) || a.inMin - b.inMin || a.name.localeCompare(b.name));
+  }
+  // Utvalget til vinduet. pick 'count': de `count` neste. pick 'within': alle som starter innen `within` minutter; er det ingen,
+  // vises den neste alene (beyond: true) så vinduet aldri er tomt. En boss som pågår er med de første `activeMin` minuttene og
+  // viker så for de neste: ellers viser vinduet ofte bosser man ikke rekker. done = API-id-er drept i dag (hideDone skjuler dem).
+  // soon = under `soonMin` minutter til start. Maks 8 rader.
+  function nextBosses(events, now, o = {}) {
+    const pick = o.pick === 'within' ? 'within' : 'count';
+    const count = Math.max(1, Math.min(8, Math.round(Number(o.count) || 2)));
+    const within = Math.max(1, Number(o.within) || 20), activeMin = Math.max(0, Number(o.activeMin ?? 5)), soonMin = Math.max(0, Number(o.soonMin ?? 5));
+    const done = new Set(o.hideDone === false ? [] : o.done || []);
+    const all = bossOccurrences(events, now).filter((b) => !done.has(b.id) && (!b.active || b.sinceMin < activeMin));
+    let list = pick === 'within' ? all.filter((b) => b.active || b.inMin <= within) : all.slice(0, count);
+    let beyond = false;
+    if (!list.length && all.length) { list = [all.find((b) => !b.active) || all[0]]; beyond = true; }
+    return list.slice(0, 8).map((b) => ({ ...b, soon: !b.active && b.inMin < soonMin, beyond }));
+  }
+  // Kartnavn fra waypoint-lenka: byte 0 = 4 (waypoint), byte 1-3 = id
+  function wpInfo(chatlink, waypoints) {
+    if (!chatlink || !waypoints) return null;
+    try {
+      const raw = atob(String(chatlink).trim().slice(2, -1));
+      if (raw.charCodeAt(0) !== 4) return null;
+      return waypoints[String(raw.charCodeAt(1) | (raw.charCodeAt(2) << 8) | (raw.charCodeAt(3) << 16))] || null;
+    } catch { return null; }
+  }
+  // Teksten som limes i chatten: bossnavn, minutter til start og klokkeslett, regnet ut i det du trykker (maks 190 tegn,
+  // spillets chat tar 199). spawn: { name, chatlink, active, inMin }. t og locale kommer fra i18n, så teksten følger språket.
+  function pasteText(spawn, now, { t, locale, waypoints } = {}) {
+    const inMin = Math.max(0, Math.round(spawn.inMin || 0)), link = spawn.chatlink || '';
+    const time = new Date(now + inMin * MINUTE).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+    const head = spawn.active ? t('daily.pasteNow', { name: spawn.name, time }) : t('daily.pasteNext', { name: spawn.name, m: inMin, time });
+    const wp = wpInfo(link, waypoints);
+    const s = `${head}${wp ? ' · ' + wp.map : ''}${link ? ' · ' + link : ''}`;
+    return s.length > 190 ? head.slice(0, 190 - link.length - 3) + ' · ' + link : s;
+  }
+  const api = { expand, status, bossSpawns, bossId, filler, bossOccurrences, nextBosses, wpInfo, pasteText };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else target.TimerLogic = api;
 })(globalThis);

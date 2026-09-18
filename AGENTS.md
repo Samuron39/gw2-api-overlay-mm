@@ -25,7 +25,7 @@ src/i18n.js + src/i18n/      t(key, vars); nb.json og en.json må ha identiske n
 src/ai.js + src/ai-providers.js   AI-klient (strømmende) + leverandører (local, gemini, openai, anthropic, deepseek, xai, custom)
 src/live.js                  mottar broens UDP-strøm og bygger tilstanden: buffs, cooldowns, target, fight/session-DPS,
                              squad, damage taken/death log, healing, opptak til logs/live-*.jsonl
-src/overlays.js              DEFAULTS per overlay-type (buffs, debuffs, target, skillbar, dps, dps2, dps3)
+src/overlays.js              DEFAULTS per overlay-type (buffs, debuffs, target, skillbar, dps, dps2, dps3, bosses)
 src/modules/*.js             modul-logikk i hovedprosessen (arcdps = installer/oppdaterer for ArcDPS og broen)
 src/renderer/overlay.*       tegner overlay-vinduene (render() velger etter TYPE, renderDps for DPS-meteret)
 src/renderer/panel.*         panelramme, modulregister, dra-linje (#grip)
@@ -38,8 +38,12 @@ data/                        tidsplan, waypoints og guides.json fra wikien (CC B
 docs/                        PLAN-stabilisering-2026-09-17.md (ENESTE gjeldende plan, «Åpent nå» nederst), VALIDERING-2026-09-17.md,
                              releases/<versjon>.md (utgivelsesnotater), healing-api.md, BRIEF-felles.md (mal for underagenter),
                              BRIEF-guider.md (eksempel). PLAN-review-fixes.md og REVIEW-2026-09-16.md er avsluttet historikk.
-test/                        node:test, kjør `npm test` (266 tester per 18. sept 2026, må være grønn før commit)
+test/                        node:test, kjør `npm test` (276 tester per 18. sept 2026, må være grønn før commit)
 ```
+
+Ny overlay-vindustype = DEFAULTS i `src/overlays.js`, nøkler/typer i `src/config-validation.js` (også typelista i `field()`), beholder
++ gren i `overlay.html`/`overlay.js` (`applyConfig`, `render`), kort i `renderWindows` i `src/renderer/modules/live.js` (lista `WIN`),
+`overlay.label.<type>` og `live.win.<type>` i begge i18n-filene. Se `bosses` (0.4.11) som mønster.
 
 Ny modul = `src/modules/<navn>.js` + `src/renderer/modules/<navn>.js`, IPC i ipc.js, kanal i preload.js, skript i
 panel.html, id i MODULES i wheel.js og i ALL-lista i settings.js, tekster `module.<navn>` i begge i18n-filene.
@@ -81,7 +85,7 @@ curl -sL https://github.com/Samuron39/gw2-api-overlay-mm/releases/latest/downloa
   `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` (symlenker i arkivet feiler uten utviklermodus).
 - Broen (`bridge/target/release/gw2overlay_bridge.dll`) bygges med `cargo build --release` i `bridge/` FØR release
   (`scripts/check-native.js` stopper deg ellers). Eieren installerer ny bro via Live-fanen; si fra når broen er endret.
-- Gjeldende utgivelsesversjon: 0.4.10 (18. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
+- Gjeldende utgivelsesversjon: 0.4.11 (18. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
 
 ## 5. ArcDPS: målte fakta (build 20260816), ikke antakelser
 
