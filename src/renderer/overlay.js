@@ -99,11 +99,13 @@ async function fetchDetail() {
 function targetLabel() {
   if (dpTarget === 'all') return T.t('overlay.dps.target.all');
   if (dpTarget === 'current') return T.t('overlay.dps.target.current');
+  if (dpTarget === 'bosses') return T.t('overlay.dps.target.bosses');
   const name = detail?.targets?.find((t) => t.id === dpTarget)?.name || detail?.target?.name || '#' + dpTarget;
   return T.t('overlay.dps.target.named', { name });
 }
 function nextTarget() {
-  const list = ['all', 'current', ...(detail?.targets || []).map((t) => t.id)];
+  // «Bosser» (champion og opp) tilbys bare når perioden faktisk har en slik fiende
+  const list = ['all', 'current', ...((detail?.targets || []).some((t) => t.rank >= 3) ? ['bosses'] : []), ...(detail?.targets || []).map((t) => t.id)];
   const i = list.indexOf(dpTarget);
   dpTarget = list[(i + 1) % list.length];
   renderDpsBar(); fetchDetail();
@@ -139,7 +141,7 @@ dp.addEventListener('pointerdown', (e) => {
   const el = e.target?.closest?.('.click');
   if (!el || e.button !== 0) return;
   e.stopPropagation();
-  const num = (v) => (v === 'self' || v === 'current' || v === 'all' ? v : Number(v));
+  const num = (v) => (v === 'self' || v === 'current' || v === 'all' || v === 'bosses' ? v : Number(v));
   if (el.dataset.back) dpPlayer = null;
   else if (el.dataset.player != null) dpPlayer = num(el.dataset.player);
   else if (el.dataset.target != null) { const t = num(el.dataset.target); dpTarget = dpTarget === t ? 'all' : t; }
@@ -164,6 +166,9 @@ const SAMPLE_DETAIL = () => {
     player: row && { ...row, skills: [{ name: 'Arc Divider', dmg: Math.round(row.dmg * 0.4), hits: 6, pct: 40 }, { name: 'Decapitate', dmg: Math.round(row.dmg * 0.35), hits: 9, pct: 35 }, { name: 'Bleeding', dmg: Math.round(row.dmg * 0.25), hits: 41, pct: 25 }],
       targets: [{ id: 9, name: 'Legendary Destroyer', dmg: Math.round(row.dmg * 0.8), pct: 80, current: true }, { id: 8, name: 'Destroyer Troll', dmg: Math.round(row.dmg * 0.2), pct: 20 }] } };
 };
+// Rangmerke foran fiendenavn: ★ boss, ◆ legendary/champion, ◇ elite, ▪ veteran. Rangen kommer fra live.js (enemy-rank.js).
+const RANK_MARK = { boss: '★', legendary: '◆', champion: '◆', elite: '◇', veteran: '▪' };
+function rankMark(t) { const m = RANK_MARK[t?.rankKey]; return m ? `<span class="rk rk-${esc(t.rankKey)}" title="${esc(T.t('overlay.dps.rank.' + t.rankKey))}">${m}</span> ` : ''; }
 function renderPlayers() {
   const edit = document.body.classList.contains('edit');
   let d = detail;
@@ -173,7 +178,7 @@ function renderPlayers() {
   const back = dpPlayer != null ? `<div class="bk click" data-back="1">${esc(T.t('overlay.dps.back'))}</div>` : '';
   if (!d || d.empty) { dp.innerHTML = back + `<div class="top"><span class="big idle">–</span><span class="lbl">DPS</span></div><div class="sub">${esc(T.t(cfg.period === 'session' ? 'overlay.dps.noSession' : 'overlay.dps.noFight'))}</div>`; return; }
   const rows = [];
-  const tname = d.target ? (d.target.name || T.t('overlay.dps.target.none')) : '';
+  const tname = d.target ? (d.target.id === 'bosses' ? T.t('overlay.dps.target.bossesN', { n: d.target.count }) : (d.target.name || T.t('overlay.dps.target.none'))) : '';
   const sample = d.sample ? `<span class="lbl">(${esc(T.t('overlay.dps.sample'))})</span>` : '';
   if (dpPlayer == null) {
     // ---------- Lista: én linje per spiller, klikk for detaljer ----------
@@ -196,7 +201,7 @@ function renderPlayers() {
   for (const s of p.skills.slice(0, 8)) rows.push(`<div class="sk"><span class="bar" style="--w:${s.pct || 0}%"></span><span class="n">${esc(s.name || s.skill)}</span><span class="v">${fmtK(s.dmg)} · ${s.pct || 0}% · ${s.hits}×</span></div>`);
   if (p.targets.length) {
     rows.push(`<div class="sqh">${esc(T.t('overlay.dps.targetsTitle'))}</div>`);
-    for (const t of p.targets.slice(0, 5)) rows.push(`<div class="sk tgr click${dpTarget === t.id ? ' on' : ''}" data-target="${esc(t.id)}"><span class="bar" style="--w:${t.pct || 0}%"></span><span class="n">${t.current ? '◉ ' : ''}${esc(t.name || '#' + t.id)}</span><span class="v">${fmtK(t.dmg)} · ${t.pct || 0}%</span></div>`);
+    for (const t of p.targets.slice(0, 5)) rows.push(`<div class="sk tgr click${dpTarget === t.id ? ' on' : ''}" data-target="${esc(t.id)}"><span class="bar" style="--w:${t.pct || 0}%"></span><span class="n">${t.current ? '◉ ' : ''}${rankMark(t)}${esc(t.name || '#' + t.id)}</span><span class="v">${fmtK(t.dmg)} · ${t.pct || 0}%</span></div>`);
   }
   if (p.takenBySource?.length) {
     rows.push(`<div class="tkh">${esc(T.t('overlay.dps.takenTitle'))} · ${fmtK(p.taken)}</div>`);

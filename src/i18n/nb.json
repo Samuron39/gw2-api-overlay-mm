@@ -808,5 +808,12 @@
   "overlay.dps.noPlayerData": "Ingen tall for denne spilleren i perioden",
   "overlay.dps.loading": "Henter …",
   "overlay.dps.you": "deg",
-  "overlay.dps.delayNote": "Andres tall kommer 2–3 sekunder forsinket fra ArcDPS. Klikk på en spiller for detaljer."
+  "overlay.dps.delayNote": "Andres tall kommer 2–3 sekunder forsinket fra ArcDPS. Klikk på en spiller for detaljer.",
+  "overlay.dps.target.bosses": "Mål: bosser",
+  "overlay.dps.target.bossesN": "bosser og champions ({n})",
+  "overlay.dps.rank.boss": "Boss",
+  "overlay.dps.rank.legendary": "Legendary",
+  "overlay.dps.rank.champion": "Champion",
+  "overlay.dps.rank.elite": "Elite",
+  "overlay.dps.rank.veteran": "Veteran"
 }

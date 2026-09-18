@@ -808,5 +808,12 @@
   "overlay.dps.noPlayerData": "No numbers for this player in the period",
   "overlay.dps.loading": "Loading …",
   "overlay.dps.you": "you",
-  "overlay.dps.delayNote": "Other players' numbers arrive 2–3 seconds late from ArcDPS. Click a player for details."
+  "overlay.dps.delayNote": "Other players' numbers arrive 2–3 seconds late from ArcDPS. Click a player for details.",
+  "overlay.dps.target.bosses": "Target: bosses",
+  "overlay.dps.target.bossesN": "bosses and champions ({n})",
+  "overlay.dps.rank.boss": "Boss",
+  "overlay.dps.rank.legendary": "Legendary",
+  "overlay.dps.rank.champion": "Champion",
+  "overlay.dps.rank.elite": "Elite",
+  "overlay.dps.rank.veteran": "Veteran"
 }

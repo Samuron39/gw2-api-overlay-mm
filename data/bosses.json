@@ -1,0 +1,329 @@
+{
+ "source": "GW2 Elite Insights Parser, GW2EIEvtcParser/ParserHelpers/IDs/SpeciesIDs.cs (enum TargetID), https://github.com/baaron4/GW2-Elite-Insights-Parser, MIT. Hentet 18. sept 2026. Bare selve bossene, ikke adds. Gadget-bosser (Conjured Amalgamate, Dragonvoid) er utelatt fordi gadgets har flyktig pseudo-id i sanntid.",
+ "bosses": {
+  "15438": {
+   "name": "Vale Guardian",
+   "kind": "raid"
+  },
+  "15429": {
+   "name": "Gorseval the Multifarious",
+   "kind": "raid"
+  },
+  "15375": {
+   "name": "Sabetha the Saboteur",
+   "kind": "raid"
+  },
+  "16123": {
+   "name": "Slothasor",
+   "kind": "raid"
+  },
+  "16088": {
+   "name": "Berg",
+   "kind": "raid"
+  },
+  "16137": {
+   "name": "Zane",
+   "kind": "raid"
+  },
+  "16125": {
+   "name": "Narella",
+   "kind": "raid"
+  },
+  "16115": {
+   "name": "Matthias Gabrel",
+   "kind": "raid"
+  },
+  "16253": {
+   "name": "McLeod the Silent",
+   "kind": "raid"
+  },
+  "16235": {
+   "name": "Keep Construct",
+   "kind": "raid"
+  },
+  "16246": {
+   "name": "Xera",
+   "kind": "raid"
+  },
+  "17194": {
+   "name": "Cairn the Indomitable",
+   "kind": "raid"
+  },
+  "17172": {
+   "name": "Mursaat Overseer",
+   "kind": "raid"
+  },
+  "17188": {
+   "name": "Samarog",
+   "kind": "raid"
+  },
+  "17154": {
+   "name": "Deimos",
+   "kind": "raid"
+  },
+  "19767": {
+   "name": "Soulless Horror",
+   "kind": "raid"
+  },
+  "19828": {
+   "name": "Desmina",
+   "kind": "raid"
+  },
+  "19691": {
+   "name": "Broken King",
+   "kind": "raid"
+  },
+  "19536": {
+   "name": "Eater of Souls",
+   "kind": "raid"
+  },
+  "19651": {
+   "name": "Eye of Judgment",
+   "kind": "raid"
+  },
+  "19450": {
+   "name": "Dhuum",
+   "kind": "raid"
+  },
+  "21105": {
+   "name": "Nikare",
+   "kind": "raid"
+  },
+  "21089": {
+   "name": "Kenut",
+   "kind": "raid"
+  },
+  "20934": {
+   "name": "Qadim",
+   "kind": "raid"
+  },
+  "22006": {
+   "name": "Cardinal Adina",
+   "kind": "raid"
+  },
+  "21964": {
+   "name": "Cardinal Sabir",
+   "kind": "raid"
+  },
+  "22000": {
+   "name": "Qadim the Peerless",
+   "kind": "raid"
+  },
+  "26725": {
+   "name": "Greer, the Blightbringer",
+   "kind": "raid"
+  },
+  "26771": {
+   "name": "Gree",
+   "kind": "raid"
+  },
+  "26742": {
+   "name": "Reeg",
+   "kind": "raid"
+  },
+  "26774": {
+   "name": "Decima, the Stormsinger",
+   "kind": "raid"
+  },
+  "26712": {
+   "name": "Ura, the Steamshrieker",
+   "kind": "raid"
+  },
+  "21333": {
+   "name": "Freezie",
+   "kind": "strike"
+  },
+  "22154": {
+   "name": "Icebrood Construct",
+   "kind": "strike"
+  },
+  "22343": {
+   "name": "Voice of the Fallen",
+   "kind": "strike"
+  },
+  "22481": {
+   "name": "Claw of the Fallen",
+   "kind": "strike"
+  },
+  "22492": {
+   "name": "Fraenir of Jormag",
+   "kind": "strike"
+  },
+  "22521": {
+   "name": "Boneskinner",
+   "kind": "strike"
+  },
+  "22711": {
+   "name": "Whisper of Jormag",
+   "kind": "strike"
+  },
+  "22836": {
+   "name": "Varinia Stormsounder",
+   "kind": "strike"
+  },
+  "24033": {
+   "name": "Mai Trin",
+   "kind": "strike"
+  },
+  "24768": {
+   "name": "Echo of Scarlet Briar",
+   "kind": "strike"
+  },
+  "25247": {
+   "name": "Echo of Scarlet Briar",
+   "kind": "strike"
+  },
+  "23957": {
+   "name": "Ankka",
+   "kind": "strike"
+  },
+  "24485": {
+   "name": "Minister Li",
+   "kind": "strike"
+  },
+  "24266": {
+   "name": "Minister Li",
+   "kind": "strike"
+  },
+  "24375": {
+   "name": "Void Amalgamate",
+   "kind": "strike"
+  },
+  "25413": {
+   "name": "Prototype Vermilion",
+   "kind": "strike"
+  },
+  "25415": {
+   "name": "Prototype Arsenite",
+   "kind": "strike"
+  },
+  "25419": {
+   "name": "Prototype Indigo",
+   "kind": "strike"
+  },
+  "25414": {
+   "name": "Prototype Vermilion",
+   "kind": "strike"
+  },
+  "25416": {
+   "name": "Prototype Arsenite",
+   "kind": "strike"
+  },
+  "25423": {
+   "name": "Prototype Indigo",
+   "kind": "strike"
+  },
+  "25705": {
+   "name": "Dagda",
+   "kind": "strike"
+  },
+  "25989": {
+   "name": "Cerus",
+   "kind": "strike"
+  },
+  "27124": {
+   "name": "Kela, Seneschal of Waves",
+   "kind": "strike"
+  },
+  "28106": {
+   "name": "Vloxx",
+   "kind": "strike"
+  },
+  "17021": {
+   "name": "MAMA",
+   "kind": "fractal"
+  },
+  "17028": {
+   "name": "Siax the Corrupted",
+   "kind": "fractal"
+  },
+  "16948": {
+   "name": "Ensolyss of the Endless Torment",
+   "kind": "fractal"
+  },
+  "17632": {
+   "name": "Skorvald the Shattered",
+   "kind": "fractal"
+  },
+  "17949": {
+   "name": "Artsariiv",
+   "kind": "fractal"
+  },
+  "17759": {
+   "name": "Arkk",
+   "kind": "fractal"
+  },
+  "23254": {
+   "name": "Ai, Keeper of the Peak",
+   "kind": "fractal"
+  },
+  "25572": {
+   "name": "Kanaxai, Scythe of House Aurkus",
+   "kind": "fractal"
+  },
+  "25577": {
+   "name": "Kanaxai, Scythe of House Aurkus",
+   "kind": "fractal"
+  },
+  "26257": {
+   "name": "Cerus",
+   "kind": "fractal"
+  },
+  "26226": {
+   "name": "Deimos",
+   "kind": "fractal"
+  },
+  "26231": {
+   "name": "Eparch",
+   "kind": "fractal"
+  },
+  "27010": {
+   "name": "Whispering Shadow",
+   "kind": "fractal"
+  },
+  "35552": {
+   "name": "Soo-Won",
+   "kind": "openworld"
+  },
+  "16169": {
+   "name": "Massive Kitty Golem (10M)",
+   "kind": "golem"
+  },
+  "16202": {
+   "name": "Massive Kitty Golem (4M)",
+   "kind": "golem"
+  },
+  "16178": {
+   "name": "Massive Kitty Golem (1M)",
+   "kind": "golem"
+  },
+  "16198": {
+   "name": "Vital Kitty Golem",
+   "kind": "golem"
+  },
+  "16177": {
+   "name": "Average Kitty Golem",
+   "kind": "golem"
+  },
+  "16199": {
+   "name": "Standard Kitty Golem",
+   "kind": "golem"
+  },
+  "19676": {
+   "name": "Large Kitty Golem",
+   "kind": "golem"
+  },
+  "19645": {
+   "name": "Medium Kitty Golem",
+   "kind": "golem"
+  },
+  "16174": {
+   "name": "Resistant Kitty Golem",
+   "kind": "golem"
+  },
+  "16176": {
+   "name": "Tough Kitty Golem",
+   "kind": "golem"
+  }
+ }
+}

@@ -158,9 +158,8 @@ function register() {
   handle('live:resetSession', () => { live.resetSession(); return true; });
   // Spillerliste og detaljer til DPS-meteret. Bare kjente, enkle verdier slippes inn.
   handle('live:detail', (_e, o) => {
-    const id = (v) => (v === 'self' || v === 'current' ? v : (typeof v === 'number' && Number.isFinite(v) ? v : null));
-    const player = id(o?.player), target = id(o?.target);
-    return live.detail({ period: typeof o?.period === 'string' ? o.period : 'fight', player: player === 'current' ? null : player, target: target === 'self' ? null : target });
+    const id = (v, words) => (words.includes(v) ? v : (typeof v === 'number' && Number.isFinite(v) ? v : null));
+    return live.detail({ period: typeof o?.period === 'string' ? o.period : 'fight', player: id(o?.player, ['self']), target: id(o?.target, ['current', 'bosses']) });
   });
   // Feilsøking: ta opp den rå strømmen fra broen til loggmappa i inntil 3 minutter
   handle('live:record', (_e, ms) => live.record(path.join(log.path(), 'live-' + new Date().toISOString().replace(/[:.]/g, '-') + '.jsonl'), Math.min(Number(ms) || 180000, 600000)));

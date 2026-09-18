@@ -95,7 +95,7 @@ test('detaljer for deg selv: skills, mål, mottatt per kilde og healing per skil
 test('målfilter: ett mål eller nåværende mål; lista, andelene og skills følger valget, 0 mot målet beholdes i lista', () => {
   fight(1_000_000, { end: false });
   let d = live.detail({ period: 'fight', target: TRASH.id, player: BETA.id });
-  assert.deepEqual(d.target, { id: TRASH.id, name: 'Trash' });
+  assert.deepEqual(d.target, { id: TRASH.id, name: 'Trash', rank: 0, rankKey: 'normal' });
   assert.deepEqual(d.players.map((p) => [p.name, p.dmg, p.pct]), [['Gamma', 800, 67], ['Alfa', 400, 33], ['Beta', 0, 0]]);
   assert.equal(d.player.dmg, 0); assert.deepEqual(d.player.skills, []);
   assert.equal(d.player.targets.length, 1, 'mål-lista for spilleren viser fortsatt alt hun har truffet');
@@ -109,7 +109,7 @@ test('målfilter: ett mål eller nåværende mål; lista, andelene og skills fø
   // intet mål valgt i spillet: «nåværende» gir tom liste med 0, ikke alt
   live.clearTarget();
   d = live.detail({ period: 'fight', target: 'current' });
-  assert.deepEqual(d.target, { id: null, name: '' }); assert.ok(d.players.every((p) => p.dmg === 0));
+  assert.deepEqual(d.target, { id: null, name: '', rank: 0, rankKey: 'normal' }); assert.ok(d.players.every((p) => p.dmg === 0));
 });
 
 test('hele økta: to kamper slås sammen per spiller, mål og skill, også etter at den første er foldet inn', () => {
@@ -138,4 +138,62 @@ test('ekte opptak: detaljene for deg selv summerer til samme tall som økta, for
   // ett mål: spillerens skade mot det er lik målets samlede skade (solo)
   const top = d.targets[0];
   assert.equal(live.detail({ period: 'session', target: top.id }).players[0].dmg, top.dmg);
+});
+
+// ---------- Rang på fiender (trinn 2) ----------
+const { rankOf, speciesId } = require('../src/modules/enemy-rank');
+
+test('rang: boss fra art-id (Elite Insights-lista), ellers rangordet i navnet; spillere og gadgets merkes aldri', () => {
+  const npc = (name, prof) => ({ name, prof, elite: NPC });
+  assert.equal(speciesId(npc('Vale Guardian', 15438)), 15438);
+  assert.deepEqual(rankOf(npc('Vale Guardian', 15438)), { rank: 5, key: 'boss', boss: { name: 'Vale Guardian', kind: 'raid' } });
+  assert.equal(rankOf(npc('Standard Kitty Golem', 16199)).boss.kind, 'golem');
+  assert.equal(rankOf(npc('Hva som helst', (0x0001 << 16) | 17154)).key, 'boss', 'øvre halvdel av prof er ikke en del av art-id-en');
+  assert.deepEqual([rankOf(npc('Legendary Destroyer', 1)).key, rankOf(npc('Champion Risen Knight', 1)).key, rankOf(npc('Elite Inquest Technician', 1)).key, rankOf(npc('Veteran Oakheart', 1)).key],
+    ['legendary', 'champion', 'elite', 'veteran']);
+  assert.deepEqual(['Legendärer Zerstörer', 'Destructeur légendaire', 'Destructor legendario', 'Campeón resurgido', 'Vétéran Cœur-de-chêne'].map((n) => rankOf(npc(n, 1)).key),
+    ['legendary', 'legendary', 'legendary', 'champion', 'veteran'], 'tysk, fransk og spansk form');
+  assert.equal(rankOf(npc('Wild Wavehawk', 27207)).key, 'normal', 'vanlig fiende fra eierens opptak');
+  assert.equal(rankOf(npc('Elitesoldat', 1)).key, 'normal', 'rangordet må stå som eget ord');
+  assert.equal(rankOf({ name: 'Champion Spiller', prof: 2, elite: 74 }).key, 'champion', 'navnet teller uansett, men');
+  assert.equal(speciesId({ name: 'x', prof: 15438, elite: 74 }), 0, 'en spiller har aldri art-id');
+  assert.equal(rankOf(npc('Mists Rift', (0xffff << 16 >>> 0) | 15438)).key, 'normal', 'gadget: flyktig pseudo-id, aldri boss');
+  assert.equal(rankOf(null).key, 'normal');
+});
+
+test('mål-lista: bosser og champions står først og er merket; filteret «bosser» summerer bare dem', () => {
+  const BOSS = { id: 210, name: 'Vale Guardian', prof: 15438, elite: NPC, self: 0, team: 2 };
+  const CHAMP = { id: 211, name: 'Champion Risen Knight', prof: 0x0456, elite: NPC, self: 0, team: 2 };
+  const VET = { id: 212, name: 'Veteran Oakheart', prof: 0x0457, elite: NPC, self: 0, team: 2 };
+  const t0 = 2_000_000;
+  for (const m of [
+    ev({ time: t0, sc: 1 }),
+    ev({ time: t0 + 100, dst: TRASH, value: -9000, skill: 10, name: 'Slag' }), // mest skade, men vanlig fiende
+    ev({ time: t0 + 200, dst: BOSS, value: -2000, skill: 10, name: 'Slag' }),
+    ev({ time: t0 + 300, dst: CHAMP, value: -500, skill: 10, name: 'Slag' }),
+    ev({ time: t0 + 400, dst: VET, value: -700, skill: 10, name: 'Slag' }),
+    area({ time: t0 + 500, src: BETA, srcInst: 7101, dst: BOSS, value: 4000, skill: 20, name: 'Pil' }),
+    ev({ time: t0 + 10000, sc: 2 }),
+  ]) live.handle(m);
+  let d = live.detail({ period: 'last', player: 'self' });
+  assert.deepEqual(d.targets.map((t) => [t.name, t.rankKey, t.dmg]), [['Vale Guardian', 'boss', 6000], ['Champion Risen Knight', 'champion', 500], ['Trash', 'normal', 9000], ['Veteran Oakheart', 'veteran', 700]]);
+  assert.deepEqual(d.player.targets.map((t) => [t.name, t.rankKey]), [['Vale Guardian', 'boss'], ['Champion Risen Knight', 'champion'], ['Trash', 'normal'], ['Veteran Oakheart', 'veteran']]);
+  d = live.detail({ period: 'last', target: 'bosses', player: 'self' });
+  assert.deepEqual(d.target, { id: 'bosses', name: '', count: 2 });
+  assert.deepEqual(d.players.map((p) => [p.name, p.dmg]), [['Beta', 4000], ['Alfa', 2500]]);
+  assert.equal(d.player.skills[0].dmg, 2500, 'skills teller bare treff mot bossene');
+  assert.deepEqual(live.detail({ period: 'last', target: BOSS.id }).target, { id: BOSS.id, name: 'Vale Guardian', rank: 5, rankKey: 'boss' });
+  // nåværende mål i den faste strømmen har rang
+  live.handle(ev({ time: t0 + 20000, dst: BOSS, value: -1, skill: 10 }));
+  const tg = live.snapshot().target;
+  assert.deepEqual([tg.name, tg.rank, tg.rankKey], ['Vale Guardian', 5, 'boss']);
+});
+
+test('data/bosses.json: gyldige art-id-er, navn og type; kilde og lisens er oppgitt', () => {
+  const data = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'bosses.json'), 'utf8'));
+  assert.match(data.source, /Elite Insights/); assert.match(data.source, /MIT/);
+  const entries = Object.entries(data.bosses);
+  assert.ok(entries.length >= 70);
+  for (const [id, b] of entries) { assert.ok(Number(id) > 0 && Number(id) <= 0xffff, 'art-id er 16 bit: ' + id); assert.ok(b.name); assert.ok(['raid', 'strike', 'fractal', 'openworld', 'golem'].includes(b.kind), b.kind); }
+  assert.equal(data.bosses['15438'].name, 'Vale Guardian'); assert.equal(data.bosses['19450'].name, 'Dhuum');
 });

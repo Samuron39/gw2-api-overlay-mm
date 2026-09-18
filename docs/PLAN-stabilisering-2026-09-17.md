@@ -4,7 +4,7 @@ Dato: 17. september 2026. Utgangspunkt: **0.4.4**, commit `4887e3e`.
 
 Dette er den gjeldende planen for stabilisering etter `docs/REVIEW-2026-09-16.md`. Alle 16 funn er med. Gjenstående arbeid fra `docs/PLAN-review-fixes.md` er innarbeidet i fasene og avstemt nederst. Den eldre planen beholdes som historikk; dens gamle versjonsmål styrer ikke denne planen.
 
-Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 261 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
+Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 264 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
 
 Dette er den ENESTE gjeldende planen. `docs/PLAN-review-fixes.md` er avsluttet historikk med sluttstatus per punkt.
 
@@ -238,10 +238,18 @@ HPS ved siden av DPS, og kunne velge nåværende mål, tidligere fiender eller a
 Kjente grenser (målt, se AGENTS.md del 5): andres skade kommer 2–3 s forsinket; utenfor instanser bare squaden i nærheten;
 andres healing krever «arcdps healing stats» med deling på. DPS per mål regnes over hele kampens varighet.
 
-**Trinn 2 (ny bro, eieren må installere den).** ArcDPS sender ikke rang (veteran/elite/champion/legendary).
-- [ ] Liste over art-id-er for kjente bosser (raid, strike, fractal) som fasit.
-- [ ] Maks helse for fiender fra broen (CBTS_MAXHEALTHUPDATE, sc 12) som reserve: over en terskel merkes som «stor».
-- [ ] Merking i mål-lista og målvinduet.
+**Trinn 2. Ferdig og automatisk verifisert 18. sept 2026, utgitt i 0.4.9, UTEN ny bro.** Den opprinnelige reserveplanen (maks
+helse fra broen) viste seg umulig: evtc-README merker `CBTS_MAXHEALTHUPDATE`, `CBTS_HEALTHPCTUPDATE` og `CBTS_DEFIANCEBARSTATE`
+med «realtime: no», og ingen av dem finnes i eierens to opptak, selv om broen videresender alle andre statechange-koder. ArcDPS
+sender heller ikke rang. Det som faktisk finnes i strømmen ble brukt i stedet:
+- [x] `data/bosses.json`: 81 art-id-er for raid-, strike- og fractal-bosser, Soo-Won og treningsgolemene, kuratert fra Elite
+      Insights sin `SpeciesIDs.cs` (MIT), bare selve bossene. Art-id er nedre halvdel av `prof` for NPC-er (README: «reliable id»).
+      Gadget-bosser (Conjured Amalgamate, Dragonvoid) er ute fordi gadgets har flyktig pseudo-id.
+- [x] `src/modules/enemy-rank.js`: boss fra art-id, ellers rangordet i navnet (Veteran, Elite, Champion, Legendary; også tysk,
+      fransk og spansk). **Ikke sett i et opptak ennå** at ArcDPS-navnet inneholder rangordet; står det ikke der, merkes fienden ikke.
+- [x] Mål-lista: ★ boss, ◆ legendary/champion, ◇ elite, ▪ veteran; bosser og champions står først. Nytt filter «Mål: bosser»
+      (champion og opp) tilbys når perioden har en slik fiende. Nåværende mål i `live:state` har `rank`/`rankKey`.
+- [ ] Målvinduet (target-overlayen) viser bare conditions og har ikke noe navnefelt; rangmerke der er ikke laget.
 
 Verifisering av begge trinn krever et squad-opptak fra eieren (samme som punkt 2 under).
 

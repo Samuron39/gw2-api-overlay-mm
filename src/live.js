@@ -4,6 +4,7 @@ const dgram = require('dgram');
 const fs = require('fs');
 const { EventEmitter } = require('events');
 const log = require('./log');
+const { rankOf } = require('./modules/enemy-rank');
 
 const PORT = 47500;
 const NPC_ELITE = 0xffffffff;
@@ -450,21 +451,32 @@ class Live extends EventEmitter {
     durationMs = Math.max(1000, durationMs);
     const per = (n) => Math.round(n / durationMs * 1000);
     const det = raw.detail || new Map();
-    const want = opts.target === 'current' ? currentTargetId : (Number.isFinite(Number(opts.target)) && opts.target != null && opts.target !== '' ? Number(opts.target) : null);
-    const filtered = opts.target === 'current' || want != null;
-
-    // Mål i perioden, på tvers av alle spillere
+    // Mål i perioden, på tvers av alle spillere. Rang (boss, legendary, champion, elite, veteran) fra art-id og navn, se
+    // src/modules/enemy-rank.js; ArcDPS sender verken rang eller maks helse i sanntid.
+    const rankFor = (id, name) => { const a = this.agents.get(id); return rankOf({ name: name || a?.name || '', prof: a?.prof, elite: a?.elite }); };
     const tmap = new Map();
     for (const p of det.values()) for (const tg of p.targets.values()) {
       const t = tmap.get(tg.id) || { id: tg.id, name: tg.name || this.agents.get(tg.id)?.name || '', dmg: 0 };
       t.dmg += tg.dmg; if (tg.name) t.name = tg.name; tmap.set(tg.id, t);
     }
+    for (const t of tmap.values()) { const r = rankFor(t.id, t.name); t.rank = r.rank; t.rankKey = r.key; }
+    // Filter: null = alle, ellers mengden mål-id-er som teller. 'bosses' = alt fra champion og opp.
+    const one = Number.isFinite(Number(opts.target)) && opts.target != null && opts.target !== '' ? Number(opts.target) : null;
+    let wantSet = null;
+    if (opts.target === 'current') wantSet = new Set(currentTargetId != null ? [currentTargetId] : []);
+    else if (opts.target === 'bosses') wantSet = new Set([...tmap.values()].filter((t) => t.rank >= 3).map((t) => t.id));
+    else if (one != null) wantSet = new Set([one]);
+    const filtered = wantSet != null;
+    const want = opts.target === 'current' ? currentTargetId : one;
     const allDmg = [...tmap.values()].reduce((n, t) => n + t.dmg, 0);
-    const targets = [...tmap.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 12).map((t) => ({ ...t, current: t.id === currentTargetId, pct: allDmg ? Math.round(t.dmg / allDmg * 100) : 0 }));
-    const target = filtered ? { id: want, name: want == null ? '' : (tmap.get(want)?.name || this.agents.get(want)?.name || '') } : null;
+    // Bosser og champions først, så etter skade: det er dem man vil velge
+    const targets = [...tmap.values()].sort((a, b) => (b.rank >= 3) - (a.rank >= 3) || b.dmg - a.dmg).slice(0, 12).map((t) => ({ ...t, current: t.id === currentTargetId, pct: allDmg ? Math.round(t.dmg / allDmg * 100) : 0 }));
+    const target = !filtered ? null
+      : opts.target === 'bosses' ? { id: 'bosses', name: '', count: wantSet.size }
+        : { id: want, name: want == null ? '' : (tmap.get(want)?.name || this.agents.get(want)?.name || ''), rank: tmap.get(want)?.rank || 0, rankKey: tmap.get(want)?.rankKey || 'normal' };
 
     // Spillerlista: du er alltid med, også uten skade
-    const dmgOf = (p) => { if (!filtered) { let n = 0; for (const tg of p.targets.values()) n += tg.dmg; return n; } return p.targets.get(want)?.dmg || 0; };
+    const dmgOf = (p) => { let n = 0; for (const tg of p.targets.values()) if (!filtered || wantSet.has(tg.id)) n += tg.dmg; return n; };
     const healOf = (pid) => (pid === 'self' ? raw.heal || 0 : raw.squadHeal.get(pid)?.heal || 0);
     const ids = new Set(['self', ...det.keys(), ...raw.squadHeal.keys()]);
     let rows = [...ids].map((pid) => {
@@ -488,8 +500,9 @@ class Live extends EventEmitter {
       const skills = new Map();
       const ptargets = [];
       for (const tg of p ? p.targets.values() : []) {
-        ptargets.push({ id: tg.id, name: tg.name || this.agents.get(tg.id)?.name || '', dmg: tg.dmg, hits: tg.hits, current: tg.id === currentTargetId });
-        if (filtered && tg.id !== want) continue;
+        const r = rankFor(tg.id, tg.name);
+        ptargets.push({ id: tg.id, name: tg.name || this.agents.get(tg.id)?.name || '', dmg: tg.dmg, hits: tg.hits, current: tg.id === currentTargetId, rank: r.rank, rankKey: r.key });
+        if (filtered && !wantSet.has(tg.id)) continue;
         for (const sk of tg.skills.values()) {
           const s = skills.get(sk.skill) || { skill: sk.skill, name: sk.name, dmg: 0, hits: 0 };
           s.dmg += sk.dmg; s.hits += sk.hits; if (sk.name) s.name = sk.name; skills.set(sk.skill, s);
@@ -499,7 +512,7 @@ class Live extends EventEmitter {
       player = {
         ...row,
         skills: [...skills.values()].sort((a, b) => b.dmg - a.dmg).slice(0, 10).map((s) => ({ ...s, pct: row.dmg ? Math.round(s.dmg / row.dmg * 100) : 0 })),
-        targets: ptargets.sort((a, b) => b.dmg - a.dmg).slice(0, 8).map((t) => ({ ...t, pct: total ? Math.round(t.dmg / total * 100) : 0 })),
+        targets: ptargets.sort((a, b) => (b.rank >= 3) - (a.rank >= 3) || b.dmg - a.dmg).slice(0, 8).map((t) => ({ ...t, pct: total ? Math.round(t.dmg / total * 100) : 0 })),
       };
       if (pid === 'self') {
         const pctTaken = (s) => ({ ...s, pct: raw.taken ? Math.round(s.dmg / raw.taken * 100) : 0 });
@@ -879,7 +892,7 @@ class Live extends EventEmitter {
     return {
       connected: this.connected, arcVersion: this.arcVersion, inCombat: this.inCombat, weaponSet: this.weaponSet,
       self: this.self, buffs,
-      target: target ? { id: target.id, name: target.name, buffs: tbuffs } : null,
+      target: target ? { id: target.id, name: target.name, buffs: tbuffs, rank: rankOf(target).rank, rankKey: rankOf(target).key } : null,
       cooldowns, arcNow: now,
       stats: { ...this.stats },
       recording: this.rec ? { file: this.rec.file, until: this.rec.until } : null,

@@ -38,7 +38,7 @@ data/                        tidsplan, waypoints og guides.json fra wikien (CC B
 docs/                        PLAN-stabilisering-2026-09-17.md (ENESTE gjeldende plan, «Åpent nå» nederst), VALIDERING-2026-09-17.md,
                              releases/<versjon>.md (utgivelsesnotater), healing-api.md, BRIEF-felles.md (mal for underagenter),
                              BRIEF-guider.md (eksempel). PLAN-review-fixes.md og REVIEW-2026-09-16.md er avsluttet historikk.
-test/                        node:test, kjør `npm test` (261 tester per 18. sept 2026, må være grønn før commit)
+test/                        node:test, kjør `npm test` (264 tester per 18. sept 2026, må være grønn før commit)
 ```
 
 Ny modul = `src/modules/<navn>.js` + `src/renderer/modules/<navn>.js`, IPC i ipc.js, kanal i preload.js, skript i
@@ -81,7 +81,7 @@ curl -sL https://github.com/Samuron39/gw2-api-overlay-mm/releases/latest/downloa
   `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` (symlenker i arkivet feiler uten utviklermodus).
 - Broen (`bridge/target/release/gw2overlay_bridge.dll`) bygges med `cargo build --release` i `bridge/` FØR release
   (`scripts/check-native.js` stopper deg ellers). Eieren installerer ny bro via Live-fanen; si fra når broen er endret.
-- Gjeldende utgivelsesversjon: 0.4.8 (18. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
+- Gjeldende utgivelsesversjon: 0.4.9 (18. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
 
 ## 5. ArcDPS: målte fakta (build 20260816), ikke antakelser
 
@@ -123,6 +123,10 @@ UDP-opptak `opptak-2026-09-13.log` samme sted. Siter README-linjer i kodekomment
   18. sept 2026; `src/evtc.js` ga samme sum som en uavhengig opptelling. Condition-skade ligger på resultatkode 14 i logger,
   men på `result 0` med negativ `buffDmg` i chatbox-kanalen.
 - AI mot ekte LM Studio verifiseres med `node scripts/verify-ai.js` når spillet ikke går. Ikke last modeller mens eieren spiller.
+- Fiendens helse finnes IKKE i sanntid: `CBTS_HEALTHPCTUPDATE` (8), `CBTS_MAXHEALTHUPDATE` (12) og defiance bar er «realtime: no»
+  i evtc-README, og ingen av dem er sett i opptakene. ArcDPS sender heller ikke rang. Boss = art-id (nedre 16 bit av `prof` for
+  NPC-er, øvre halvdel 0xffff betyr gadget med flyktig id) slått opp i `data/bosses.json`; øvrig rang leses fra navnet
+  (`src/modules/enemy-rank.js`). Sjekk README-ens «realtime»-linje FØR du planlegger noe som trenger en ny statechange fra broen.
 - Feilsøk strømmen uten appen: en enkel UDP-lytter på 127.0.0.1:47500 (appen holder porten eksklusivt når den kjører).
   Eieren kan ta opp 3 min med «Ta opp strømmen» på Live-fanen; opptaket kan spilles inn i live.js i en test.
 

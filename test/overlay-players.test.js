@@ -14,7 +14,7 @@ const PLAYERS = [
   { id: 'self', rank: 2, name: 'Alfa', self: true, dmg: 1650, dps: 165, pct: 25, heal: 300, hps: 30 },
   { id: 102, rank: 3, name: 'Gamma', self: false, dmg: 800, dps: 80, pct: 12, heal: 0, hps: 0 },
 ];
-const TARGETS = [{ id: 200, name: 'Golem', dmg: 5450, pct: 82, current: true }, { id: 201, name: 'Trash', dmg: 1200, pct: 18, current: false }];
+const TARGETS = [{ id: 200, name: 'Golem', dmg: 5450, pct: 82, current: true, rank: 5, rankKey: 'boss' }, { id: 201, name: 'Trash', dmg: 1200, pct: 18, current: false, rank: 0, rankKey: 'normal' }];
 function detailFor(o) {
   const row = PLAYERS.find((p) => p.id === o.player) || null;
   return { period: o.period, empty: false, active: true, durationMs: 10000, total: 6650, dps: 665, currentTargetId: 200, targets: TARGETS, players: PLAYERS,
@@ -87,12 +87,14 @@ test('mål: knappen blar alle → nåværende → fiendene i perioden; klikk på
   const h = overlay({ view: 'squad', period: 'fight', locked: true }); await flush(); await flush();
   const press = async () => { await h.bar().querySelector('#dpTarget').dispatch('click'); await flush(); };
   await press(); assert.equal(h.details().at(-1).target, 'current'); assert.match(h.bar().querySelector('#dpTarget').textContent, /target\.current/);
+  await press(); assert.equal(h.details().at(-1).target, 'bosses', 'tilbys fordi perioden har en boss'); assert.match(h.bar().querySelector('#dpTarget').textContent, /target\.bosses/);
   await press(); assert.equal(h.details().at(-1).target, 200); assert.match(h.bar().querySelector('#dpTarget').textContent, /target\.named Golem/);
   await press(); assert.equal(h.details().at(-1).target, 201);
   await press(); assert.equal(h.details().at(-1).target, null); assert.match(h.bar().querySelector('#dpTarget').textContent, /target\.all/);
   await h.down(h.dp().querySelectorAll('.sq')[0]);
   const tg = h.dp().querySelector('.tgr');
-  assert.equal(tg.dataset.target, '200'); assert.match(tg.textContent, /◉ Golem/, 'nåværende mål er merket');
+  assert.equal(tg.dataset.target, '200'); assert.match(tg.textContent, /◉/, 'nåværende mål er merket'); assert.match(tg.textContent, /Golem/);
+  assert.equal(tg.querySelector('.rk-boss').textContent, '★', 'boss er merket');
   await h.down(tg);
   assert.deepEqual(h.details().at(-1), { period: 'fight', player: 101, target: 200 });
   assert.ok(h.dp().querySelector('.tgr').classList.contains('on'));
