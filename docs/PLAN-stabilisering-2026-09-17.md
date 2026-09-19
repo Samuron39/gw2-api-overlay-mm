@@ -4,7 +4,7 @@ Dato: 17. september 2026. Utgangspunkt: **0.4.4**, commit `4887e3e`.
 
 Dette er den gjeldende planen for stabilisering etter `docs/REVIEW-2026-09-16.md`. Alle 16 funn er med. Gjenstående arbeid fra `docs/PLAN-review-fixes.md` er innarbeidet i fasene og avstemt nederst. Den eldre planen beholdes som historikk; dens gamle versjonsmål styrer ikke denne planen.
 
-Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 282 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
+Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 283 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
 
 Dette er den ENESTE gjeldende planen. `docs/PLAN-review-fixes.md` er avsluttet historikk med sluttstatus per punkt.
 
@@ -287,6 +287,14 @@ Navnelinja i målvinduet (0.4.10) viste «Covered Ley Shoot» lenge etter at eie
 målbytte med id 0. `live.js` beholdt målet til neste kampslutt eller eget dødsstøt. Nå: `touchTarget()` noterer livstegn (valgt,
 truffet av oss, effekt lagt på målet av hvem som helst), og `expireTarget()` i klokka slipper målet etter 8 s utenfor kamp og
 20 s i kamp (`targetIdleMs`, `targetIdleCombatMs`). Test i `test/live-detail.test.js`.
+
+## Feil meldt av eieren 19. sept 2026: «Neste verdensbosser» sto avslått etter hver oppdatering
+
+**Rettet i 0.4.14.** `src/config-validation.js` hadde lista over vindustyper to steder: `field()` (lagring via `config:set`) og
+`normalize()` (lasting ved oppstart). 0.4.11 la `bosses` inn bare i den første, så valget ble lagret, men luket bort som
+`overlays.bosses` ugyldig ved neste start, og neste lagring skrev konfigen uten det. Nå: én `OVERLAY_TYPES`, og testen i
+`test/next-bosses.test.js` sammenligner den med `DEFAULTS` i `overlays.js` og `WIN` i Live-fanen. Feilen ble gjenskapt på den
+utgitte koden før rettingen. Oppskriften på ny vindustype i AGENTS.md er oppdatert.
 
 ### Åpent nå (i prioritert rekkefølge)
 

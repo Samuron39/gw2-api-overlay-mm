@@ -5,6 +5,10 @@ const number = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v
 const strings = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
 const bounds = { x: [-100000, 100000], y: [-100000, 100000], width: [480, 10000], height: [320, 10000], w: [80, 10000], h: [40, 10000], size: [140, 320], opacity: [0.1, 1], iconSize: [12, 128], fontSize: [8, 48], showSkills: [0, 30], takenRows: [0, 30], squadRows: [1, 10], delayMs: [0, 30000], count: [1, 8], within: [5, 180], activeMin: [0, 30] };
 const enums = { layout: ['grid', 'list'], sort: ['timeAsc', 'timeDesc', 'name', 'stacks'], mode: ['both', 'number', 'clock'], filter: ['all', 'boons', 'conditions', 'other'], direction: ['row', 'col'], view: ['all', 'damage', 'squad', 'taken', 'healing'], period: ['fight', 'last', 'session'], pick: ['count', 'within'] };
+// Overlay-vindustypene, ÉN liste for både lagring (config:set) og lasting ved oppstart. 0.4.11 la `bosses` til bare i den ene:
+// valget ble lagret, men lukt bort som ugyldig ved neste start, så «Neste verdensbosser» sto avslått igjen etter hver
+// oppdatering (meldt av eieren 19. sept 2026). Må stemme med DEFAULTS i src/overlays.js; test/next-bosses.test.js sjekker det.
+const OVERLAY_TYPES = Object.freeze(['buffs', 'debuffs', 'target', 'skillbar', 'dps', 'dps2', 'dps3', 'bosses']);
 const bools = new Set(['enabled', 'locked', 'pinned', 'minimized', 'showNames', 'showIcons', 'showNext', 'showCooldown', 'showTaken', 'showLast', 'showHealing', 'showSquad', 'showTargetName', 'hideDone']);
 function windowPatch(value, allowed) {
   if (!plain(value)) throw new Error('object');
@@ -45,7 +49,7 @@ function field(key, v, defaults) {
     if (!plain(v)) throw new Error(key);
     const out = {};
     for (const [type, patch] of Object.entries(v)) {
-      if (!['buffs', 'debuffs', 'target', 'skillbar', 'dps', 'dps2', 'dps3', 'bosses'].includes(type)) throw new Error(key);
+      if (!OVERLAY_TYPES.includes(type)) throw new Error(key);
       out[type] = windowPatch(patch);
     }
     return out;
@@ -103,7 +107,7 @@ function normalize(saved, defaults) {
         }
       } else if (key === 'overlays' && plain(value)) {
         for (const [type, patch] of Object.entries(value)) {
-          if (!['buffs', 'debuffs', 'target', 'skillbar', 'dps', 'dps2', 'dps3'].includes(type) || !plain(patch)) { invalid.push('overlays.' + type); continue; }
+          if (!OVERLAY_TYPES.includes(type) || !plain(patch)) { invalid.push('overlays.' + type); continue; }
           out.overlays[type] = {};
           for (const [k, v] of Object.entries(patch)) {
             try { Object.assign(out.overlays[type], windowPatch({ [k]: v })); } catch { invalid.push('overlays.' + type + '.' + k); }
@@ -114,4 +118,4 @@ function normalize(saved, defaults) {
   }
   return { config: out, invalid };
 }
-module.exports = { plain, safeKey, windowPatch, rotation, validatePatch, normalize };
+module.exports = { plain, safeKey, windowPatch, rotation, validatePatch, normalize, OVERLAY_TYPES };

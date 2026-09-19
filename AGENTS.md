@@ -38,12 +38,16 @@ data/                        tidsplan, waypoints og guides.json fra wikien (CC B
 docs/                        PLAN-stabilisering-2026-09-17.md (ENESTE gjeldende plan, «Åpent nå» nederst), VALIDERING-2026-09-17.md,
                              releases/<versjon>.md (utgivelsesnotater), healing-api.md, BRIEF-felles.md (mal for underagenter),
                              BRIEF-guider.md (eksempel). PLAN-review-fixes.md og REVIEW-2026-09-16.md er avsluttet historikk.
-test/                        node:test, kjør `npm test` (282 tester per 19. sept 2026, må være grønn før commit)
+test/                        node:test, kjør `npm test` (283 tester per 19. sept 2026, må være grønn før commit)
 ```
 
-Ny overlay-vindustype = DEFAULTS i `src/overlays.js`, nøkler/typer i `src/config-validation.js` (også typelista i `field()`), beholder
+Ny overlay-vindustype = DEFAULTS i `src/overlays.js`, typen i `OVERLAY_TYPES` og nøklene i `bounds`/`enums`/`bools` i
+`src/config-validation.js` (brukes av BÅDE lagring og lasting: 0.4.11 glemte lastingen, så valget forsvant ved omstart), beholder
 + gren i `overlay.html`/`overlay.js` (`applyConfig`, `render`), kort i `renderWindows` i `src/renderer/modules/live.js` (lista `WIN`),
 `overlay.label.<type>` og `live.win.<type>` i begge i18n-filene. Se `bosses` (0.4.11) som mønster.
+
+Ny innstilling skal alltid prøves gjennom `normalize(saved, DEFAULT_CONFIG)`, ikke bare `config:set`: det er lastingen som avgjør om
+valget overlever en omstart.
 
 Ny modul = `src/modules/<navn>.js` + `src/renderer/modules/<navn>.js`, IPC i ipc.js, kanal i preload.js, skript i
 panel.html, id i MODULES i wheel.js og i ALL-lista i settings.js, tekster `module.<navn>` i begge i18n-filene.
@@ -85,7 +89,7 @@ curl -sL https://github.com/Samuron39/gw2-api-overlay-mm/releases/latest/downloa
   `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` (symlenker i arkivet feiler uten utviklermodus).
 - Broen (`bridge/target/release/gw2overlay_bridge.dll`) bygges med `cargo build --release` i `bridge/` FØR release
   (`scripts/check-native.js` stopper deg ellers). Eieren installerer ny bro via Live-fanen; si fra når broen er endret.
-- Gjeldende utgivelsesversjon: 0.4.13 (19. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
+- Gjeldende utgivelsesversjon: 0.4.14 (19. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
 
 ## 5. ArcDPS: målte fakta (build 20260816), ikke antakelser
 

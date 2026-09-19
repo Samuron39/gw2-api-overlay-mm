@@ -159,3 +159,25 @@ test('Live-fanen: vinduet «Neste verdensbosser» har valg for visning, antall, 
   const set = h.calls.filter((c) => c.channel === 'overlays:set').at(-1);
   assert.deepEqual(JSON.parse(JSON.stringify(set.args)), ['bosses', { within: 30 }], 'tall lagres som tall');
 });
+
+// ---------- Valget skal overleve omstart ----------
+test('lagret valg for «Neste verdensbosser» overlever lasting ved oppstart, og vindustypene er én felles liste', () => {
+  const { normalize, validatePatch, OVERLAY_TYPES } = require('../src/config-validation');
+  const saved = { overlays: { bosses: { enabled: true, locked: true, x: 1200, y: 300, w: 300, h: 120, pick: 'within', within: 30, count: 4, activeMin: 3, hideDone: false, fontSize: 16, opacity: 0.8 }, dps: { enabled: true, view: 'squad' } } };
+  const { config, invalid } = normalize(saved, { overlays: {} });
+  assert.deepEqual(invalid, [], 'ingenting lukes bort');
+  assert.deepEqual(config.overlays.bosses, saved.overlays.bosses, 'alle valgene er med etter omstart');
+  assert.equal(config.overlays.dps.view, 'squad');
+  // samme liste brukes når valget lagres
+  assert.deepEqual(validatePatch({ overlays: { bosses: { enabled: true } } }, { overlays: {} }), { overlays: { bosses: { enabled: true } } });
+  assert.throws(() => validatePatch({ overlays: { ukjent: { enabled: true } } }, { overlays: {} }));
+  assert.ok(normalize({ overlays: { ukjent: { enabled: true } } }, { overlays: {} }).invalid.includes('overlays.ukjent'));
+  // og lista stemmer med vinduene som faktisk finnes (overlays.js leses som tekst: modulen krever Electron)
+  const src = fs.readFileSync(path.join(__dirname, '../src/overlays.js'), 'utf8');
+  const defaults = [...src.slice(src.indexOf('const DEFAULTS = {'), src.indexOf('const wins')).matchAll(/^  (\w+): \{ enabled:/gm)].map((m) => m[1]);
+  assert.deepEqual([...defaults].sort(), [...OVERLAY_TYPES].sort(), 'DEFAULTS i overlays.js og OVERLAY_TYPES må ha de samme typene');
+  // Live-fanen viser de samme vinduene
+  const live = fs.readFileSync(path.join(__dirname, '../src/renderer/modules/live.js'), 'utf8');
+  const win = JSON.parse(/const WIN = (\[[^\]]+\]);/.exec(live)[1].replace(/'/g, '"'));
+  assert.deepEqual([...win].sort(), [...OVERLAY_TYPES].sort());
+});
