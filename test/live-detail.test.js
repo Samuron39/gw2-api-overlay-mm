@@ -197,3 +197,36 @@ test('data/bosses.json: gyldige art-id-er, navn og type; kilde og lisens er oppg
   for (const [id, b] of entries) { assert.ok(Number(id) > 0 && Number(id) <= 0xffff, 'art-id er 16 bit: ' + id); assert.ok(b.name); assert.ok(['raid', 'strike', 'fractal', 'openworld', 'golem'].includes(b.kind), b.kind); }
   assert.equal(data.bosses['15438'].name, 'Vale Guardian'); assert.equal(data.bosses['19450'].name, 'Dhuum');
 });
+
+// ---------- Målet slippes når det ikke gir livstegn ----------
+test('målet utløper: 8 s uten livstegn utenfor kamp, 20 s i kamp; valg, egne treff og effekter på målet holder det i live', () => {
+  const NODE = { id: 300, name: 'Covered Ley Shoot', prof: 0xffff0000 >>> 0, elite: NPC, self: 0, team: 0 };
+  const select = (a) => live.handle({ t: 'agent', s: 'area', src: { id: a.id, name: '', prof: 0, elite: 1, self: 0, team: 0 }, dst: null, name: '' });
+  live.agents.set(NODE.id, NODE);
+  const t = Date.now();
+  // utenfor kamp: eieren valgte et sankepunkt og gikk videre; ArcDPS sier aldri fra at målet er sluppet
+  select(NODE);
+  assert.equal(live.snapshot().target.name, 'Covered Ley Shoot');
+  assert.equal(live.expireTarget(t + 7000), false, 'fortsatt ferskt');
+  assert.equal(live.expireTarget(t + 9000), true);
+  assert.equal(live.snapshot().target, null, 'navnelinja forsvinner');
+  assert.equal(live.expireTarget(t + 99000), false, 'ingenting å slippe');
+  // i kamp: lengre frist, og hvert treff fra oss er et livstegn
+  live.handle(ev({ time: 1000, sc: 1 }));
+  live.handle(ev({ time: 1100, dst: GOLEM, value: -500, skill: 10, name: 'Slag' }));
+  assert.equal(live.targetId, GOLEM.id);
+  const at = live.targetAt;
+  assert.equal(live.expireTarget(at + 15000), false, 'pause for en mekanikk');
+  assert.equal(live.expireTarget(at + 21000), true, 'en fiende andre drepte blir ikke stående');
+  assert.equal(live.snapshot().target, null);
+  // en effekt på målet fra en annen spiller holder det i live uten å bytte mål
+  live.handle(ev({ time: 2000, dst: GOLEM, value: -500, skill: 10, name: 'Slag' }));
+  live.targetAt -= 19000;
+  live.handle(area({ time: 2100, sc: 69, buff: 1, value: 5000, skill: 738, name: 'Vulnerability', src: BETA, dst: GOLEM, iff: 1 }));
+  assert.equal(live.expireTarget(Date.now() + 5000), false, 'livstegn fra effekten');
+  assert.equal(live.targetId, GOLEM.id);
+  // fristene kan stilles (brukes av klokka i start())
+  live.targetIdleCombatMs = 1000;
+  assert.equal(live.expireTarget(Date.now() + 1500), true);
+  live.targetIdleCombatMs = 20000;
+});

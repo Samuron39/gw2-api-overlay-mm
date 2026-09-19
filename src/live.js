@@ -19,6 +19,8 @@ class Live extends EventEmitter {
     super();
     this.socket = null;
     this.timer = null;
+    this.targetIdleMs = 8000; // utenfor kamp: så lenge uten livstegn før målet slippes
+    this.targetIdleCombatMs = 20000; // i kamp
     this.helloTimeoutMs = 6000; // uten hello så lenge regnes broen som frakoblet (kort i tester)
     this.reset();
   }
@@ -38,6 +40,7 @@ class Live extends EventEmitter {
     this.agents = new Map(); // id -> { name, prof, elite, self }
     this.buffs = new Map(); // skill -> { name, expiries: number[], src, dur } (dur = varighet ms fra siste påføring)
     this.targetId = null;
+    this.targetAt = 0; // veggklokke for siste livstegn fra målet (valgt, truffet av oss, fått en effekt), se expireTarget
     this.targets = new Map(); // agentId -> Map(skill -> { name, expiries })
     this.cooldowns = new Map(); // skill -> { name, castStart, castDur, fired, firedAt }
     this.weaponSet = 'A'; // A/B på land, W1/W2 i vann. Fra ArcDPS statechange 11 (dstAgent = 4/5 land, 0/1 vann)
@@ -105,6 +108,7 @@ class Live extends EventEmitter {
       // En buff som løper ut er også en endring: uten dette fikk vinduene ingen ny tilstand før neste kamphendelse,
       // og telte videre i minus på egen hånd
       if (this.nextExpiry != null && now != null && now >= this.nextExpiry) this.dirty = true;
+      this.expireTarget();
       if (this.rec && Date.now() > this.rec.until) this.stopRecording();
       // Pågående kamp: ny tilstand to ganger i sekundet så DPS-vinduet teller, og avslutt om kampslutt-hendelsen uteble
       if (this.fight) {
@@ -192,7 +196,7 @@ class Live extends EventEmitter {
       // Målbytte: ev == null og src.elite == 1 (README.txt), src.id = det nye målet, dst = null. Eldre bro sendte 0xffffffff.
       if (m.src && (m.src.elite === 1 || m.src.elite === NPC_ELITE) && m.src.id > 0 && (m.dst == null || m.dst.self === 1)) {
         if (!this.agents.has(m.src.id)) this.agents.set(m.src.id, { id: m.src.id, name: m.src.name || '', prof: m.src.prof, elite: m.src.elite, self: 0 });
-        if (this.targetId !== m.src.id) { this.targetId = m.src.id; this.dirty = true; }
+        this.touchTarget(m.src.id);
         return;
       }
       // Agent fjernet (ev == null, src.prof == 0): ingenting å gjøre, målet beholdes til et nytt velges
@@ -317,11 +321,28 @@ class Live extends EventEmitter {
         this.dirty = true;
         return;
       }
-      if (this.targetId !== m.dst.id) { this.targetId = m.dst.id; this.dirty = true; }
+      this.touchTarget(m.dst.id);
     }
   }
 
   clearTarget() { if (this.targetId != null) { this.targetId = null; this.dirty = true; } }
+  // Setter målet og noterer livstegn. ArcDPS sier fra når du VELGER et mål (ev null, src.elite 1), men aldri når du slipper
+  // det: ingen av eierens opptak har et målbytte med id 0. Målet ble derfor stående til neste kampslutt eller eget dødsstøt,
+  // og navnelinja i målvinduet (0.4.10) viste «Covered Ley Shoot» lenge etter at eieren hadde gått videre, og fiender andre
+  // drepte ble også stående. Derfor utløper målet av seg selv når det ikke har gitt livstegn på en stund.
+  touchTarget(id) {
+    this.targetAt = Date.now();
+    if (this.targetId !== id) { this.targetId = id; this.dirty = true; }
+  }
+  // Kalles fra klokka ti ganger i sekundet. Utenfor kamp er et valgt mål sjelden interessant lenge (sanketing, NPC-er);
+  // i kamp tåler vi lengre pauser (mekanikker, unnvikelse) før målet slippes. Neste treff eller valg setter det igjen.
+  expireTarget(nowWall = Date.now()) {
+    if (this.targetId == null) return false;
+    const limit = this.inCombat ? this.targetIdleCombatMs : this.targetIdleMs;
+    if (nowWall - this.targetAt <= limit) return false;
+    this.clearTarget();
+    return true;
+  }
 
   // Instans-id-er gjelder per kart (egen instid byttet 5400 -> 2452 i opptaket ved kartbytte). Får vi selv en ny instid,
   // er hele tabellen fra forrige kart ugyldig: gamle oppføringer ville pekt minioner og treff på feil agent til de ble
@@ -817,7 +838,8 @@ class Live extends EventEmitter {
     else {
       map = this.targets.get(dst.id);
       if (!map) { this.pruneTargets(); map = new Map(); this.targets.set(dst.id, map); }
-      if (setTarget && m.src?.self === 1 && m.iff === 1) this.targetId = dst.id; // det vi sist traff med noe
+      if (setTarget && m.src?.self === 1 && m.iff === 1) this.touchTarget(dst.id); // det vi sist traff med noe
+      else if (dst.id === this.targetId) this.targetAt = Date.now(); // en effekt på målet fra hvem som helst er et livstegn
     }
     let b = map.get(m.skill);
     if (!b) { b = { name: m.name, expiries: [], src: m.src?.name || '', dur: 0 }; map.set(m.skill, b); }

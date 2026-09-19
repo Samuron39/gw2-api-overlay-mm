@@ -38,7 +38,7 @@ data/                        tidsplan, waypoints og guides.json fra wikien (CC B
 docs/                        PLAN-stabilisering-2026-09-17.md (ENESTE gjeldende plan, «Åpent nå» nederst), VALIDERING-2026-09-17.md,
                              releases/<versjon>.md (utgivelsesnotater), healing-api.md, BRIEF-felles.md (mal for underagenter),
                              BRIEF-guider.md (eksempel). PLAN-review-fixes.md og REVIEW-2026-09-16.md er avsluttet historikk.
-test/                        node:test, kjør `npm test` (281 tester per 19. sept 2026, må være grønn før commit)
+test/                        node:test, kjør `npm test` (282 tester per 19. sept 2026, må være grønn før commit)
 ```
 
 Ny overlay-vindustype = DEFAULTS i `src/overlays.js`, nøkler/typer i `src/config-validation.js` (også typelista i `field()`), beholder
@@ -85,7 +85,7 @@ curl -sL https://github.com/Samuron39/gw2-api-overlay-mm/releases/latest/downloa
   `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` (symlenker i arkivet feiler uten utviklermodus).
 - Broen (`bridge/target/release/gw2overlay_bridge.dll`) bygges med `cargo build --release` i `bridge/` FØR release
   (`scripts/check-native.js` stopper deg ellers). Eieren installerer ny bro via Live-fanen; si fra når broen er endret.
-- Gjeldende utgivelsesversjon: 0.4.12 (19. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
+- Gjeldende utgivelsesversjon: 0.4.13 (19. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
 
 ## 5. ArcDPS: målte fakta (build 20260816), ikke antakelser
 
@@ -108,6 +108,8 @@ UDP-opptak `opptak-2026-09-13.log` samme sted. Siter README-linjer i kodekomment
 - Kamp inn/ut (sc 1/2) kommer på BEGGE kanaler (samme time, ulik id, evtc-kopien 2–3 s etter); live.js ignorerer dem
   fra area. Dødsstøt (result 8) har alltid value 0 og buffDmg 0. BUFFINITIAL (sc 18): value = gjenværende, buffDmg =
   opprinnelig varighet. Klokkeavviket er null til første hendelse; area får sette det bare når ingen local har kommet.
+- ArcDPS melder at du VELGER et mål, aldri at du slipper det (ingen målbytte med id 0 i opptakene). live.js slipper derfor målet
+  selv etter 8 s uten livstegn utenfor kamp og 20 s i kamp (`expireTarget`). Sett målet med `touchTarget(id)`, ikke `targetId =`.
 - Målbytte: ev null, src.elite == 1. Agent lagt til: ev null, src.prof != 0. Dødsstøt: result 8. Ingen
   CHANGEDEAD/HEALTHPCTUPDATE for vanlige fiender i åpen verden; target tømmes på sc 2 eller eget dødsstøt.
 - Egne condition-ticks på chatbox-kanalen (målt 18. sept 2026, condition-warrior, build 20260915): `buff 1`, NEGATIV `buffDmg`,

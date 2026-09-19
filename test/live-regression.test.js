@@ -29,7 +29,7 @@ test('forsinket ekstern healing beholdes i riktig kamp, også etter folding og d
 test('utløp oppdaterer egne og målets stacks uten nye kampmeldinger', async () => {
   live.start(0); // OS velger egen testport; aldri appens port
   await new Promise(resolve => live.socket.once('listening', resolve));
-  const now = Date.now(); live.offset = 0; live.targetId = TARGET.id; live.agents.set(TARGET.id, TARGET);
+  const now = Date.now(); live.offset = 0; live.touchTarget(TARGET.id); live.agents.set(TARGET.id, TARGET); // touchTarget: et mål uten livstegn slippes av expireTarget
   live.buffs.set(740, { name: 'Might', expiries: [now + 150, now + 5000], dur: 5000 });
   live.targets.set(TARGET.id, new Map([[738, { name: 'Vulnerability', expiries: [now + 150, now + 5000], dur: 5000 }]]));
   const first = live.snapshot();
