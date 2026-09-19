@@ -834,5 +834,9 @@
   "live.bosses.activeMin": "Pågående vises i",
   "live.bosses.activeMinHelp": "Hvor lenge en boss som har startet blir stående øverst før den viker for de neste. 0 = aldri.",
   "live.bosses.hideDone": "Skjul drept i dag",
-  "live.bosses.hideDoneHelp": "Krever API-nøkkel. Oppdateres hvert femte minutt."
+  "live.bosses.hideDoneHelp": "Krever API-nøkkel. Oppdateres hvert femte minutt.",
+  "wheel.minimize": "Minimer hjulet til bare ikonet",
+  "wheel.restore": "Klikk for å åpne hjulet. Dra for å flytte.",
+  "wheel.minimizeOrDrag": "Dra for å flytte. Klikk for å minimere hjulet.",
+  "wheel.minimizeLocked": "Låst. Klikk for å minimere hjulet."
 }

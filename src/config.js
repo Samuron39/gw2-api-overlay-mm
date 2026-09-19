@@ -21,7 +21,7 @@ const DEFAULT_CONFIG = {
     'Black Lion', 'Tome of Knowledge', 'Writ of', 'Spirit Shard', 'Laurel', 'Provisioner Token',
     'Salvage Kit', 'Salvage-o-Matic', 'Gathering Sickle', 'Logging Axe', 'Mining Pick',
   ],
-  wheel: { x: null, y: null, locked: false, size: 200 },
+  wheel: { x: null, y: null, locked: false, size: 200, minimized: false }, // minimized: bare ikonet i midten vises (klikk på det åpner hjulet igjen)
   panel: { x: null, y: null, width: 1000, height: 680, pinned: true, opacity: 0.95 },
   dpsLogDir: '',
   timersHidden: ['core-dn', 'eod-dn', 'voe-dn'], // dag/natt-syklusene er støy for de fleste

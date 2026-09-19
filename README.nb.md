@@ -27,7 +27,7 @@ npm start
 ```
 
 1. Første gang åpner panelet fanen *Kom i gang*: en veiviser som sjekker API-nøkkel, spillmappe, ArcDPS og broen, loggmappe, oppstart sammen med spillet, hjelperen og LM Studio, med knapper som ordner det som mangler. Den ligger alltid som fane ved siden av *Innstillinger* og i menyen i systemstatusfeltet. Huk av «Ikke vis veiviseren ved oppstart» når alt er grønt.
-2. Hjulet dukker opp. Dra det i midten, lås plasseringen med hengelåsen. Klikk et segment for å åpne modulen i panelet. Ctrl+Shift+G viser eller skjuler panelet.
+2. Hjulet dukker opp. Dra det i midten, lås plasseringen med hengelåsen. Klikk på ikonet i midten for å minimere hjulet til bare ikonet, og klikk igjen for å åpne det. Klikk et segment for å åpne modulen i panelet. Ctrl+Shift+G viser eller skjuler panelet.
 3. Lag en API-nøkkel på <https://account.arena.net/applications> med **alle** tillatelser: account, inventories, characters, wallet, unlocks, progression, tradingpost, builds, guilds. Lim den inn under *Innstillinger*.
 4. Start serveren i LM Studio med en modell lastet med 16k kontekst. Standard i appen er `google/gemma-4-12b-qat`.
 5. Posisjon fra spillet og waypoint-innliming i chatten går via en liten Rust-hjelper (`helper/`). Kjører du fra kildekoden, bygg den én gang med `cargo build --release` i `helper/` (krever Rust). Uten hjelperen fungerer alt annet.

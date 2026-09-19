@@ -834,5 +834,9 @@
   "live.bosses.activeMin": "Show ongoing for",
   "live.bosses.activeMinHelp": "How long a boss that has started stays on top before it gives way to the next ones. 0 = never.",
   "live.bosses.hideDone": "Hide killed today",
-  "live.bosses.hideDoneHelp": "Requires an API key. Refreshed every five minutes."
+  "live.bosses.hideDoneHelp": "Requires an API key. Refreshed every five minutes.",
+  "wheel.minimize": "Minimize the wheel to just the icon",
+  "wheel.restore": "Click to open the wheel. Drag to move.",
+  "wheel.minimizeOrDrag": "Drag to move. Click to minimize the wheel.",
+  "wheel.minimizeLocked": "Locked. Click to minimize the wheel."
 }

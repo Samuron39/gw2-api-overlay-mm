@@ -14,7 +14,12 @@
     .seg.active { fill: rgba(91, 108, 255, 0.55); stroke: rgba(160, 170, 255, 0.9); }
     .icon { font-size: 22px; pointer-events: none; text-anchor: middle; dominant-baseline: central; }
     #center { position: absolute; border-radius: 50%; background: rgba(18, 20, 23, 0.95) url("../../assets/wheel.png") center / cover no-repeat; border: 1px solid rgba(255,255,255,0.25); cursor: move; touch-action: none; }
-    body.locked #center { cursor: default; }
+    body.locked #center { cursor: pointer; }
+    /* Minimert: bare ikonet i midten. Vinduet beholder størrelse og plass, så ikonet står stille; resten er gjennomsiktig og
+       slipper klikk gjennom til spillet (se mousemove i wheel.js). */
+    body.mini #svg, body.mini #bar { display: none; }
+    body.mini #center { cursor: pointer; box-shadow: 0 0 0 2px rgba(91, 108, 255, 0.55), 0 2px 8px rgba(0,0,0,0.6); }
+    body.mini #center:hover { box-shadow: 0 0 0 2px rgba(160, 170, 255, 0.95), 0 2px 8px rgba(0,0,0,0.6); }
     #centerBadge { position: absolute; right: -2px; bottom: -2px; width: 20px; height: 20px; border-radius: 50%; background: rgba(18, 20, 23, 0.95); border: 1px solid rgba(255,255,255,0.3); font-size: 11px; display: flex; align-items: center; justify-content: center; pointer-events: none; }
     #bar { position: absolute; left: 0; right: 0; bottom: 0; height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 6px; }
     #label { flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: rgba(18, 20, 23, 0.85); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 3px 8px; font-size: 11px; }
@@ -30,6 +35,7 @@
     <div id="center" title="Dra for å flytte"><span id="centerBadge">✥</span></div>
     <div id="bar">
       <button class="btn" id="lockBtn" title="Lås plassering">🔓</button>
+      <button class="btn" id="miniBtn" title="Minimer hjulet">▁</button>
       <div id="label"><span class="dot" id="dot"></span><span id="labelText">GW2 Overlay</span></div>
       <button class="btn" id="quitBtn" title="Avslutt overlay">✕</button>
     </div>

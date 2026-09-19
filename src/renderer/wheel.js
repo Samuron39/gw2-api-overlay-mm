@@ -74,9 +74,24 @@ function setLocked(locked) {
   document.body.classList.toggle('locked', locked);
   document.getElementById('lockBtn').textContent = locked ? '🔒' : '🔓';
   document.getElementById('lockBtn').title = T.t(locked ? 'wheel.unlockPosition' : 'wheel.lockPosition');
-  document.getElementById('centerBadge').textContent = locked ? '🔒' : '✥';
-  center.title = T.t(locked ? 'wheel.locked' : 'wheel.dragToMove');
+  centerTexts();
 }
+// ---------- Minimert hjul ----------
+// Bare ikonet i midten vises; et klikk på ikonet åpner hjulet igjen, og et klikk til (eller ▁ i linja under) minimerer det.
+// Å dra ikonet flytter fortsatt hjulet. Valget lagres (config.wheel.minimized), så hjulet starter slik du forlot det.
+function centerTexts() {
+  const locked = document.body.classList.contains('locked'), mini = document.body.classList.contains('mini');
+  document.getElementById('centerBadge').textContent = mini ? '＋' : locked ? '🔒' : '✥';
+  center.title = T.t(mini ? 'wheel.restore' : locked ? 'wheel.minimizeLocked' : 'wheel.minimizeOrDrag');
+  document.getElementById('miniBtn').title = T.t('wheel.minimize');
+}
+function setMini(on) { document.body.classList.toggle('mini', !!on); centerTexts(); if (on) setLabel(null); }
+async function toggleMini() {
+  const on = !document.body.classList.contains('mini');
+  setMini(on);
+  try { await window.api.invoke('config:set', { wheel: { minimized: on } }); } catch { /* lagring feilet: hjulet virker likevel, valget huskes bare ikke */ }
+}
+document.getElementById('miniBtn').addEventListener('click', toggleMini);
 // Statiske tekster i wheel.html
 function applyStatic() {
   document.title = T.t('wheel.title');
@@ -109,16 +124,24 @@ async function onMumble(s) {
 
 // Manuell draing av hjulet fra midten. CSS-drag (-webkit-app-region) er upålitelig i gjennomsiktige vinduer
 // med klikk-gjennom og DPI-skalering, så vi flytter vinduet selv ut fra skjermkoordinatene til pekeren.
-let dragging = false;
+// Et trykk på midten uten å flytte pekeren (under 5 px) er et klikk: da minimeres eller åpnes hjulet. Med låst plassering
+// dras ingenting, men klikket virker.
+let dragging = false, press = null;
+const CLICK_PX = 5;
 center.addEventListener('pointerdown', (e) => {
-  if (document.body.classList.contains('locked') || e.button !== 0) return;
+  if (e.button !== 0) return;
+  press = { x: e.screenX, y: e.screenY, moved: false };
+  if (document.body.classList.contains('locked')) return;
   dragging = true; center.setPointerCapture(e.pointerId);
   window.api.invoke('win:drag', { target: 'wheel', phase: 'start', x: e.screenX, y: e.screenY });
 });
-center.addEventListener('pointermove', (e) => { if (dragging) window.api.invoke('win:drag', { target: 'wheel', phase: 'move', x: e.screenX, y: e.screenY }); });
+center.addEventListener('pointermove', (e) => {
+  if (press && Math.hypot(e.screenX - press.x, e.screenY - press.y) >= CLICK_PX) press.moved = true;
+  if (dragging) window.api.invoke('win:drag', { target: 'wheel', phase: 'move', x: e.screenX, y: e.screenY });
+});
 const endDrag = (e) => { if (!dragging) return; dragging = false; try { center.releasePointerCapture(e.pointerId); } catch { /* allerede sluppet */ } window.api.invoke('win:drag', { target: 'wheel', phase: 'end' }); };
-center.addEventListener('pointerup', endDrag);
-center.addEventListener('pointercancel', endDrag);
+center.addEventListener('pointerup', (e) => { const click = press && !press.moved; press = null; endDrag(e); if (click) toggleMini(); });
+center.addEventListener('pointercancel', (e) => { press = null; endDrag(e); });
 
 // Klikk-gjennom: gjennomsiktige områder slipper museklikk videre til spillet
 let ignoring = false;
@@ -133,10 +156,10 @@ document.addEventListener('mouseleave', () => { if (!ignoring) { ignoring = true
 window.api.on('mumble:state', onMumble);
 window.api.on('wheel:locked', ({ locked }) => setLocked(locked));
 window.api.on('panel:visible', ({ visible, module }) => setActive(visible ? module : null));
-window.api.on('config:changed', async (c) => { if (await T.sync(c)) applyStatic(); if (JSON.stringify(c.wheelModules || null) !== JSON.stringify(enabledModules)) build(c.wheelModules || null); applyFollow(c); });
+window.api.on('config:changed', async (c) => { if (await T.sync(c)) applyStatic(); if (JSON.stringify(c.wheelModules || null) !== JSON.stringify(enabledModules)) build(c.wheelModules || null); applyFollow(c); setMini(!!c.wheel?.minimized); });
 T.load().then(() => {
   applyStatic();
-  window.api.invoke('config:get').then((c) => { setLocked(!!c.wheel?.locked); build(c.wheelModules || null); applyFollow(c); });
+  window.api.invoke('config:get').then((c) => { setLocked(!!c.wheel?.locked); setMini(!!c.wheel?.minimized); build(c.wheelModules || null); applyFollow(c); });
   window.api.invoke('mumble:get').then(onMumble);
   window.api.invoke('panel:state').then(({ visible, module }) => setActive(visible ? module : null));
 });

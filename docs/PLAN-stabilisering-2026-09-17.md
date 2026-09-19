@@ -4,7 +4,7 @@ Dato: 17. september 2026. Utgangspunkt: **0.4.4**, commit `4887e3e`.
 
 Dette er den gjeldende planen for stabilisering etter `docs/REVIEW-2026-09-16.md`. Alle 16 funn er med. Gjenstående arbeid fra `docs/PLAN-review-fixes.md` er innarbeidet i fasene og avstemt nederst. Den eldre planen beholdes som historikk; dens gamle versjonsmål styrer ikke denne planen.
 
-Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 276 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
+Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 281 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
 
 Dette er den ENESTE gjeldende planen. `docs/PLAN-review-fixes.md` er avsluttet historikk med sluttstatus per punkt.
 
@@ -268,6 +268,17 @@ chatten slik «I dag» gjør. Eieren vil velge hvor mange bosser fremover, eller
       i raden («limt inn» / «kopiert» når spillet ikke går). Nedtellingen går lokalt hvert sekund; «drept i dag» hentes hvert femte
       minutt. Radene er klikkbare også når vinduet er låst.
 - [x] Live-fanen: kortet «Neste verdensbosser» med alle valgene. Tester i `test/next-bosses.test.js` mot den ekte tidsplanen.
+
+## Ny funksjon: minimert hjul (ønsket av eieren 19. sept 2026)
+
+Ønsket: minimere hjulet til bare ikonet og åpne det igjen når man vil. **Ferdig og automatisk verifisert 19. sept 2026, utgitt i
+0.4.12; ikke sett i spillet ennå.**
+- [x] Klikk på ikonet i midten (pekeren flyttet under 5 px) bytter mellom åpent og minimert; ▁ i linja under minimerer. Å dra
+      ikonet flytter hjulet som før, også minimert. Låst plassering kan minimeres og åpnes, men ikke dras.
+- [x] Minimert = klassen `mini` på body skjuler segmentene og linja. Vinduet endrer IKKE størrelse eller plass, så ikonet står
+      stille, og det gjennomsiktige området slipper klikk gjennom som før (samme mousemove-logikk).
+- [x] Lagres i `config.wheel.minimized` via `config:set`; følger `config:changed`. Lagringsfeil hindrer ikke minimeringen.
+- [x] `test/wheel-minimize.test.js` kjører selve `wheel.js` mot en minimal DOM.
 
 ### Åpent nå (i prioritert rekkefølge)
 

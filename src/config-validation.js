@@ -5,7 +5,7 @@ const number = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v
 const strings = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
 const bounds = { x: [-100000, 100000], y: [-100000, 100000], width: [480, 10000], height: [320, 10000], w: [80, 10000], h: [40, 10000], size: [140, 320], opacity: [0.1, 1], iconSize: [12, 128], fontSize: [8, 48], showSkills: [0, 30], takenRows: [0, 30], squadRows: [1, 10], delayMs: [0, 30000], count: [1, 8], within: [5, 180], activeMin: [0, 30] };
 const enums = { layout: ['grid', 'list'], sort: ['timeAsc', 'timeDesc', 'name', 'stacks'], mode: ['both', 'number', 'clock'], filter: ['all', 'boons', 'conditions', 'other'], direction: ['row', 'col'], view: ['all', 'damage', 'squad', 'taken', 'healing'], period: ['fight', 'last', 'session'], pick: ['count', 'within'] };
-const bools = new Set(['enabled', 'locked', 'pinned', 'showNames', 'showIcons', 'showNext', 'showCooldown', 'showTaken', 'showLast', 'showHealing', 'showSquad', 'showTargetName', 'hideDone']);
+const bools = new Set(['enabled', 'locked', 'pinned', 'minimized', 'showNames', 'showIcons', 'showNext', 'showCooldown', 'showTaken', 'showLast', 'showHealing', 'showSquad', 'showTargetName', 'hideDone']);
 function windowPatch(value, allowed) {
   if (!plain(value)) throw new Error('object');
   const out = {};
