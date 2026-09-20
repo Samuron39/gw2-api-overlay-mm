@@ -24,7 +24,7 @@
       <section class="dy-card" id="lvBridge">
         <h3>${esc(t('live.bridge'))}</h3>
         <div id="lvBridgeStatus" class="muted">${esc(t('live.checking'))}</div>
-        <div class="row" style="margin-top:6px"><button id="lvInstallBridge" class="primary">${esc(t('live.installBridge'))}</button><button id="lvCheck">${esc(t('live.recheck'))}</button><button id="lvRecord" title="${esc(t('live.recordHelp'))}">${esc(t('live.record'))}</button></div>
+        <div class="row" style="margin-top:6px"><button id="lvInstallArc" class="primary" hidden>${esc(t('setup.arc.install'))}</button><button id="lvInstallBridge" class="primary">${esc(t('live.installBridge'))}</button><button id="lvCheck">${esc(t('live.recheck'))}</button><button id="lvRecord" title="${esc(t('live.recordHelp'))}">${esc(t('live.record'))}</button></div>
         <div class="act-note" id="lvBridgeNote" role="status"></div>
         <p class="muted small">${esc(t('live.bridgeHelp'))}</p>
         <p class="muted small">${esc(t('live.healingHelp'))} <a href="#" id="lvHealingLink">${esc(t('live.healingLink'))}</a></p>
@@ -50,6 +50,17 @@
       if (r.ok) setStatus(t('live.bridgeInstalled', { target: r.value.target }));
       if (mounted.valid()) bridgeStatus();
     });
+    // ArcDPS mangler eller er gammel: samme installasjon som i Kom i gang (ArcDPS + broen i ett, med fremdrift og sjekk av at
+    // antivirus ikke fjerner fila). Eieren trykket «Installer broen» 20. sept 2026 da det var ArcDPS som var borte; Live-fanen
+    // hadde ingen knapp for ArcDPS, så det så ut som broen var feilen.
+    $('#lvInstallArc', el).addEventListener('click', async () => {
+      const r = await Panel.busy($('#lvInstallArc', root), () => window.api.invoke('setup:installArc'), {
+        note: $('#lvBridgeNote', root), flash: $('#lvBridge', root), owner: mounted, working: t('dps.downloading'), done: t('setup.arc.doneNote'),
+      });
+      if (r.ok) setStatus(t('setup.arc.done'));
+      if (mounted.valid()) bridgeStatus();
+    });
+    scope.on('arc:progress', (p) => Panel.arcProgress(root && $('#lvBridgeNote', root), p));
     $('#lvCheck', el).addEventListener('click', bridgeStatus);
     // Healing stats-utvidelsen (valgfri, gir squad-healing): lenke til GitHub-siden med nedlasting
     $('#lvHealingLink', el).addEventListener('click', (e) => { e.preventDefault(); window.api.invoke('open:url', 'https://github.com/Krappa322/arcdps_healing_stats'); });
@@ -86,6 +97,16 @@
       const warn = s.removedExternally ? `<div class="act-warn">${esc(t('arc.removedExternally'))}</div>` : '';
       $('#lvBridgeStatus', root).innerHTML = `<div>${esc(parts.join(' '))}</div>${warn}<div id="lvLive"></div>`;
       $('#lvInstallBridge', root).textContent = t(b.installed ? (b.upToDate ? 'live.reinstallBridge' : 'live.updateBridge') : 'live.installBridge');
+      // ArcDPS-knappen vises bare når det er ArcDPS som trengs, og er da hovedknappen; bro-knappen tones ned.
+      const arcBtn = $('#lvInstallArc', root), needArc = s.validDir !== false && (!s.installed || !!s.updateAvailable);
+      arcBtn.hidden = !needArc;
+      arcBtn.textContent = t(s.installed ? 'live.updateArc' : 'setup.arc.install');
+      arcBtn.disabled = !!s.running;
+      arcBtn.title = s.running ? t('dps.gameRunning') : '';
+      $('#lvInstallBridge', root).classList.toggle('primary', !needArc);
+      // Bare i et tomt felt: en kvittering eller feil fra et nylig trykk skal ikke skrives over av statussjekken hvert 15. sekund
+      const noteEl = $('#lvBridgeNote', root);
+      if (needArc && s.running && noteEl.className.trim() === 'act-note') Panel.note(noteEl, 'info', t('live.arcNeedsGameClosed'));
       liveLine();
     } catch (e) { if (valid()) $('#lvBridgeStatus', root).textContent = t('common.error', { message: e.message }); }
   }

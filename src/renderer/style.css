@@ -74,6 +74,7 @@ td.where { color: var(--muted); font-size: 12px; }
 .settings .row { display: flex; gap: 8px; margin-top: 4px; }
 .settings .row input { flex: 1; min-width: 0; }
 .settings .row button { flex: none; white-space: nowrap; }
+button[hidden] { display: none; }
 .settings label[hidden], .settings div[hidden] { display: none; } /* hidden-attributtet må vinne over display: block */
 .settings label.inline { display: flex; align-items: flex-start; gap: 8px; white-space: normal; line-height: 1.4; }
 .settings label.inline input[type=checkbox] { display: inline-block; width: auto; flex: none; margin: 3px 0 0; }

@@ -4,7 +4,7 @@ Dato: 17. september 2026. Utgangspunkt: **0.4.4**, commit `4887e3e`.
 
 Dette er den gjeldende planen for stabilisering etter `docs/REVIEW-2026-09-16.md`. Alle 16 funn er med. Gjenstående arbeid fra `docs/PLAN-review-fixes.md` er innarbeidet i fasene og avstemt nederst. Den eldre planen beholdes som historikk; dens gamle versjonsmål styrer ikke denne planen.
 
-Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 283 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
+Status: **Implementert og automatisk verifisert 17. september 2026, utgitt som 0.4.5.** Tillegg fra 18. september er utgitt som 0.4.6 (se «Tillegg etter 17. september» nederst). 285 tester består lokalt og i Windows-CI. Se [valideringsrapporten](VALIDERING-2026-09-17.md) for resultat per R-punkt og gjenstående spillkontroll.
 
 Dette er den ENESTE gjeldende planen. `docs/PLAN-review-fixes.md` er avsluttet historikk med sluttstatus per punkt.
 
@@ -295,6 +295,15 @@ truffet av oss, effekt lagt på målet av hvem som helst), og `expireTarget()` i
 `overlays.bosses` ugyldig ved neste start, og neste lagring skrev konfigen uten det. Nå: én `OVERLAY_TYPES`, og testen i
 `test/next-bosses.test.js` sammenligner den med `DEFAULTS` i `overlays.js` og `WIN` i Live-fanen. Feilen ble gjenskapt på den
 utgitte koden før rettingen. Oppskriften på ny vindustype i AGENTS.md er oppdatert.
+
+## ArcDPS-knapp på Live-fanen (20. sept 2026)
+
+Defender fjernet `d3d11.dll` på nytt 19. sept kl. 19:18, halvannen time etter at spillet var lukket: «Tillat på enheten» var
+ikke blitt stående (ingen tillatte trusler i `Get-MpPreference`), trolig ble fila bare gjenopprettet. Eieren la selv inn en
+ekskludering for `C:\Guild Wars 2\d3d11.dll` fra et administrator-PowerShell 20. sept. Eieren trykket deretter «Installer broen»
+på Live-fanen, fordi fanen ikke hadde noen knapp for ArcDPS. **Rettet i 0.4.15:** «Installer ArcDPS og broen» vises i kortet når
+ArcDPS mangler eller er gammel (`setup:installArc`, fremdrift via `arc:progress`, kvittering i kortet), er grå med forklaring
+når spillet kjører, og bro-knappen tones ned. Tester i `test/ui-feedback.test.js`.
 
 ### Åpent nå (i prioritert rekkefølge)
 

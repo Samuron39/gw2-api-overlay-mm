@@ -133,3 +133,49 @@ test('Kom i gang: installasjon viser fremdrift i steget, kvitteringen overlever 
   const n2 = root2.querySelector('#su-note-arc');
   assert.equal(cls(n2), 'act-note err'); assert.match(n2.textContent, /fjernet av antivirus/);
 });
+
+// ---------- ArcDPS-knapp på Live-fanen ----------
+test('Live: når ArcDPS mangler vises «Installer ArcDPS og broen» som hovedknapp, med fremdrift og kvittering i kortet', async () => {
+  const work = deferred();
+  const state = { snap: { connected: false }, arc: { validDir: true, installed: false, removedExternally: true, running: false, bridge: { available: true, installed: true, upToDate: true } }, install: () => ({}) };
+  const h = renderer(['live'], (ch) => {
+    if (ch === 'live:get') return state.snap;
+    if (ch === 'overlays:get') return {};
+    if (ch === 'arc:status') return state.arc;
+    if (ch === 'setup:installArc') return work.promise;
+    if (ch === 'skills:get') return { ok: false };
+    return true;
+  });
+  const root = h.root(); await h.modules.live.mount(root); await flush();
+  const arc = root.querySelector('#lvInstallArc'), bridge = root.querySelector('#lvInstallBridge'), note = root.querySelector('#lvBridgeNote');
+  assert.equal(arc.hidden, false); assert.equal(arc.textContent, 'setup.arc.install'); assert.equal(arc.disabled, false);
+  assert.ok(!bridge.classList.contains('primary'), 'bro-knappen tones ned når det er ArcDPS som mangler');
+  const click = arc.dispatch('click'); await flush();
+  assert.equal(cls(note), 'act-note work');
+  h.emit('arc:progress', { phase: 'download', received: 600 * 1024, total: 1200 * 1024 });
+  assert.equal(note.querySelector('.act-bar i').style.width, '50%');
+  h.emit('arc:progress', { phase: 'verify', ms: 10000, left: 5000 });
+  assert.match(note.textContent, /arc\.progress\.verify 5/);
+  state.arc = { ...state.arc, installed: true, removedExternally: false };
+  work.resolve({}); await click; await flush();
+  assert.equal(cls(note), 'act-note ok'); assert.match(note.textContent, /setup\.arc\.doneNote/);
+  assert.equal(root.querySelector('#lvInstallArc').hidden, true, 'knappen forsvinner når ArcDPS er på plass');
+  assert.ok(root.querySelector('#lvInstallBridge').classList.contains('primary'));
+  assert.ok(h.calls.some((c) => c.channel === 'setup:installArc') && !h.calls.some((c) => c.channel === 'arc:installBridge'));
+});
+
+test('Live: spillet kjører gir deaktivert ArcDPS-knapp og en forklaring; gammel ArcDPS gir «Oppdater»; alt i orden gir ingen knapp', async () => {
+  const mk = async (arc) => {
+    const h = renderer(['live'], (ch) => ch === 'live:get' ? { connected: false } : ch === 'overlays:get' ? {} : ch === 'arc:status' ? arc : ch === 'skills:get' ? { ok: false } : true);
+    const root = h.root(); await h.modules.live.mount(root); await flush(); return root;
+  };
+  const bridge = { available: true, installed: true, upToDate: true };
+  let root = await mk({ validDir: true, installed: false, running: true, bridge });
+  assert.equal(root.querySelector('#lvInstallArc').hidden, false); assert.equal(root.querySelector('#lvInstallArc').disabled, true);
+  assert.equal(cls(root.querySelector('#lvBridgeNote')), 'act-note info'); assert.match(root.querySelector('#lvBridgeNote').textContent, /live\.arcNeedsGameClosed/);
+  root = await mk({ validDir: true, installed: true, updateAvailable: true, running: false, bridge });
+  assert.equal(root.querySelector('#lvInstallArc').hidden, false); assert.equal(root.querySelector('#lvInstallArc').textContent, 'live.updateArc');
+  root = await mk({ validDir: true, installed: true, updateAvailable: false, running: false, bridge });
+  assert.equal(root.querySelector('#lvInstallArc').hidden, true); assert.ok(root.querySelector('#lvInstallBridge').classList.contains('primary'));
+  assert.equal(cls(root.querySelector('#lvBridgeNote')), 'act-note', 'ingen melding når alt er i orden');
+});

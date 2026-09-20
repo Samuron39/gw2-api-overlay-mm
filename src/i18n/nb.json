@@ -838,5 +838,7 @@
   "wheel.minimize": "Minimer hjulet til bare ikonet",
   "wheel.restore": "Klikk for å åpne hjulet. Dra for å flytte.",
   "wheel.minimizeOrDrag": "Dra for å flytte. Klikk for å minimere hjulet.",
-  "wheel.minimizeLocked": "Låst. Klikk for å minimere hjulet."
+  "wheel.minimizeLocked": "Låst. Klikk for å minimere hjulet.",
+  "live.updateArc": "Oppdater ArcDPS og broen",
+  "live.arcNeedsGameClosed": "ArcDPS mangler eller er gammel. Lukk Guild Wars 2, så kan den installeres herfra."
 }

@@ -838,5 +838,7 @@
   "wheel.minimize": "Minimize the wheel to just the icon",
   "wheel.restore": "Click to open the wheel. Drag to move.",
   "wheel.minimizeOrDrag": "Drag to move. Click to minimize the wheel.",
-  "wheel.minimizeLocked": "Locked. Click to minimize the wheel."
+  "wheel.minimizeLocked": "Locked. Click to minimize the wheel.",
+  "live.updateArc": "Update ArcDPS and the bridge",
+  "live.arcNeedsGameClosed": "ArcDPS is missing or outdated. Close Guild Wars 2, then it can be installed from here."
 }

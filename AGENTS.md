@@ -38,7 +38,7 @@ data/                        tidsplan, waypoints og guides.json fra wikien (CC B
 docs/                        PLAN-stabilisering-2026-09-17.md (ENESTE gjeldende plan, «Åpent nå» nederst), VALIDERING-2026-09-17.md,
                              releases/<versjon>.md (utgivelsesnotater), healing-api.md, BRIEF-felles.md (mal for underagenter),
                              BRIEF-guider.md (eksempel). PLAN-review-fixes.md og REVIEW-2026-09-16.md er avsluttet historikk.
-test/                        node:test, kjør `npm test` (283 tester per 19. sept 2026, må være grønn før commit)
+test/                        node:test, kjør `npm test` (285 tester per 20. sept 2026, må være grønn før commit)
 ```
 
 Ny overlay-vindustype = DEFAULTS i `src/overlays.js`, typen i `OVERLAY_TYPES` og nøklene i `bounds`/`enums`/`bools` i
@@ -89,7 +89,7 @@ curl -sL https://github.com/Samuron39/gw2-api-overlay-mm/releases/latest/downloa
   `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` (symlenker i arkivet feiler uten utviklermodus).
 - Broen (`bridge/target/release/gw2overlay_bridge.dll`) bygges med `cargo build --release` i `bridge/` FØR release
   (`scripts/check-native.js` stopper deg ellers). Eieren installerer ny bro via Live-fanen; si fra når broen er endret.
-- Gjeldende utgivelsesversjon: 0.4.14 (19. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
+- Gjeldende utgivelsesversjon: 0.4.15 (20. sept 2026). Publiseringsstatus bekreftes mot GitHub Releases.
 
 ## 5. ArcDPS: målte fakta (build 20260816), ikke antakelser
 
@@ -127,7 +127,9 @@ UDP-opptak `opptak-2026-09-13.log` samme sted. Siter README-linjer i kodekomment
 - «Broen virker ikke» betyr oftest at ArcDPS selv mangler. 18. sept 2026 fjernet Windows Defender `C:\Guild Wars 2\d3d11.dll`
   (offisiell build 20260915, riktig MD5) som `Trojan:Win32/Posilod.CA!cl`; `!cl` er sky-maskinlæring, feilflagging er vanlig.
   Sjekk i denne rekkefølgen: finnes `d3d11.dll`, har `addons\arcdps\arcdps.log` linjer fra i dag, `Get-MpThreatDetection`.
-  Appen varsler nå selv (`status().removedExternally`, `verifyKept()` etter installasjon).
+  Appen varsler nå selv (`status().removedExternally`, `verifyKept()` etter installasjon). Defender tok fila igjen 19. sept:
+  «gjenopprett» varer bare til neste skann, det som varer er en ekskludering for stien, og den må eieren legge inn selv fra et
+  ADMINISTRATOR-PowerShell (`Add-MpPreference -ExclusionPath`; uten administrator gir den HRESULT 0xc0000142). Lagt inn 20. sept.
 - EVTC-logger fra ÅPEN VERDEN er kart-logger: mappa heter «<hendelse/kart> (<kart-id>)», id-en i hodet er kart-id og ingen agent
   har den som art, så det finnes ingen boss og ingen mål-DPS (`hasTarget: false`, navn fra mappa). Målt på eierens to logger
   18. sept 2026; `src/evtc.js` ga samme sum som en uavhengig opptelling. Condition-skade ligger på resultatkode 14 i logger,
